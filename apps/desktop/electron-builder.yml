@@ -1,7 +1,7 @@
 appId: dev.innei.kansoku
 productName: Kansoku
 # Brand asset: apps/web/public/brand/kansoku-icon.svg — rebuild with scripts/generate-icon.sh
-icon: build/icon.icns
+icon: build/icon.png
 directories:
   output: release
   buildResources: build
@@ -72,9 +72,6 @@ extraResources:
     to: skills
   - from: dist-agent-kit
     to: kansoku-agent-kit
-extraFiles:
-  - from: node_modules/electron-sparkle-updater/native/vendor/Sparkle.framework
-    to: Frameworks/Sparkle.framework
 asar:
   # The native addon is listed explicitly below. Electron Builder's smart
   # unpacker otherwise expands the match to its package in full.
@@ -82,7 +79,8 @@ asar:
 asarUnpack:
   - '**/node_modules/electron-sparkle-updater/native/build/Release/*.node'
   - 'pro/kansoku_icloud.node'
-# Updates ship via Sparkle, not electron-updater — skip blockmaps for both targets.
+# macOS updates ship via Sparkle; Windows uses the GitHub fallback checker.
+# Skip blockmaps because neither target uses electron-updater differential updates.
 # dmg has a native knob; zip needs the app-builder-lib patch (patches/app-builder-lib@…).
 dmg:
   writeUpdateInfo: false
@@ -90,6 +88,9 @@ zip:
   writeUpdateInfo: false
 mac:
   icon: build/icon.icns
+  extraFiles:
+    - from: node_modules/electron-sparkle-updater/native/vendor/Sparkle.framework
+      to: Frameworks/Sparkle.framework
   # Free default. scripts/packageApp.mjs overrides this with the iCloud
   # entitlement only when stagePro produced the Pro native module.
   entitlements: build/entitlements.mac.inherit.plist
@@ -122,3 +123,16 @@ mac:
       - CFBundleURLName: dev.innei.kansoku
         CFBundleURLSchemes:
           - kansoku
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+    - target: zip
+      arch: [x64]
+  icon: build/icon.png
+  artifactName: Kansoku-${version}-${arch}.${ext}
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  shortcutName: Kansoku

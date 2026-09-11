@@ -42,13 +42,24 @@ function listDirRecursive(root, directory = root) {
   });
 }
 
-function verifyNoPlaintextPro(context) {
-  const appResourcesDir = join(
-    context.appOutDir,
-    `${context.packager.appInfo.productFilename}.app`,
-    'Contents',
-    'Resources',
+function isMacPack(context) {
+  return (
+    context.electronPlatformName === 'darwin' ||
+    context.packager.platform === 'mac' ||
+    context.packager.platform?.name === 'mac'
   );
+}
+
+function verifyNoPlaintextPro(context) {
+  const appResourcesDir =
+    isMacPack(context)
+      ? join(
+          context.appOutDir,
+          `${context.packager.appInfo.productFilename}.app`,
+          'Contents',
+          'Resources',
+        )
+      : join(context.appOutDir, 'resources');
   const asarPath = join(appResourcesDir, 'app.asar');
   const webDistDir = join(appResourcesDir, 'web-dist');
 
@@ -106,6 +117,10 @@ function restoreFrameworkSymlinks(frameworkDir) {
 
 module.exports = async function afterPack(context) {
   verifyNoPlaintextPro(context);
+  // The remaining hook is macOS-specific (Sparkle framework restoration,
+  // iCloud entitlements, and ad-hoc code signing). Windows artifacts are
+  // already complete after electron-builder's normal packaging step.
+  if (!isMacPack(context)) return;
   restoreFrameworkSymlinks(
     join(
       context.appOutDir,

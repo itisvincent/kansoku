@@ -1,13 +1,21 @@
 # Kansoku 桌面版
 
-个人交易日志的图表看板，打包成 macOS 桌面 app（`Kansoku.app`），本地跑内核和
-图表 UI，不需要开着终端敲命令。
+个人交易日志的图表看板，打包成 macOS 或 Windows 桌面 app，本地跑内核和图表 UI，
+不需要开着终端敲命令。
 
 ## 下载与安装
 
-去 [Releases 页面](https://github.com/Innei/kansoku/releases) 下载最新一个
-`desktop-v*` 版本的 `Kansoku-x.y.z-arm64.dmg`，双击挂载，把 `Kansoku.app`
-拖进「应用程序」文件夹。目前只发 Apple Silicon（arm64）版本。
+去 [Releases 页面](https://github.com/Innei/kansoku/releases) 下载对应系统的安装包。
+macOS 使用 `Kansoku-x.y.z-arm64.dmg`；Windows 使用 `Kansoku-x.y.z-x64.exe`，
+运行安装程序即可。Windows 版本当前提供 x64 架构。
+
+在 Windows 上从源码打包：
+
+```bash
+pnpm --filter @kansoku/desktop package:win
+```
+
+产物位于 `apps/desktop/release/`，包括 NSIS 安装程序和 zip。
 
 ## 首次打开：绕过 Gatekeeper 的"应用已损坏"提示
 

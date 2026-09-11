@@ -338,7 +338,9 @@ export async function initUpdater(options: InitUpdaterOptions = {}): Promise<Upd
     return createUpdaterHandle({ mode: 'dev', showMessage, statusStore, log });
   }
 
-  const sparkleBridge = await loadSparkleBridgeForApp(log);
+  // Sparkle is macOS-only. Windows and Linux use the GitHub release fallback
+  // instead of attempting to load the native Sparkle bridge.
+  const sparkleBridge = process.platform === 'darwin' ? await loadSparkleBridgeForApp(log) : null;
   const mode = startUpdater({
     sparkleBridge,
     sparkleOptions: {

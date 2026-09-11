@@ -5,6 +5,11 @@ import { fileURLToPath } from 'node:url';
 
 const desktopRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
+if (process.platform !== 'darwin') {
+  console.log('[ensureDevNative] Sparkle is macOS-only — skipping native bridge build');
+  process.exit(0);
+}
+
 const bridgeRoot = join(desktopRoot, 'node_modules', 'electron-sparkle-updater', 'native');
 const bridgeReady =
   existsSync(join(bridgeRoot, 'build', 'Release', 'sparkle_bridge.node')) &&

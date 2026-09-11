@@ -67,12 +67,16 @@ if (localTestBuild) {
   console.log('stagePro: local test build, throwaway key written to pro/bundle-key.local');
 }
 
-const nativeBuild = spawnSync(
-  'node',
-  [join(proDir, 'scripts', 'buildICloudNative.mjs'), '--out', join(destDir, 'kansoku_icloud.node')],
-  { stdio: 'inherit' },
-);
-if (nativeBuild.status !== 0) process.exit(nativeBuild.status ?? 1);
+if (process.platform === 'darwin') {
+  const nativeBuild = spawnSync(
+    'node',
+    [join(proDir, 'scripts', 'buildICloudNative.mjs'), '--out', join(destDir, 'kansoku_icloud.node')],
+    { stdio: 'inherit' },
+  );
+  if (nativeBuild.status !== 0) process.exit(nativeBuild.status ?? 1);
+} else {
+  console.log('stagePro: skipping iCloud native module on non-macOS platform');
+}
 
 // The plaintext pro chunks must never reach electron-builder — pro.enc is the
 // only artifact that ships. afterPack's canary scan backstops this deletion.

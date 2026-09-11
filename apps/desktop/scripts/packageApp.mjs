@@ -3,8 +3,9 @@ import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const proNative = join(process.cwd(), 'pro', 'kansoku_icloud.node');
-const args = ['--mac', 'dmg', 'zip', '--arm64'];
-if (existsSync(proNative)) {
+const isMac = process.platform === 'darwin';
+const args = isMac ? ['--mac', 'dmg', 'zip', '--arm64'] : ['--win', 'nsis', 'zip', '--x64'];
+if (isMac && existsSync(proNative)) {
   args.push('--config.mac.entitlements=build/entitlements.mac.plist');
 }
 
@@ -22,7 +23,7 @@ function localSigningIdentity() {
   return matches.at(-1)?.[1] ?? null;
 }
 
-if (process.env.KANSOKU_LOCAL_TEST_BUILD === '1' && existsSync(proNative)) {
+if (isMac && process.env.KANSOKU_LOCAL_TEST_BUILD === '1' && existsSync(proNative)) {
   const identity = localSigningIdentity();
   const profile =
     process.env.KANSOKU_PROVISIONING_PROFILE ??
@@ -38,6 +39,19 @@ if (process.env.KANSOKU_LOCAL_TEST_BUILD === '1' && existsSync(proNative)) {
   }
 }
 
-const result = spawnSync('electron-builder', args, { stdio: 'inherit' });
+const builderCommand = join(
+  process.cwd(),
+  'node_modules',
+  '.bin',
+  process.platform === 'win32' ? 'electron-builder.CMD' : 'electron-builder',
+);
+const result =
+  process.platform === 'win32'
+    ? spawnSync(
+        process.env.ComSpec ?? 'cmd.exe',
+        ['/d', '/s', '/c', `"${builderCommand}" ${args.join(' ')}`],
+        { stdio: 'inherit' },
+      )
+    : spawnSync(builderCommand, args, { stdio: 'inherit' });
 if (result.error) throw result.error;
 if (result.status !== 0) process.exit(result.status ?? 1);

@@ -4,17 +4,17 @@
 
 # Kansoku
 
-> 装在你 Mac 上的能查账的 AI 看盘搭子——它说的每句话你都能查：每个结论挂着完整证据链，归档之后不许改口，事后按命中率记分。
+> 装在你电脑上的能查账的 AI 看盘搭子——它说的每句话你都能查：每个结论挂着完整证据链，归档之后不许改口，事后按命中率记分。
 
-**Kansoku（観測）** 是一个 macOS 桌面应用：行情从你自己的长桥账户拉，指标全部本地实算，AI 用你自己配置的模型盯盘、答疑、改研究稿，结论落成本地文件。数据和 key 都不出你的机器。
+**Kansoku（観測）** 是一个 macOS / Windows 桌面应用：行情从你自己的长桥账户拉，指标全部本地实算，AI 用你自己配置的模型盯盘、答疑、改研究稿，结论落成本地文件。数据和 key 都不出你的机器。
 
 ![Kansoku 个股驾驶舱](https://github.com/Innei/kansoku/releases/download/web-preview/app-cockpit.png)
 
 ## 下载安装
 
-去 [Releases](https://github.com/Innei/kansoku/releases) 下载最新 `desktop-v*` 版本的 `Kansoku-x.y.z-arm64.dmg`（macOS · Apple Silicon），拖进「应用程序」即可。应用内置 Sparkle 自动更新（EdDSA 签名 + 增量包），装一次就不用再回来手动下载。
+去 [Releases](https://github.com/Innei/kansoku/releases) 下载对应系统的安装包：macOS 用 `Kansoku-x.y.z-arm64.dmg`，Windows 用 `Kansoku-x.y.z-x64.exe`。macOS 版本内置 Sparkle 自动更新；Windows 版本使用 GitHub 发布检查，发现新版本后打开下载页安装。
 
-前置依赖：本机安装并登录 [longbridge CLI](https://open.longbridge.com/docs/cli/install)（行情和账户数据都走它）。应用当前没有付费开发者签名，首次打开需要右键 →「打开」，详见 [`apps/desktop/README.md`](./apps/desktop/README.md)。
+前置依赖：本机安装并登录 [longbridge CLI](https://open.longbridge.com/docs/cli/install)（行情和账户数据都走它）。macOS 版本当前没有付费开发者签名，首次打开需要右键 →「打开」；Windows 版本可直接运行安装程序。详见 [`apps/desktop/README.md`](./apps/desktop/README.md)。
 
 首次启动有引导：连上长桥数据，再选一个 AI 接入方式（本机 codex 登录态 / LobeHub Cloud / 自带 API key），也可以先跳过。
 
@@ -78,6 +78,7 @@ apps/
 pnpm install     # 首次（仓库根目录）
 pnpm dev         # 浏览器模式：web + server，http://localhost:1792
 pnpm dev:desktop # 桌面模式：web + Electron，不起 server 进程
+pnpm --filter @kansoku/desktop package:win # 在 Windows 上生成安装程序和 zip
 pnpm test        # 全 workspace 测试
 pnpm typecheck   # 全 workspace 类型检查
 ```
