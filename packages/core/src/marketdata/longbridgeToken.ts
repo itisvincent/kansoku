@@ -73,6 +73,22 @@ export async function readMacMachineId(): Promise<string> {
   return match[1];
 }
 
+export async function readWindowsMachineId(): Promise<string> {
+  const { stdout } = await execFileAsync(
+    'reg.exe',
+    ['query', 'HKLM\\SOFTWARE\\Microsoft\\Cryptography', '/v', 'MachineGuid'],
+    { timeout: 5_000, maxBuffer: 64 * 1024 },
+  );
+  const match = stdout.match(/MachineGuid\s+REG_SZ\s+([^\r\n]+)/i);
+  if (!match) throw new LongbridgeTokenError('无法读取 Windows 机器标识', 'TOKEN_UNREADABLE');
+  return match[1].trim();
+}
+
+async function readMachineId(): Promise<string> {
+  if (process.platform === 'win32') return readWindowsMachineId();
+  return readMacMachineId();
+}
+
 function decryptTokenFile(data: Buffer, machineId: string): StoredToken {
   if (
     data.length < MAGIC.length + NONCE_BYTES + TAG_BYTES ||
@@ -128,7 +144,7 @@ export async function readLongbridgeToken(
     if (!data.subarray(0, MAGIC.length).equals(MAGIC)) {
       return parseStoredToken(JSON.parse(data.toString('utf8')) as StoredToken, dcRegion);
     }
-    const machineId = await (deps.machineId ?? readMacMachineId)();
+    const machineId = await (deps.machineId ?? readMachineId)();
     return parseStoredToken(decryptTokenFile(data, machineId), dcRegion);
   } catch (error) {
     if (error instanceof LongbridgeTokenError) throw error;
