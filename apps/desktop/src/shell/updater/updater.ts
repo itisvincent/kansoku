@@ -132,7 +132,7 @@ export function createUpdaterHandle(options: {
               : undefined;
           statusStore.set({
             ...current,
-            phase: event.phase === 'apply' || percent === 100 ? 'preparing' : 'downloading',
+            phase: percent === 100 ? 'preparing' : 'downloading',
             percent,
           });
           break;
