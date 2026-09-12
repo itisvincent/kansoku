@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import type { IntradayBuilt, IntradayTfData, TimeframeKey } from '@kansoku/shared/types';
 
-export type ViewPeriod = '1m' | '30m' | 'day' | 'week' | 'month';
+export type ViewPeriod = '1m' | '30m' | '4h' | 'day' | 'week' | 'month';
 export type ChartTf = TimeframeKey | ViewPeriod;
 
 export const ANALYSIS_TFS: TimeframeKey[] = ['m5', 'm15', 'h1'];
@@ -19,6 +19,7 @@ export const TF_OPTIONS: TfOption[] = [
   { key: 'm15', short: '15m', label: '15 分钟', analysis: true },
   { key: '30m', short: '30m', label: '30 分钟', analysis: false },
   { key: 'h1', short: '1h', label: '1 小时', analysis: true },
+  { key: '4h', short: '4h', label: '4 小时', analysis: false },
   { key: 'day', short: '日', label: '日线', analysis: false },
   { key: 'week', short: '周', label: '周线', analysis: false },
   { key: 'month', short: '月', label: '月线', analysis: false },

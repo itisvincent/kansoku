@@ -6,11 +6,15 @@ import { coerceIntradayTimeframe } from '../analysis/intraday/timeframe.js';
 import { getProvider } from '../marketdata/registry.js';
 import { marketOf } from '../symbols/symbol.utils.js';
 
-export const VIEW_PERIODS = ['1m', '30m', 'day', 'week', 'month'] as const;
+export const VIEW_PERIODS = ['1m', '30m', '4h', 'day', 'week', 'month'] as const;
 export type ViewPeriod = (typeof VIEW_PERIODS)[number];
 
 const DEFAULT_COUNT = 1000;
 const MAX_COUNT = 2000;
+// Longbridge rejects intraday requests above 1,000 candles. A 4h view uses
+// hourly source candles, so the source request is capped while still yielding
+// enough aggregated bars for the requested view.
+const MAX_SOURCE_COUNT = 1000;
 const CACHE_TTL_MS = 5_000;
 const CACHE_MAX_ENTRIES = 48;
 
@@ -39,6 +43,36 @@ function truncateAt(bars: RawBar[], asOf: string | undefined): RawBar[] {
   return bars.filter((b) => Date.parse(b.time) <= cutoff);
 }
 
+function aggregateFourHour(bars: RawBar[]): RawBar[] {
+  const result: RawBar[] = [];
+  let group: RawBar[] = [];
+  const flush = () => {
+    if (!group.length) return;
+    result.push({
+      time: group[0].time,
+      open: group[0].open,
+      high: Math.max(...group.map((bar) => Number(bar.high))),
+      low: Math.min(...group.map((bar) => Number(bar.low))),
+      close: group.at(-1)!.close,
+      volume: group.reduce((sum, bar) => sum + Number(bar.volume), 0),
+    });
+    group = [];
+  };
+
+  for (const bar of bars) {
+    const previous = group.at(-1);
+    // A long gap marks a new market session (overnight/weekend). Do not make
+    // a synthetic candle that spans the gap just because the source is 1h.
+    if (previous && Date.parse(bar.time) - Date.parse(previous.time) > 2 * 60 * 60 * 1000) {
+      flush();
+    }
+    group.push(bar);
+    if (group.length === 4) flush();
+  }
+  flush();
+  return result;
+}
+
 export async function buildViewTimeframe(input: {
   symbol: string;
   period: string;
@@ -61,10 +95,13 @@ export async function buildViewTimeframe(input: {
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_TTL_MS) return hit.value;
 
-  const bars = truncateAt(
-    await getProvider(marketOf(symbol)).getKline(symbol, period, count, 'all'),
+  const sourcePeriod = period === '4h' ? '1h' : period;
+  const sourceCount = period === '4h' ? Math.min(MAX_SOURCE_COUNT, count * 4) : count;
+  const sourceBars = truncateAt(
+    await getProvider(marketOf(symbol)).getKline(symbol, sourcePeriod, sourceCount, 'all'),
     asOf,
   );
+  const bars = period === '4h' ? aggregateFourHour(sourceBars) : sourceBars;
   if (bars.length < MACD_MIN_BARS) {
     throw new ClientError(
       asOf

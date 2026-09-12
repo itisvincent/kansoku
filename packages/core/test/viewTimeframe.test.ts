@@ -51,13 +51,39 @@ describe('buildViewTimeframe', () => {
   it('accepts every whitelisted period and returns a renderable timeframe view', async () => {
     for (const period of VIEW_PERIODS) {
       const result = await buildViewTimeframe({ symbol: `NVDA.US?${period}`, period });
+      const expectedBars = period === '4h' ? 75 : 300;
 
       expect(result.period).toBe(period);
-      expect(result.bars).toBe(300);
-      expect(result.tf.candles).toHaveLength(300);
+      expect(result.bars).toBe(expectedBars);
+      expect(result.tf.candles).toHaveLength(expectedBars);
       expect(result.tf.macdHist.length).toBeGreaterThan(0);
       expect(result.tf.chanStructure).toBeTruthy();
     }
+  });
+
+  it('builds four-hour candles from four consecutive hourly bars', async () => {
+    const source = bars(240).map((bar, i) => ({
+      ...bar,
+      time: new Date(Date.parse(bar.time) + i * 60 * 60 * 1000).toISOString(),
+      open: String(100 + i),
+      high: String(101 + i),
+      low: String(99 + i),
+      close: String(100.5 + i),
+      volume: 10 + i,
+    }));
+    provider.getKline = vi.fn(async () => source);
+
+    const result = await buildViewTimeframe({ symbol: 'FOURH.US', period: '4h' });
+    expect(result.bars).toBe(60);
+    expect(result.tf.candles[0]).toMatchObject({
+      time: Math.floor(Date.parse(source[0].time) / 1000),
+      open: 100,
+      high: 104,
+      low: 99,
+      close: 103.5,
+    });
+    expect(result.tf.volumes[0]?.value).toBe(46);
+    expect(provider.getKline).toHaveBeenCalledWith('FOURH.US', '1h', 1000, 'all');
   });
 
   it('carries no AI overlay — view timeframes are not part of the analysis', async () => {
