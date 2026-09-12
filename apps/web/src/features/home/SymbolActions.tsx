@@ -1,3 +1,4 @@
+import { useLocale } from '../../lib/i18n';
 import { useState } from 'react';
 import { Check, Lock, RadioTower } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
@@ -76,6 +77,7 @@ export function FollowToggle({
   initialFollowing: boolean;
   compact?: boolean;
 }) {
+  const { t: i18n } = useLocale();
   const { state, guard } = useFeature('symbol-follow');
   const { following, busy, statusError, change } = useSymbolFollow({ symbol, initialFollowing });
   const active = following ?? initialFollowing;
@@ -106,9 +108,10 @@ export function FollowToggle({
       title={
         locked
           ? active
-            ? '授权已失效，AI 跟进已暂停；可关闭开关，重新开启需订阅'
-            : 'AI 跟进需要有效授权，点击开关订阅解锁'
-          : (statusError ?? (active ? 'AI 评论员正在后台持续跟进' : 'AI 评论员未在后台跟进'))
+            ? i18n('homeFollowLicenseExpired')
+            : i18n('homeFollowLicenseNeeded')
+          : (statusError ??
+            (active ? i18n('homeAiFollowingActive') : i18n('homeAiFollowingInactive')))
       }
       onClick={onControlClick}
     >
@@ -124,7 +127,7 @@ export function FollowToggle({
       <span
         className={compact ? `sr-only ${stylex.props(styles.visuallyHidden).className}` : undefined}
       >
-        AI 跟进
+        {i18n('homeAiMonitoring')}
       </span>
       {locked && (
         <Lock
@@ -133,7 +136,7 @@ export function FollowToggle({
         />
       )}
       <Switch
-        ariaLabel={`持续跟进 ${symbol} 的 AI 点评`}
+        ariaLabel={i18n('homeFollowSymbol', { symbol })}
         checked={active}
         disabled={busy}
         onCheckedChange={(checked) => {
@@ -149,6 +152,7 @@ export function FollowToggle({
 }
 
 export function ReassessButton({ symbol }: { symbol: string }) {
+  const { t: i18n } = useLocale();
   const [state, setState] = useState<'idle' | 'running' | 'done' | 'failed'>('idle');
 
   const run = async (e: React.MouseEvent) => {
@@ -168,14 +172,15 @@ export function ReassessButton({ symbol }: { symbol: string }) {
   };
 
   const labels: Record<typeof state, React.ReactNode> = {
-    idle: '重新分析',
-    running: '分析中…',
+    idle: i18n('homeReanalyze'),
+    running: i18n('homeAnalysisRunning'),
     done: (
       <>
-        已触发 <Check className={`icon ${stylex.props(styles.reassessIcon).className}`} size={13} />
+        {i18n('homeAnalysisStarted')}
+        <Check className={`icon ${stylex.props(styles.reassessIcon).className}`} size={13} />
       </>
     ),
-    failed: '未启动',
+    failed: i18n('homeAnalysisNotStarted'),
   };
   const label = labels[state];
   const btnStates: Record<typeof state, 'busy' | 'done' | 'failed' | undefined> = {

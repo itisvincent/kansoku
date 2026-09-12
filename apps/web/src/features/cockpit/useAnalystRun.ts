@@ -1,3 +1,5 @@
+import { useLocale } from '@web/lib/i18n';
+import { localizeStatusMessage } from './statusMessages';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getAnalystRunStatus,
@@ -21,6 +23,7 @@ export interface AnalystRunController {
 }
 
 export function useAnalystRun(symbol: string, enabled = true): AnalystRunController {
+  const { locale } = useLocale();
   const [optimisticStartedAt, setOptimisticStartedAt] = useState<number | null>(null);
   const [hint, setHint] = useState<string | null>(null);
   const { pending, reassess } = useReassessSymbol(symbol);
@@ -42,7 +45,7 @@ export function useAnalystRun(symbol: string, enabled = true): AnalystRunControl
       const generation = reconcileGenerationRef.current;
       reconcileTimerRef.current = setTimeout(async () => {
         reconcileTimerRef.current = null;
-        let stillRunning = false;
+        let stillRunning: boolean;
         try {
           stillRunning = (await client.symbols.reassessStatus({ sym })).running;
         } catch {
@@ -98,7 +101,7 @@ export function useAnalystRun(symbol: string, enabled = true): AnalystRunControl
     }
 
     const reason = result.data.reason ?? '';
-    setHint(REASON_TEXT[reason] ?? (reason || '未能启动分析'));
+    setHint(REASON_TEXT[reason] ?? (reason || 'local:cockpitStartFailed'));
   }, [reassess, armReconcileTimer, clearReconcileTimer, symbol]);
 
   let status: RunningReassessStatus | null = serverStatus;
@@ -108,14 +111,14 @@ export function useAnalystRun(symbol: string, enabled = true): AnalystRunControl
       running: true,
       origin: 'manual',
       phase: 'preparing',
-      activity: '正在等待服务端确认任务',
+      activity: localizeStatusMessage('local:cockpitAwaitingServer', locale),
       startedAt,
       updatedAt: startedAt,
     };
   }
 
   return {
-    hint,
+    hint: localizeStatusMessage(hint, locale),
     pending,
     running: status !== null,
     start,

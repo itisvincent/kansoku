@@ -1,3 +1,5 @@
+import { type MessageKey } from '@web/lib/i18n';
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import type { SymbolAnalysisRow } from '@kansoku/shared/types';
 import { NoteBlock } from '@web/ui';
@@ -41,10 +43,10 @@ const styles = stylex.create({
 
 export type ReviewSection = 'history' | 'journal' | 'note';
 
-const SECTIONS: { key: ReviewSection; label: string }[] = [
-  { key: 'history', label: '历史' },
-  { key: 'journal', label: '日志' },
-  { key: 'note', label: '笔记' },
+const SECTIONS: { key: ReviewSection; label: MessageKey }[] = [
+  { key: 'history', label: 'cockpitTabHistory' },
+  { key: 'journal', label: 'cockpitTabJournal' },
+  { key: 'note', label: 'cockpitTabNote' },
 ];
 
 export function ReviewTab({
@@ -68,6 +70,7 @@ export function ReviewTab({
   onSelectJournal: (name: string | null) => void;
   reloadJournal: () => void;
 }) {
+  const { t: i18n } = useLocale();
   const journalByDate = new Map(journal.map((e) => [e.date, e.name] as [string, string]));
   const openJournal = (name: string) => {
     onSelectJournal(name);
@@ -83,13 +86,15 @@ export function ReviewTab({
             className={`${section === s.key ? 'active ' : ''}${stylex.props(styles.switchItem, section === s.key && styles.switchItemActive).className}`}
             onClick={() => onSectionChange(s.key)}
           >
-            {s.label}
+            {i18n(s.label)}
           </button>
         ))}
       </div>
       {section === 'history' &&
         (rows.length === 0 ? (
-          <NoteBlock className={stylex.props(styles.emptyNote).className}>还没有历史分析</NoteBlock>
+          <NoteBlock className={stylex.props(styles.emptyNote).className}>
+            {i18n('cockpitNoHistory')}
+          </NoteBlock>
         ) : (
           <HistoryTab
             symbol={symbol}

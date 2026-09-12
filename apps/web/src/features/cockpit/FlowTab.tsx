@@ -1,3 +1,4 @@
+import { type MessageKey } from '@web/lib/i18n';
 import { useLocale } from '@web/lib/i18n';
 import {
   Bar,
@@ -25,7 +26,11 @@ import * as stylex from '@stylexjs/stylex';
 import { colors, fontSizes } from '../../theme/tokens.stylex';
 import { useIntervalFetch } from './useIntervalFetch';
 
-const BUCKET_LABEL: Record<string, string> = { large: '大单', medium: '中单', small: '小单' };
+const BUCKET_LABEL: Record<string, MessageKey> = {
+  large: 'cockpitLargeOrder',
+  medium: 'cockpitMediumOrder',
+  small: 'cockpitSmallOrder',
+};
 
 const styles = stylex.create({
   chart: {
@@ -69,6 +74,7 @@ function BucketRow({ label, bucket }: { label: string; bucket: CapitalBucket }) 
 }
 
 function FlowMiniChart({ flow }: { flow: CockpitFlow }) {
+  const { t: i18n } = useLocale();
   const { locale } = useLocale();
   const data = flow.curve
     .map((p) => ({ t: p.time, v: p.value }))
@@ -98,7 +104,7 @@ function FlowMiniChart({ flow }: { flow: CockpitFlow }) {
             labelStyle={tooltipLabelStyle}
             itemStyle={tooltipItemStyle}
             labelFormatter={(t) => tooltipTime(Number(t), locale)}
-            formatter={(value) => [Number(value).toLocaleString(), '净流入']}
+            formatter={(value) => [Number(value).toLocaleString(), i18n('cockpitNetInflow')]}
           />
           <ReferenceLine y={0} stroke={colors.borderStrong} />
           <Bar dataKey="v" isAnimationActive={false}>
@@ -113,30 +119,37 @@ function FlowMiniChart({ flow }: { flow: CockpitFlow }) {
 }
 
 export function FlowTab({ symbol }: { symbol: string }) {
+  const { t: i18n } = useLocale();
   const { data: flow, error } = useIntervalFetch<CockpitFlow | null>(
     `symbols.flow:${symbol}`,
     () => client.symbols.flow({ sym: symbol }),
     60_000,
   );
 
-  if (error) return <NoteBlock>资金流数据获取失败：{error}</NoteBlock>;
-  if (!flow) return <NoteBlock>加载中…</NoteBlock>;
+  if (error)
+    return (
+      <NoteBlock>
+        {i18n('cockpitFlowFailed')}
+        {error}
+      </NoteBlock>
+    );
+  if (!flow) return <NoteBlock>{i18n('cockpitLoading')}</NoteBlock>;
 
   return (
     <>
-      <SectionTitle>资金净流入（原始数值，单位未知）</SectionTitle>
+      <SectionTitle>{i18n('cockpitFlowTitle')}</SectionTitle>
       <FlowMiniChart flow={flow} />
       {flow.distribution ? (
         <>
-          <SectionTitle>大/中/小单净额</SectionTitle>
+          <SectionTitle>{i18n('cockpitFlowBuckets')}</SectionTitle>
           <div className={`grid2 ${stylex.props(styles.distribution).className}`}>
-            <BucketRow label={BUCKET_LABEL.large} bucket={flow.distribution.large} />
-            <BucketRow label={BUCKET_LABEL.medium} bucket={flow.distribution.medium} />
-            <BucketRow label={BUCKET_LABEL.small} bucket={flow.distribution.small} />
+            <BucketRow label={i18n(BUCKET_LABEL.large)} bucket={flow.distribution.large} />
+            <BucketRow label={i18n(BUCKET_LABEL.medium)} bucket={flow.distribution.medium} />
+            <BucketRow label={i18n(BUCKET_LABEL.small)} bucket={flow.distribution.small} />
           </div>
         </>
       ) : (
-        <NoteBlock>分布暂不可用</NoteBlock>
+        <NoteBlock>{i18n('cockpitDistributionUnavailable')}</NoteBlock>
       )}
     </>
   );

@@ -1,3 +1,4 @@
+import { useLocale } from '../../lib/i18n';
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { EventCanvasPhase } from '@kansoku/core/contract/events';
@@ -66,12 +67,13 @@ export interface MarketEventTapeProps {
 export function MarketEventTape({
   feed,
   events,
-  emptyText = '暂无已发生的事件',
+  emptyText,
   initialVisible = DEFAULT_VISIBLE,
   onGenerateCanvas,
   onOpenCanvas,
   canvasPhaseOf,
 }: MarketEventTapeProps) {
+  const { t } = useLocale();
   const hosted = useEventCanvasActions();
   const generate = onGenerateCanvas ?? hosted?.onEventCanvas;
   const open = onOpenCanvas ?? hosted?.onOpenCanvas;
@@ -88,16 +90,22 @@ export function MarketEventTape({
     if (next > rows.length && !feed.exhausted && !feed.loadingMore) void feed.loadMore();
   };
 
-  if (feed.status === 'loading') return <NoteBlock>事件流加载中…</NoteBlock>;
-  if (feed.status === 'empty') return <NoteBlock>{emptyText}</NoteBlock>;
+  if (feed.status === 'loading') return <NoteBlock>{t('eventStreamLoading')}</NoteBlock>;
+  if (feed.status === 'empty') return <NoteBlock>{emptyText ?? t('eventNoneOccurred')}</NoteBlock>;
   if (feed.status === 'degraded' && rows.length === 0)
-    return <NoteBlock>事件流已断开，正在重连{feed.error ? `（${feed.error}）` : ''}</NoteBlock>;
+    return (
+      <NoteBlock>
+        {t('eventStreamReconnecting')}
+        {feed.error ? ` (${feed.error})` : ''}
+      </NoteBlock>
+    );
 
   return (
     <div {...stylex.props(styles.root)}>
       {feed.status === 'degraded' && (
         <div {...stylex.props(styles.degraded)} role="status">
-          事件流已断开，下面是最后一次同步的内容{feed.error ? `（${feed.error}）` : ''}
+          {t('eventStreamStale')}
+          {feed.error ? ` (${feed.error})` : ''}
         </div>
       )}
       <div {...stylex.props(styles.rows)}>
@@ -119,7 +127,7 @@ export function MarketEventTape({
           onClick={revealMore}
           type="button"
         >
-          {feed.loadingMore ? '加载中…' : '显示更多事件'}
+          {feed.loadingMore ? t('loading') : t('eventStreamMore')}
         </button>
       )}
     </div>

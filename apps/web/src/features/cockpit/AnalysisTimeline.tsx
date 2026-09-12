@@ -1,6 +1,7 @@
+import { useLocale } from '@web/lib/i18n';
 import type { SymbolAnalysisRow } from '@kansoku/shared/types';
 import { formatMarketMonthDayTime } from '@kansoku/shared/time';
-import { DIRECTION_LABEL } from '@web/features/charts/intraday/directionLabels';
+import { tradeDirectionLabel } from '@web/lib/marketLabels';
 import { Select } from '@web/ui';
 import type { AnalysisViewMode } from './analysisMode';
 
@@ -20,13 +21,14 @@ export function AnalysisTimeline({
   onLive: () => void;
   onSelect: (id: string | null) => void;
 }) {
+  const { t: i18n, locale } = useLocale();
   if (rows.length === 0) return null;
   const options = [
-    { value: LIVE_VALUE, label: '实时' },
-    { value: LATEST_VALUE, label: '最新' },
+    { value: LIVE_VALUE, label: i18n('cockpitLive') },
+    { value: LATEST_VALUE, label: i18n('cockpitLatest') },
     ...rows.map((row) => ({
       value: row.id,
-      label: `${formatMarketMonthDayTime(row.created_at)}${row.direction ? ` · ${DIRECTION_LABEL[row.direction]}` : ''}`,
+      label: `${formatMarketMonthDayTime(row.created_at)}${row.direction ? ` · ${tradeDirectionLabel(row.direction, locale)}` : ''}`,
     })),
   ];
   return (

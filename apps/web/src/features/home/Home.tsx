@@ -1,3 +1,5 @@
+import { marketSessionLabel } from '../../lib/marketLabels';
+import { useLocale } from '../../lib/i18n';
 import { useEffect, useState } from 'react';
 import type {
   ChartMeta,
@@ -126,14 +128,6 @@ const styles = stylex.create({
   },
 });
 
-const SESSION_LABEL: Record<string, string> = {
-  pre: '盘前',
-  regular: '盘中',
-  post: '盘后',
-  overnight: '休市',
-};
-const NOTICE_LABEL: Record<string, string> = { 'chart-not-found': '该图表不存在，已为你返回首页' };
-
 function SectionTitleWithAge({ label, at }: { label: string; at: number | null }) {
   return (
     <SectionTitle variant="home" className="section-title--with-age">
@@ -144,6 +138,7 @@ function SectionTitleWithAge({ label, at }: { label: string; at: number | null }
 }
 
 export function Home() {
+  const { t: i18n, locale } = useLocale();
   useTitle(null);
   const noticeParam = useQueryParam('notice');
   const [notice] = useState(noticeParam);
@@ -162,7 +157,7 @@ export function Home() {
     { kind: 'board' },
     setBoard,
   );
-  const boardError = boardDegraded ? '盘面数据获取失败，正在重试' : null;
+  const boardError = boardDegraded ? i18n('homeMarketBoardRetry') : null;
 
   const [quoteSnap, setQuoteSnap] = useState<QuoteSnapshot | null>(null);
   const { degraded: quotesDegraded, snapshotAt: quotesSnapshotAt } = useWsChannel<QuoteSnapshot>(
@@ -217,7 +212,7 @@ export function Home() {
 
   const flowSection = (
     <>
-      <SectionTitleWithAge label="市场全景" at={quotesSnapshotAt} />
+      <SectionTitleWithAge label={i18n('homeMarketPanorama')} at={quotesSnapshotAt} />
       <MarketPanorama
         quotes={quoteSnap?.quotes ?? []}
         portfolio={portfolio ?? null}
@@ -227,15 +222,15 @@ export function Home() {
   );
   const eventSection = (
     <>
-      <SectionTitle variant="home">事件日历</SectionTitle>
+      <SectionTitle variant="home">{i18n('homeEventCalendar')}</SectionTitle>
       <EventCalendar events={events ?? null} error={eventsError} after={after} />
-      <SectionTitle variant="home">已发生</SectionTitle>
+      <SectionTitle variant="home">{i18n('homePastEvents')}</SectionTitle>
       <HomeEventTimeline live={isToday} />
     </>
   );
   const positionsSection = (
     <>
-      <SectionTitleWithAge label="持仓" at={portfolioAgeAt} />
+      <SectionTitleWithAge label={i18n('homePositions')} at={portfolioAgeAt} />
       <PositionsCard portfolio={portfolio} error={portfolioError} watching={watching} />
     </>
   );
@@ -262,7 +257,7 @@ export function Home() {
         contentClassName={`home-page-content ${contentStyle.className}`}
       >
         <HomeTopStrip
-          sessionLabel={session ? (SESSION_LABEL[session] ?? session) : null}
+          sessionLabel={session ? marketSessionLabel(session, locale) : null}
           date={isToday ? (board?.date ?? date) : date}
           isToday={isToday}
           quotes={quoteSnap?.quotes ?? []}
@@ -271,7 +266,7 @@ export function Home() {
           snapshotAt={quotesSnapshotAt}
           recapDate={recapDate}
         />
-        {notice && NOTICE_LABEL[notice] && <ErrorBox>{NOTICE_LABEL[notice]}</ErrorBox>}
+        {notice === 'chart-not-found' && <ErrorBox>{i18n('homeMissingChart')}</ErrorBox>}
         <QuickBar shortcuts={shortcuts} showGlobalActions={!desktopRealtime} />
         <DateTimeline
           dates={timelineDates}
@@ -279,7 +274,9 @@ export function Home() {
           onSelect={(d) => navigate(`/?date=${d}`, { replace: true })}
         />
         {isToday && !board && !boardError && (
-          <div className={`note-block ${stylex.props(styles.note).className}`}>盘面加载中…</div>
+          <div className={`note-block ${stylex.props(styles.note).className}`}>
+            {i18n('homeMarketBoardLoading')}
+          </div>
         )}
         {isToday && boardError && !board && <ErrorBox>{boardError}</ErrorBox>}
         {!isToday && <RecapBoard date={date} defaultExpanded />}
@@ -287,7 +284,11 @@ export function Home() {
           <div className={`home-grid ${stylex.props(styles.grid).className}`}>
             <div className="home-main">
               <SectionTitleWithAge
-                label={session === 'pre' ? '隔夜行情 · 自选 + 持仓' : '看盘 · 自选 + 持仓'}
+                label={
+                  session === 'pre'
+                    ? i18n('homeOvernightWatchlistPositions')
+                    : i18n('homeWatchlistPositionsBoard')
+                }
                 at={boardSnapshotAt}
               />
               <SymbolGrid
@@ -332,7 +333,7 @@ export function Home() {
               >
                 {hasPositions && positionsSection}
                 {eventSection}
-                <SectionTitleWithAge label="收盘定格" at={boardSnapshotAt} />
+                <SectionTitleWithAge label={i18n('homeClosingSnapshot')} at={boardSnapshotAt} />
                 <WatchBoard board={board} error={boardError} compact />
                 {!hasPositions && positionsSection}
                 <TrainerCard />

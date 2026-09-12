@@ -152,6 +152,7 @@ export function EnvTab({
   benchmarkError,
   relvol,
 }: EnvTabProps) {
+  const { t: i18n } = useLocale();
   const relvolStatus = relvol ? relvolTone(relvol.ratio) : '';
   const positionStatus = position ? upDown(position.unrealized) : '';
 
@@ -159,17 +160,21 @@ export function EnvTab({
     <>
       {relvol && (
         <>
-          <SectionTitle>量能对比（对齐前 {relvol.days_used} 日同时段）</SectionTitle>
+          <SectionTitle>{i18n('cockpitVolumeComparison', { days: relvol.days_used })}</SectionTitle>
           <div className={`grid2 ${stylex.props(styles.grid).className}`}>
-            <div className={`k ${stylex.props(styles.key).className}`}>今天 vs 均值</div>
-            <div className={`v ${valueClassName(relvolStatus)}`}>
-              ×{relvol.ratio.toFixed(2)}
+            <div className={`k ${stylex.props(styles.key).className}`}>
+              {i18n('cockpitTodayAverage')}
             </div>
-            <div className={`k ${stylex.props(styles.key).className}`}>今日累计</div>
+            <div className={`v ${valueClassName(relvolStatus)}`}>×{relvol.ratio.toFixed(2)}</div>
+            <div className={`k ${stylex.props(styles.key).className}`}>
+              {i18n('cockpitCumulative')}
+            </div>
             <div className={`v ${valueClassName()}`}>
               {Math.round(relvol.today_cum).toLocaleString()}
             </div>
-            <div className={`k ${stylex.props(styles.key).className}`}>同时段均值</div>
+            <div className={`k ${stylex.props(styles.key).className}`}>
+              {i18n('cockpitSameTimeAverage')}
+            </div>
             <div className={`v ${valueClassName()}`}>
               {Math.round(relvol.baseline_avg).toLocaleString()}
             </div>
@@ -178,23 +183,27 @@ export function EnvTab({
       )}
       {position && (
         <>
-          <SectionTitle>持仓</SectionTitle>
+          <SectionTitle>{i18n('cockpitPosition')}</SectionTitle>
           <div className={`grid2 ${stylex.props(styles.grid).className}`}>
-            <div className={`k ${stylex.props(styles.key).className}`}>持仓</div>
+            <div className={`k ${stylex.props(styles.key).className}`}>
+              {i18n('cockpitPosition')}
+            </div>
             <div className={`v ${valueClassName()}`}>{position.shares} sh</div>
-            <div className={`k ${stylex.props(styles.key).className}`}>成本</div>
+            <div className={`k ${stylex.props(styles.key).className}`}>{i18n('cockpitCost')}</div>
             <div className={`v ${valueClassName()}`}>${fmt(position.cost)}</div>
-            <div className={`k ${stylex.props(styles.key).className}`}>现价</div>
+            <div className={`k ${stylex.props(styles.key).className}`}>{i18n('cockpitPrice')}</div>
             <div className={`v ${valueClassName()}`}>${fmt(position.last)}</div>
             <div className={`k ${stylex.props(styles.key).className}`}>
-              浮{position.unrealized >= 0 ? '盈' : '亏'}
+              {i18n(position.unrealized >= 0 ? 'cockpitUnrealizedGain' : 'cockpitUnrealizedLoss')}
             </div>
             <div className={`v ${valueClassName(positionStatus)}`}>
               {signed(position.unrealized, 0)} ({signed(position.unrealizedPct)}%)
             </div>
             {position.distances?.stop_pct != null && (
               <>
-                <div className={`k ${stylex.props(styles.key).className}`}>离止损</div>
+                <div className={`k ${stylex.props(styles.key).className}`}>
+                  {i18n('cockpitToStop')}
+                </div>
                 <div className={`v ${valueClassName()}`}>
                   <Num value={position.distances.stop_pct} diff suffix="%" />
                 </div>
@@ -202,7 +211,9 @@ export function EnvTab({
             )}
             {position.distances?.target1_pct != null && (
               <>
-                <div className={`k ${stylex.props(styles.key).className}`}>离目标1</div>
+                <div className={`k ${stylex.props(styles.key).className}`}>
+                  {i18n('cockpitToTarget1')}
+                </div>
                 <div className={`v ${valueClassName()}`}>
                   <Num value={position.distances.target1_pct} diff suffix="%" />
                 </div>
@@ -210,7 +221,9 @@ export function EnvTab({
             )}
             {position.distances?.target2_pct != null && (
               <>
-                <div className={`k ${stylex.props(styles.key).className}`}>离目标2</div>
+                <div className={`k ${stylex.props(styles.key).className}`}>
+                  {i18n('cockpitToTarget2')}
+                </div>
                 <div className={`v ${valueClassName()}`}>
                   <Num value={position.distances.target2_pct} diff suffix="%" />
                 </div>
@@ -221,13 +234,14 @@ export function EnvTab({
       )}
       {positionError && !position && (
         <div className={`note-block ${stylex.props(styles.note).className}`}>
-          持仓数据获取失败：{positionError}
+          {i18n('cockpitPositionFailed')}
+          {positionError}
         </div>
       )}
 
       {!(benchmark && benchmark.length === 0) && (
         <>
-          <SectionTitle>环境对照（相对首点百分比）</SectionTitle>
+          <SectionTitle>{i18n('cockpitBenchmarkTitle')}</SectionTitle>
           {renderBenchmark()}
         </>
       )}
@@ -239,9 +253,14 @@ export function EnvTab({
     if (benchmarkError)
       return (
         <div className={`note-block ${stylex.props(styles.note).className}`}>
-          环境对照数据获取失败：{benchmarkError}
+          {i18n('cockpitBenchmarkFailed')}
+          {benchmarkError}
         </div>
       );
-    return <div className={`note-block ${stylex.props(styles.note).className}`}>加载中…</div>;
+    return (
+      <div className={`note-block ${stylex.props(styles.note).className}`}>
+        {i18n('cockpitLoading')}
+      </div>
+    );
   }
 }

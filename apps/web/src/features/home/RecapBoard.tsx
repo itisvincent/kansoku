@@ -1,3 +1,6 @@
+import type { MessageKey } from '../../lib/i18n';
+import { tradeDirectionLabel } from '../../lib/marketLabels';
+import { useLocale } from '../../lib/i18n';
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { ChevronDown, ChevronRight } from 'lucide-react';
@@ -99,13 +102,12 @@ const styles = stylex.create({
   },
 });
 
-const DIRECTION_LABEL: Record<string, string> = { long: '做多', short: '做空', neutral: '观望' };
-const OUTCOME_LABEL: Record<string, string> = {
-  hit_target: '命中目标',
-  hit_stop: '打到止损',
-  held_range: '守住区间',
-  broke_range: '破区间',
-  open: '未了结',
+const OUTCOME_LABEL: Record<string, MessageKey> = {
+  hit_target: 'homeOutcomeTarget',
+  hit_stop: 'homeOutcomeStop',
+  held_range: 'homeOutcomeHeld',
+  broke_range: 'homeOutcomeBroken',
+  open: 'homeOutcomeOpen',
 };
 const OUTCOME_TONE: Record<string, 'up' | 'down'> = {
   hit_target: 'up',
@@ -115,40 +117,55 @@ const OUTCOME_TONE: Record<string, 'up' | 'down'> = {
 };
 
 function BucketLine({ label, bucket }: { label: string; bucket: StatsBucket }) {
+  const { t: i18n } = useLocale();
   const ranged = (bucket.held_range ?? 0) + (bucket.broke_range ?? 0);
   const resolved = bucket.hit_target + bucket.hit_stop + ranged;
   return (
     <div {...stylex.props(styles.statsLine)}>
       <span {...stylex.props(styles.statsLineKey)}>{label}</span>
       <span {...stylex.props(styles.statsLineValue)}>
-        {bucket.total} 次 · 命中率{' '}
-        {bucket.win_rate == null ? '—' : `${(bucket.win_rate * 100).toFixed(0)}%`}
+        {i18n('homePredictionCountRate', {
+          count: bucket.total,
+          rate: bucket.win_rate == null ? '—' : `${(bucket.win_rate * 100).toFixed(0)}%`,
+        })}
         {resolved > 0 &&
-          `（目标 ${bucket.hit_target} / 止损 ${bucket.hit_stop}${ranged > 0 ? ` / 守区间 ${bucket.held_range} / 破区间 ${bucket.broke_range}` : ''}）`}
-        {bucket.open > 0 && ` · 未了结 ${bucket.open}`}
-        {bucket.avg_pct != null && ` · 了结均值 ${signed(bucket.avg_pct)}%`}
-        {bucket.avg_r != null && ` · 平均盈亏 ${signed(bucket.avg_r)}R/笔`}
+          i18n('homePredictionOutcomes', {
+            targets: bucket.hit_target,
+            stops: bucket.hit_stop,
+            ranges:
+              ranged > 0
+                ? i18n('homePredictionRanges', {
+                    held: bucket.held_range ?? 0,
+                    broken: bucket.broke_range ?? 0,
+                  })
+                : '',
+          })}
+        {bucket.open > 0 && i18n('homeOpenPredictions', { count: bucket.open })}
+        {bucket.avg_pct != null && i18n('homeAvgResolvedReturn', { value: signed(bucket.avg_pct) })}
+        {bucket.avg_r != null && i18n('homeAvgProfitLoss', { value: signed(bucket.avg_r) })}
       </span>
     </div>
   );
 }
 
 function StatsBlock({ stats }: { stats: PredictionStats | null }) {
-  if (!stats) return <NoteBlock>统计加载中…</NoteBlock>;
-  if (stats.total === 0) return <NoteBlock>还没有可统计的预测。</NoteBlock>;
+  const { t: i18n } = useLocale();
+  if (!stats) return <NoteBlock>{i18n('homeStatisticsLoading')}</NoteBlock>;
+  if (stats.total === 0) return <NoteBlock>{i18n('homeNoPredictionsForStats')}</NoteBlock>;
   return (
     <div {...stylex.props(styles.overviewStats)}>
-      <BucketLine label="全部预测" bucket={stats.overall} />
-      <BucketLine label="做多" bucket={stats.by_direction.long} />
-      <BucketLine label="做空" bucket={stats.by_direction.short} />
-      <BucketLine label="观望" bucket={stats.by_direction.neutral} />
-      <BucketLine label="AI 生成" bucket={stats.by_origin.analyst} />
-      <BucketLine label="手动分析" bucket={stats.by_origin.manual} />
+      <BucketLine label={i18n('homeAllPredictions')} bucket={stats.overall} />
+      <BucketLine label={i18n('homeLongDirection')} bucket={stats.by_direction.long} />
+      <BucketLine label={i18n('homeShortDirection')} bucket={stats.by_direction.short} />
+      <BucketLine label={i18n('homeWaitDirection')} bucket={stats.by_direction.neutral} />
+      <BucketLine label={i18n('homeAiGenerated')} bucket={stats.by_origin.analyst} />
+      <BucketLine label={i18n('homeManualAnalysis')} bucket={stats.by_origin.manual} />
     </div>
   );
 }
 
 function SettlementTable({ recap, emptyLabel }: { recap: OverviewRecap; emptyLabel: string }) {
+  const { t: i18n, locale } = useLocale();
   if (recap.settlements.length === 0) return <NoteBlock>{emptyLabel}</NoteBlock>;
   return (
     <div {...stylex.props(styles.settlements)}>
@@ -161,13 +178,15 @@ function SettlementTable({ recap, emptyLabel }: { recap: OverviewRecap; emptyLab
         >
           <span {...stylex.props(styles.rowSymbol)}>{s.symbol.replace(/\.US$/, '')}</span>
           <span {...stylex.props(styles.rowDirection)}>
-            {s.direction ? DIRECTION_LABEL[s.direction] : '—'}
+            {s.direction ? tradeDirectionLabel(s.direction, locale) : '—'}
           </span>
           {s.day_pct != null ? <Num value={s.day_pct} diff suffix="%" /> : <span>—</span>}
           {s.outcome ? (
-            <Badge tone={OUTCOME_TONE[s.outcome.status]}>{OUTCOME_LABEL[s.outcome.status]}</Badge>
+            <Badge tone={OUTCOME_TONE[s.outcome.status]}>
+              {i18n(OUTCOME_LABEL[s.outcome.status])}
+            </Badge>
           ) : (
-            <Badge>无法判定</Badge>
+            <Badge>{i18n('homeUndetermined')}</Badge>
           )}
         </Card>
       ))}
@@ -184,6 +203,7 @@ function AiActivity({
   costLabel: string;
   emptyLabel: string;
 }) {
+  const { t: i18n, locale } = useLocale();
   const usage = recap.usage;
   return (
     <div {...stylex.props(styles.ai)}>
@@ -203,8 +223,12 @@ function AiActivity({
         <span {...stylex.props(styles.statsLineKey)}>{costLabel}</span>
         <span {...stylex.props(styles.statsLineValue)}>
           {usage.runs === 0
-            ? '还没有记录'
-            : `$${usage.cost_total.toFixed(4)} · ${usage.runs} 次运行 · ${usage.total_tokens.toLocaleString()} tokens`}
+            ? i18n('homeNoRecordsYet')
+            : i18n('homeAiUsage', {
+                cost: usage.cost_total.toFixed(4),
+                runs: usage.runs,
+                tokens: usage.total_tokens.toLocaleString(locale),
+              })}
         </span>
       </div>
     </div>
@@ -212,6 +236,7 @@ function AiActivity({
 }
 
 export function RecapBoard({ date, defaultExpanded }: { date: string; defaultExpanded: boolean }) {
+  const { t: i18n } = useLocale();
   const [expanded, setExpanded] = useState(defaultExpanded);
   const isToday = date === marketDate();
   const { data: recap, error } = useIntervalFetch<OverviewRecap>(
@@ -225,10 +250,12 @@ export function RecapBoard({ date, defaultExpanded }: { date: string; defaultExp
     5 * 60_000,
   );
 
-  const title = isToday ? '今日复盘' : `${date.slice(5)} 复盘`;
-  const costLabel = isToday ? '今日 AI 花费' : '当日 AI 花费';
-  const emptySettlements = isToday ? '今天没有跟踪中的标的。' : '当天没有跟踪中的标的。';
-  const emptyAlerts = isToday ? '今天没有 alert 级提醒。' : '当天没有 alert 级提醒。';
+  const title = isToday ? i18n('homeTodayRecap') : i18n('homeRecapDate', { date: date.slice(5) });
+  const costLabel = isToday ? i18n('homeTodayAiCost') : i18n('homeDayAiCost');
+  const emptySettlements = isToday
+    ? i18n('homeNoTrackedSymbolsToday')
+    : i18n('homeNoTrackedSymbolsThatDay');
+  const emptyAlerts = isToday ? i18n('homeNoAlertsToday') : i18n('homeNoAlertsThatDay');
 
   return (
     <div {...stylex.props(styles.board)}>
@@ -246,16 +273,16 @@ export function RecapBoard({ date, defaultExpanded }: { date: string; defaultExp
       {expanded && (
         <>
           {error && <ErrorBox>{error}</ErrorBox>}
-          {!recap && !error && <NoteBlock>复盘加载中…</NoteBlock>}
+          {!recap && !error && <NoteBlock>{i18n('homeRecapLoading')}</NoteBlock>}
           {recap && (
             <>
               <SettlementTable recap={recap} emptyLabel={emptySettlements} />
               <SectionTitle className={stylex.props(styles.subhead).className}>
-                预测战绩（全部历史）
+                {i18n('homeAllTimePredictionResults')}
               </SectionTitle>
               <StatsBlock stats={stats} />
               <SectionTitle className={stylex.props(styles.subhead).className}>
-                AI 活动
+                {i18n('homeAiActivity')}
               </SectionTitle>
               <AiActivity recap={recap} costLabel={costLabel} emptyLabel={emptyAlerts} />
             </>

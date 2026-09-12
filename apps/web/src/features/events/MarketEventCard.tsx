@@ -1,3 +1,4 @@
+import { useLocale, translate, type Locale, type MessageKey } from '../../lib/i18n';
 import { useId } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { EventCanvasPhase } from '@kansoku/core/contract/events';
@@ -24,16 +25,23 @@ function trimmed(value: number): string {
  * How far behind the world our collector was. Null when we saw the event at or
  * before its own timestamp, which is the normal case for scheduled calendar rows.
  */
-export function formatObservedDelay(occurredAt: string, observedAt: string): string | null {
+export function formatObservedDelay(
+  occurredAt: string,
+  observedAt: string,
+  locale: Locale = 'zh-CN',
+): string | null {
   const occurred = Date.parse(occurredAt);
   const observed = Date.parse(observedAt);
   if (Number.isNaN(occurred) || Number.isNaN(observed)) return null;
   const delta = observed - occurred;
   if (delta <= 0) return null;
-  if (delta < MINUTE_MS) return `${Math.round(delta / 1000)} 秒`;
-  if (delta < HOUR_MS) return `${Math.round(delta / MINUTE_MS)} 分钟`;
-  if (delta < DAY_MS) return `${trimmed(delta / HOUR_MS)} 小时`;
-  return `${trimmed(delta / DAY_MS)} 天`;
+  if (delta < MINUTE_MS)
+    return translate(locale, 'eventDelaySeconds', { count: Math.round(delta / 1000) });
+  if (delta < HOUR_MS)
+    return translate(locale, 'eventDelayMinutes', { count: Math.round(delta / MINUTE_MS) });
+  if (delta < DAY_MS)
+    return translate(locale, 'eventDelayHours', { count: trimmed(delta / HOUR_MS) });
+  return translate(locale, 'eventDelayDays', { count: trimmed(delta / DAY_MS) });
 }
 
 export type EventCanvasAction = 'generate' | 'open' | 'running' | 'retry';
@@ -48,18 +56,18 @@ export function eventCanvasAction(
   return 'generate';
 }
 
-const CANVAS_LABEL: Record<EventCanvasAction, string> = {
-  generate: '生成画布',
-  open: '打开画布',
-  running: '生成中…',
-  retry: '重试生成',
+const CANVAS_LABEL: Record<EventCanvasAction, MessageKey> = {
+  generate: 'eventCanvasGenerate',
+  open: 'eventCanvasOpen',
+  running: 'eventCanvasRunning',
+  retry: 'eventCanvasRetry',
 };
 
-const CANVAS_ARIA: Record<EventCanvasAction, (title: string) => string> = {
-  generate: (title) => `生成事件画布：${title}`,
-  open: (title) => `打开事件画布：${title}`,
-  running: (title) => `正在生成事件画布：${title}`,
-  retry: (title) => `重试生成事件画布：${title}`,
+const CANVAS_ARIA: Record<EventCanvasAction, MessageKey> = {
+  generate: 'eventCanvasGenerateTitle',
+  open: 'eventCanvasOpenTitle',
+  running: 'eventCanvasRunningTitle',
+  retry: 'eventCanvasRetryTitle',
 };
 
 const styles = stylex.create({
@@ -209,9 +217,10 @@ export function MarketEventCard({
   onGenerateCanvas,
   onOpenCanvas,
 }: MarketEventCardProps) {
+  const { t, locale } = useLocale();
   const titleId = useId();
   const { payload } = event;
-  const delay = formatObservedDelay(event.occurredAt, event.observedAt);
+  const delay = formatObservedDelay(event.occurredAt, event.observedAt, locale);
   const action = eventCanvasAction(event, canvasPhase);
   const rowProps = stylex.props(
     styles.row,
@@ -235,16 +244,17 @@ export function MarketEventCard({
         <span className={`num ${stylex.props(styles.time).className}`}>
           <MarketTime value={event.occurredAt} format="month-day-time" zone="market" />
         </span>
-        <span {...severityProps}>{EVENT_SEVERITY_LABEL[event.severity]}</span>
+        <span {...severityProps}>{t(EVENT_SEVERITY_LABEL[event.severity])}</span>
       </div>
       <div {...stylex.props(styles.body)}>
         <div {...stylex.props(styles.meta)}>
-          <span {...stylex.props(styles.tag)}>{eventSourceLabel(event.source)}</span>
-          <span {...trustProps}>{EVENT_TRUST_LABEL[event.trust]}</span>
-          <span {...stylex.props(styles.tag)}>{EVENT_CLASS_LABEL[event.class]}</span>
+          <span {...stylex.props(styles.tag)}>{eventSourceLabel(event.source, locale)}</span>
+          <span {...trustProps}>{t(EVENT_TRUST_LABEL[event.trust])}</span>
+          <span {...stylex.props(styles.tag)}>{t(EVENT_CLASS_LABEL[event.class])}</span>
           <span className={`num ${stylex.props(styles.observed).className}`}>
-            观察 <MarketTime value={event.observedAt} format="clock" zone="market" />
-            {delay ? ` · 慢 ${delay}` : ' · 即时'}
+            {t('eventObserved')}{' '}
+            <MarketTime value={event.observedAt} format="clock" zone="market" />
+            {delay ? t('eventDelayed', { delay }) : t('eventImmediate')}
           </span>
         </div>
         <h4 {...stylex.props(styles.title)} id={titleId}>
@@ -266,17 +276,17 @@ export function MarketEventCard({
           <span {...stylex.props(styles.actions)}>
             {payload.url && (
               <a
-                aria-label={`打开原文：${payload.title}`}
+                aria-label={t('eventOpenOriginal', { title: payload.title })}
                 {...stylex.props(styles.action)}
                 href={payload.url}
                 rel="noreferrer noopener"
                 target="_blank"
               >
-                原文
+                {t('eventOriginal')}
               </a>
             )}
             <button
-              aria-label={CANVAS_ARIA[action](payload.title)}
+              aria-label={t(CANVAS_ARIA[action], { title: payload.title })}
               className={`evt-row-action--canvas ${stylex.props(styles.action).className}`}
               disabled={
                 action === 'running' ||
@@ -291,7 +301,7 @@ export function MarketEventCard({
               }}
               type="button"
             >
-              {CANVAS_LABEL[action]}
+              {t(CANVAS_LABEL[action])}
             </button>
           </span>
         </div>

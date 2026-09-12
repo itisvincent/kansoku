@@ -1,3 +1,5 @@
+import { useLocale } from '@web/lib/i18n';
+import { localizeStatusMessage } from '../statusMessages';
 import { useCallback, useEffect, useSyncExternalStore } from 'react';
 import { client } from '@web/lib/client';
 import {
@@ -148,6 +150,7 @@ function useConversationSession(
   id: string,
   enabled = true,
 ): ChatSessionState {
+  const { locale } = useLocale();
   useEffect(() => {
     if (!enabled) return;
     acquire(kind, id);
@@ -161,19 +164,34 @@ function useConversationSession(
 
   const send = useCallback(
     (text: string, options?: { replaceLast?: boolean }) =>
-      sendConversation(kind, id, text, options),
-    [kind, id],
+      sendConversation(kind, id, text, options).then((result) => ({
+        ...result,
+        error: result.error ? localizeStatusMessage(result.error, locale) : result.error,
+      })),
+    [kind, id, locale],
   );
-  const retryLast = useCallback(() => retryLastConversation(kind, id), [kind, id]);
+  const retryLast = useCallback(
+    () =>
+      retryLastConversation(kind, id).then((result) => ({
+        ...result,
+        error: result.error ? localizeStatusMessage(result.error, locale) : result.error,
+      })),
+    [kind, id, locale],
+  );
   const replaceLast = useCallback(
-    (text: string) => replaceLastConversation(kind, id, text),
-    [kind, id],
+    (text: string) =>
+      replaceLastConversation(kind, id, text).then((result) => ({
+        ...result,
+        error: result.error ? localizeStatusMessage(result.error, locale) : result.error,
+      })),
+    [kind, id, locale],
   );
   const abort = useCallback(() => abortConversation(kind, id), [kind, id]);
   const ensureSuggestions = useCallback(() => requestSuggestions(kind, id), [kind, id]);
 
   return {
     ...snapshot,
+    hint: localizeStatusMessage(snapshot.hint, locale),
     send,
     retryLast,
     replaceLast,

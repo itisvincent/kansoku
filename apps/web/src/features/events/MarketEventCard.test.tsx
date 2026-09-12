@@ -3,8 +3,12 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { MarketEvent } from '@kansoku/shared/types';
 import { formatObservedDelay, MarketEventCard } from './MarketEventCard';
+import { LocaleProvider, useLocale } from '../../lib/i18n';
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  localStorage.removeItem('kansoku.locale');
+});
 
 const base: MarketEvent = {
   id: 'evt-1',
@@ -49,6 +53,42 @@ describe('formatObservedDelay', () => {
 });
 
 describe('MarketEventCard', () => {
+  it('translates event metadata and actions live while preserving source content', () => {
+    const event = {
+      ...base,
+      payload: { ...base.payload, title: 'Micron files an 8-K', summary: 'New supply agreement' },
+    };
+    const generate = vi.fn();
+    function EventWithLanguage() {
+      const { locale, setLocale } = useLocale();
+      return (
+        <>
+          <button onClick={() => setLocale(locale === 'en-US' ? 'zh-CN' : 'en-US')}>
+            Switch language
+          </button>
+          <MarketEventCard event={event} onGenerateCanvas={generate} />
+        </>
+      );
+    }
+    const view = render(
+      <LocaleProvider>
+        <EventWithLanguage />
+      </LocaleProvider>,
+    );
+    expect(screen.getByText('Official')).toBeTruthy();
+    expect(screen.getByText('Critical')).toBeTruthy();
+    expect(screen.getByText(/Delay: 3 min/)).toBeTruthy();
+    expect(view.container.textContent).not.toMatch(/[\u4E00-\u9FFF]/);
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Generate event canvas: Micron files an 8-K' }),
+    );
+    expect(generate).toHaveBeenCalledWith(event);
+    fireEvent.click(screen.getByRole('button', { name: 'Switch language' }));
+    expect(screen.getByText('官方')).toBeTruthy();
+    expect(screen.getByText('Micron files an 8-K')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Switch language' }));
+    expect(view.container.textContent).not.toMatch(/[\u4E00-\u9FFF]/);
+  });
   it('shows the headline, summary, source, trust, severity and class', () => {
     render(<MarketEventCard event={base} />);
     expect(screen.getByText('Micron 提交 8-K')).toBeTruthy();
@@ -114,13 +154,7 @@ describe('MarketEventCard', () => {
   });
 
   it('disables the control while a generation is running', () => {
-    render(
-      <MarketEventCard
-        event={base}
-        canvasPhase="running"
-        onGenerateCanvas={() => {}}
-      />,
-    );
+    render(<MarketEventCard event={base} canvasPhase="running" onGenerateCanvas={() => {}} />);
     const action = screen.getByRole('button', { name: '正在生成事件画布：Micron 提交 8-K' });
     expect((action as HTMLButtonElement).disabled).toBe(true);
     expect(action.textContent).toContain('生成中');

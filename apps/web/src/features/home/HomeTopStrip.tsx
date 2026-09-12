@@ -1,3 +1,4 @@
+import { marketSessionLabel } from '../../lib/marketLabels';
 import type { MarketTemp, QuoteCell } from '@kansoku/shared/types';
 import * as stylex from '@stylexjs/stylex';
 import { signed, upDown } from '@web/lib/format';
@@ -120,6 +121,7 @@ const styles = stylex.create({
 });
 
 function IndexCell({ q }: { q: QuoteCell }) {
+  const { locale } = useLocale();
   const tone = q.pct == null ? '' : upDown(q.pct);
   return (
     <a {...stylex.props(styles.indexCell)} href={`/symbol/${encodeURIComponent(q.symbol)}`}>
@@ -131,7 +133,9 @@ function IndexCell({ q }: { q: QuoteCell }) {
       >
         {q.pct == null ? '—' : `${signed(q.pct)}%`}
       </span>
-      {q.session !== '日盘' && <Badge className="qc-session">{q.session}</Badge>}
+      {q.session !== '日盘' && (
+        <Badge className="qc-session">{marketSessionLabel(q.session, locale)}</Badge>
+      )}
     </a>
   );
 }

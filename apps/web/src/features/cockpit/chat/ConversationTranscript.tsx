@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { ArrowDown } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
@@ -163,6 +164,7 @@ function ConversationTranscriptView({
   onEditingChange?: (editing: boolean) => void;
   onViewportScroll?: (scrollTop: number) => void;
 }) {
+  const { t: i18n } = useLocale();
   const bodyRef = useRef<HTMLDivElement>(null);
   const streamSpaceRef = useRef<HTMLDivElement>(null);
   const stickRef = useRef(true);
@@ -373,7 +375,7 @@ function ConversationTranscriptView({
           <button
             type="button"
             className={`chat-scroll-bottom ${stylex.props(styles.scrollBottom).className}`}
-            aria-label="回到底部"
+            aria-label={i18n('chatBottom')}
             onClick={() => {
               const element = bodyRef.current;
               if (!element) return;

@@ -3,8 +3,12 @@ import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { HomeEvents } from '@kansoku/shared/types';
 import { EventCalendar } from './EventCalendar';
+import { LocaleProvider, useLocale } from '../../lib/i18n';
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  localStorage.removeItem('kansoku.locale');
+});
 
 const events: HomeEvents = {
   date: '2026-07-21',
@@ -57,9 +61,57 @@ const events: HomeEvents = {
 };
 
 describe('EventCalendar', () => {
+  it('switches dates and event details between English and Chinese without losing the selected day', () => {
+    const localizedEvents = {
+      ...events,
+      items: events.items.map((item, index) =>
+        index === 0
+          ? {
+              ...item,
+              title: 'Policy announcement',
+              actual: '3.4%',
+              estimate: '3.5%',
+              previous: '3.6%',
+            }
+          : item,
+      ),
+    };
+    function CalendarWithLanguage() {
+      const { locale, setLocale } = useLocale();
+      return (
+        <>
+          <button onClick={() => setLocale(locale === 'en-US' ? 'zh-CN' : 'en-US')}>
+            Switch language
+          </button>
+          <EventCalendar events={localizedEvents} error={null} after={false} />
+        </>
+      );
+    }
+    const view = render(
+      <LocaleProvider>
+        <CalendarWithLanguage />
+      </LocaleProvider>,
+    );
+    expect(screen.getByText('July 2026')).toBeTruthy();
+    expect(screen.getByText('Actual 3.4% · Estimate 3.5% · Previous 3.6%')).toBeTruthy();
+    expect(view.container.textContent).not.toMatch(/[\u4E00-\u9FFF]/);
+    fireEvent.click(screen.getByRole('button', { name: /2026-07-24/ }));
+    expect(screen.queryByText(/Microsoft Q4/)).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Switch language' }));
+    expect(screen.getByText('2026年7月')).toBeTruthy();
+    expect(screen.getByRole('button', { name: /2026-07-24/ }).getAttribute('aria-pressed')).toBe(
+      'true',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Switch language' }));
+    expect(view.container.textContent).not.toMatch(/[\u4E00-\u9FFF]/);
+    fireEvent.click(screen.getByRole('button', { name: 'Next 7 days' }));
+    expect(screen.getByText(/Microsoft Q4/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Next month' }));
+    expect(screen.getByText('August 2026')).toBeTruthy();
+  });
   it('renders month header and defaults to upcoming 7 days', () => {
     render(<EventCalendar events={events} error={null} after={false} />);
-    expect(screen.getByText('2026 · 7 月')).toBeTruthy();
+    expect(screen.getByText('2026年7月')).toBeTruthy();
     expect(screen.getByText('未来 7 天')).toBeTruthy();
     expect(screen.getByText(/Microsoft Q4/)).toBeTruthy();
     expect(screen.getByText(/AMD Q2/)).toBeTruthy();
@@ -70,7 +122,7 @@ describe('EventCalendar', () => {
     render(<EventCalendar events={events} error={null} after={false} />);
     const cell = screen.getByRole('button', { name: /2026-07-24/ });
     fireEvent.click(cell);
-    expect(screen.getByText('7/24 · 周五')).toBeTruthy();
+    expect(screen.getByText('7/24周五')).toBeTruthy();
     expect(screen.getByText(/AMD Q2/)).toBeTruthy();
     expect(screen.queryByText(/Microsoft Q4/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: '未来 7 天' }));
@@ -80,9 +132,9 @@ describe('EventCalendar', () => {
   it('navigates months and shows an empty note when the month has no events', () => {
     render(<EventCalendar events={events} error={null} after={false} />);
     fireEvent.click(screen.getByRole('button', { name: '下月' }));
-    expect(screen.getByText('2026 · 8 月')).toBeTruthy();
+    expect(screen.getByText('2026年8月')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: '下月' }));
-    expect(screen.getByText('2026 · 9 月')).toBeTruthy();
+    expect(screen.getByText('2026年9月')).toBeTruthy();
     expect(screen.getByText(/此月无预告事件/)).toBeTruthy();
   });
 

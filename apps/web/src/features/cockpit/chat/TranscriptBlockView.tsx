@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import { colors, fonts, fontSizes, radii } from '../../../theme/tokens.stylex';
 import { TurnCanvases } from '../../canvas/TurnCanvases';
@@ -159,6 +160,7 @@ export function TranscriptBlockView({
   onSubmitEdit?: (text: string) => void;
   onCancelEdit?: () => void;
 }) {
+  const { t: i18n } = useLocale();
   if (block.type === 'user') {
     return (
       <UserMessageBlock
@@ -287,7 +289,7 @@ export function TranscriptBlockView({
       <div className={`chat-row ${stylex.props(styles.row).className}`}>
         <div
           className={`chat-bubble chat-bubble--assistant chat-thinking ${stylex.props(styles.bubble, styles.assistantBubble, styles.thinking).className}`}
-          aria-label="正在思考"
+          aria-label={i18n('chatThinking')}
         >
           <span className={`chat-thinking-bars ${stylex.props(styles.thinkingBars).className}`}>
             <span {...stylex.props(styles.thinkingBar)} />
@@ -295,7 +297,7 @@ export function TranscriptBlockView({
             <span {...stylex.props(styles.thinkingBar)} />
             <span {...stylex.props(styles.thinkingBar)} />
           </span>
-          <span>分析中</span>
+          <span>{i18n('chatAnalyzing')}</span>
           <span
             className={`chat-thinking-cursor ${stylex.props(styles.thinkingCursor).className}`}
           />

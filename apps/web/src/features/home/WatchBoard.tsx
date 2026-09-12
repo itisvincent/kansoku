@@ -1,3 +1,5 @@
+import { tradeDirectionLabel } from '../../lib/marketLabels';
+import { useLocale } from '../../lib/i18n';
 import type { OverviewBoard, OverviewRow } from '@kansoku/shared/types';
 import * as stylex from '@stylexjs/stylex';
 import { fmt, signed } from '@web/lib/format';
@@ -5,8 +7,6 @@ import { Badge, Card, Dot, Empty, ErrorBox, MarketTime, NoteBlock, Num } from '@
 import { directionTone } from '@web/features/charts/intraday/directionLabels';
 import { colors, fontSizes } from '../../theme/tokens.stylex';
 import { FollowToggle, ReassessButton } from './SymbolActions';
-
-const DIRECTION_LABEL: Record<string, string> = { long: '做多', short: '做空', neutral: '观望' };
 
 const styles = stylex.create({
   watchStrip: {
@@ -80,6 +80,7 @@ function pctCell(value: number | null): string {
 }
 
 function SymbolCard({ row }: { row: OverviewRow }) {
+  const { t: i18n, locale } = useLocale();
   const comment = row.latest_comment;
   return (
     <Card link className="symbol-card" href={`/symbol/${encodeURIComponent(row.symbol)}`}>
@@ -88,7 +89,9 @@ function SymbolCard({ row }: { row: OverviewRow }) {
           {row.symbol}
         </span>
         {row.direction && (
-          <Badge tone={directionTone(row.direction)}>{DIRECTION_LABEL[row.direction]}</Badge>
+          <Badge tone={directionTone(row.direction)}>
+            {tradeDirectionLabel(row.direction, locale)}
+          </Badge>
         )}
         {row.last != null && (
           <span className={`quote ${stylex.props(styles.symbolCardQuote).className}`}>
@@ -102,7 +105,7 @@ function SymbolCard({ row }: { row: OverviewRow }) {
           </span>
         )}
         <FollowToggle symbol={row.symbol} initialFollowing={row.ai_following} />
-        {row.prediction_stale && <Dot tone="accent" title="预测已过期" />}
+        {row.prediction_stale && <Dot tone="accent" title={i18n('homePredictionExpired')} />}
         {row.alert_count > 0 && (
           <Badge
             tone="down"
@@ -113,9 +116,20 @@ function SymbolCard({ row }: { row: OverviewRow }) {
         )}
       </div>
       <div className={`symbol-card-levels ${stylex.props(styles.symbolCardLevels).className}`}>
-        <span>止损 {pctCell(row.stop_distance_pct)}</span>
-        <span>目标1 {pctCell(row.target1_distance_pct)}</span>
-        {row.entry != null && <span>入场 {fmt(row.entry)}</span>}
+        <span>
+          {i18n('homeStopLoss')}
+          {pctCell(row.stop_distance_pct)}
+        </span>
+        <span>
+          {i18n('homeTargetOne')}
+          {pctCell(row.target1_distance_pct)}
+        </span>
+        {row.entry != null && (
+          <span>
+            {i18n('homeEntry')}
+            {fmt(row.entry)}
+          </span>
+        )}
         <ReassessButton symbol={row.symbol} />
       </div>
       {comment && (
@@ -144,10 +158,11 @@ export function WatchBoard({
   error: string | null;
   compact: boolean;
 }) {
+  const { t: i18n, locale } = useLocale();
   if (error) return <ErrorBox>{error}</ErrorBox>;
-  if (!board) return <NoteBlock>看盘数据加载中…</NoteBlock>;
+  if (!board) return <NoteBlock>{i18n('homeWatchBoardLoading')}</NoteBlock>;
   if (board.rows.length === 0) {
-    return <Empty>今天还没有 intraday 分析——去 cockpit 或跑一次 intraday-signal</Empty>;
+    return <Empty>{i18n('homeNoIntradayAnalysisToday')}</Empty>;
   }
   if (compact) {
     return (
@@ -163,7 +178,9 @@ export function WatchBoard({
               {row.symbol.replace(/\.US$/, '')}
             </span>
             {row.direction && (
-              <Badge tone={directionTone(row.direction)}>{DIRECTION_LABEL[row.direction]}</Badge>
+              <Badge tone={directionTone(row.direction)}>
+                {tradeDirectionLabel(row.direction, locale)}
+              </Badge>
             )}
             {row.pct != null && <Num value={row.pct} diff suffix="%" />}
             <FollowToggle symbol={row.symbol} initialFollowing={row.ai_following} compact />

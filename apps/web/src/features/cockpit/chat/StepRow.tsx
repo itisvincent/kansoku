@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { clsx } from 'clsx';
 import * as stylex from '@stylexjs/stylex';
@@ -167,6 +168,7 @@ export function StepRow({
   defaultOpen?: boolean;
   ariaLabel?: string;
 }) {
+  const { t: i18n } = useLocale();
   const [open, setOpen] = useConversationFold(foldId, defaultOpen);
   const hasDetail = Boolean(detail);
 
@@ -185,9 +187,18 @@ export function StepRow({
         className={clsx('chat-step-head', stylex.props(styles.head).className)}
         disabled={!hasDetail}
         caret={hasDetail}
-        aria-label={ariaLabel ?? `${title}，${running ? '进行中' : '已完成'}`}
+        aria-label={
+          ariaLabel ??
+          i18n('chatStepStatus', {
+            title,
+            status: i18n(running ? 'chatStepRunning' : 'chatStepCompleted'),
+          })
+        }
       >
-        <span className={clsx('chat-step-gutter', stylex.props(styles.gutter).className)} aria-hidden="true">
+        <span
+          className={clsx('chat-step-gutter', stylex.props(styles.gutter).className)}
+          aria-hidden="true"
+        >
           <span
             className={clsx(
               'chat-step-dot',
@@ -201,7 +212,10 @@ export function StepRow({
             {title}
           </span>
           {chips?.map((chip) => (
-            <span className={clsx('chat-step-chip', stylex.props(styles.chip).className)} key={chip}>
+            <span
+              className={clsx('chat-step-chip', stylex.props(styles.chip).className)}
+              key={chip}
+            >
               {chip}
             </span>
           ))}
@@ -228,7 +242,7 @@ export function StepRow({
 
 export function StepText({
   foldId,
-  title = '阶段结论',
+  title,
   contentKey,
   children,
 }: {
@@ -237,6 +251,7 @@ export function StepText({
   contentKey: string;
   children: ReactNode;
 }) {
+  const { t: i18n } = useLocale();
   const [open, setOpen] = useConversationFold(foldId);
   const bodyRef = useRef<HTMLDivElement>(null);
   const [clipped, setClipped] = useState(false);
@@ -251,14 +266,24 @@ export function StepText({
   return (
     <div className={clsx('chat-step chat-step--text', stylex.props(styles.step).className)}>
       <div className={clsx('chat-step-head', stylex.props(styles.head).className)}>
-        <span className={clsx('chat-step-gutter', stylex.props(styles.gutter).className)} aria-hidden="true">
-          <span className={clsx('chat-step-dot', stylex.props(styles.dot, styles.dotHollow).className)} />
+        <span
+          className={clsx('chat-step-gutter', stylex.props(styles.gutter).className)}
+          aria-hidden="true"
+        >
+          <span
+            className={clsx('chat-step-dot', stylex.props(styles.dot, styles.dotHollow).className)}
+          />
         </span>
-        <span className={clsx('chat-step-title', stylex.props(styles.title).className)}>{title}</span>
+        <span className={clsx('chat-step-title', stylex.props(styles.title).className)}>
+          {title ?? i18n('chatStageConclusion')}
+        </span>
       </div>
       <div
         ref={bodyRef}
-        className={clsx('chat-step-text', stylex.props(styles.text, !open && styles.textClamped).className)}
+        className={clsx(
+          'chat-step-text',
+          stylex.props(styles.text, !open && styles.textClamped).className,
+        )}
       >
         {children}
       </div>
@@ -268,7 +293,7 @@ export function StepText({
           className={clsx('chat-step-more', stylex.props(styles.more).className)}
           onClick={() => setOpen()}
         >
-          {open ? '收起' : '展开全部'}
+          {open ? i18n('chatCollapse') : i18n('chatExpandAll')}
         </button>
       ) : null}
     </div>

@@ -1,3 +1,4 @@
+import { useLocale } from '../../lib/i18n';
 import type { PortfolioSummary } from '@kansoku/shared/types';
 import * as stylex from '@stylexjs/stylex';
 import { fmt, money, signed, upDown } from '@web/lib/format';
@@ -39,13 +40,13 @@ const styles = stylex.create({
     display: 'contents',
   },
   symbol: {
-    color: colors.textPrimary,
-    fontWeight: 600,
-    textDecoration: {
+    'color': colors.textPrimary,
+    'fontWeight': 600,
+    'textDecoration': {
       'default': 'none',
       ':hover': 'underline',
     },
-    textUnderlineOffset: '3px',
+    'textUnderlineOffset': '3px',
     ':hover': {
       color: colors.accent,
     },
@@ -82,14 +83,21 @@ export function PositionsCard({
   error: string | null;
   watching: Set<string>;
 }) {
-  if (error) return <ErrorBox>持仓拉取失败：{error}</ErrorBox>;
-  if (!portfolio) return <NoteBlock>持仓加载中…</NoteBlock>;
+  const { t: i18n } = useLocale();
+  if (error)
+    return (
+      <ErrorBox>
+        {i18n('homePositionsLoadFailedPrefix')}
+        {error}
+      </ErrorBox>
+    );
+  if (!portfolio) return <NoteBlock>{i18n('homePositionsLoading')}</NoteBlock>;
 
   return (
     <Card className={`positions-card ${stylex.props(styles.card).className}`}>
       <div className={`positions-summary ${stylex.props(styles.summary).className}`}>
         <span>
-          今日{' '}
+          {i18n('homeToday')}{' '}
           <b
             className={`${
               stylex.props(
@@ -102,7 +110,7 @@ export function PositionsCard({
           </b>
         </span>
         <span>
-          总盈亏{' '}
+          {i18n('homeTotalProfitLoss')}{' '}
           <b
             className={`${
               stylex.props(
@@ -115,13 +123,13 @@ export function PositionsCard({
           </b>
         </span>
         <span>
-          市值{' '}
+          {i18n('homeMarketValue')}{' '}
           <b className={stylex.props(styles.summaryValue).className}>
             {money(portfolio.market_cap, 0)}
           </b>
         </span>
         <span>
-          现金{' '}
+          {i18n('homeCash')}{' '}
           <b className={stylex.props(styles.summaryValue).className}>{money(portfolio.cash, 0)}</b>
         </span>
       </div>
@@ -133,12 +141,16 @@ export function PositionsCard({
               href={`/symbol/${encodeURIComponent(p.symbol)}`}
             >
               {watching.has(p.symbol) && (
-                <Dot className={stylex.props(styles.dot).className} title="今日跟踪中" />
+                <Dot
+                  className={stylex.props(styles.dot).className}
+                  title={i18n('homeTrackedToday')}
+                />
               )}
               {p.symbol.replace(/\.US$/, '')}
             </a>
             <span className="detail">
-              {p.quantity} 股 @ {fmt(p.cost_price)}
+              {p.quantity} {i18n('homeSharesAt')}
+              {fmt(p.cost_price)}
             </span>
             <span className={`last ${stylex.props(styles.last).className}`}>{fmt(p.last)}</span>
             <span

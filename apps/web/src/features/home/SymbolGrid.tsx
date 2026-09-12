@@ -1,3 +1,5 @@
+import { marketSessionLabel, tradeDirectionLabel } from '../../lib/marketLabels';
+import { useLocale } from '../../lib/i18n';
 import { useState } from 'react';
 import type {
   HomeEvents,
@@ -15,7 +17,6 @@ import { fmtFlow, fmtFlowLabeled, flowTone } from './flowFormat';
 import { INDEX_SYMBOLS } from './HomeTopStrip';
 import { FollowToggle, ReassessButton } from './SymbolActions';
 
-const DIRECTION_LABEL: Record<string, string> = { long: '做多', short: '做空', neutral: '观望' };
 const EARNINGS_BADGE_DAYS = 7;
 const OPTION_SYMBOL_RE = /\d{6}[CP]\d+/;
 const MOVER_PCT = 3;
@@ -218,6 +219,7 @@ export function buildGridEntries({
 }
 
 function GridCard({ entry }: { entry: GridEntry }) {
+  const { t: i18n, locale } = useLocale();
   const { symbol, quote, row, flow, owned, earningsDate } = entry;
   const flowToneValue = flowTone(flow);
   const flowStyle =
@@ -236,7 +238,9 @@ function GridCard({ entry }: { entry: GridEntry }) {
           {symbol.replace(/\.US$/, '')}
         </span>
         {row?.direction && (
-          <Badge tone={directionTone(row.direction)}>{DIRECTION_LABEL[row.direction]}</Badge>
+          <Badge tone={directionTone(row.direction)}>
+            {tradeDirectionLabel(row.direction, locale)}
+          </Badge>
         )}
         {last != null && (
           <span className={`quote ${stylex.props(styles.symbolCardQuote).className}`}>
@@ -249,17 +253,22 @@ function GridCard({ entry }: { entry: GridEntry }) {
             )}
           </span>
         )}
-        {quote && quote.session !== '日盘' && <Badge className="qc-session">{quote.session}</Badge>}
+        {quote && quote.session !== '日盘' && (
+          <Badge className="qc-session">{marketSessionLabel(quote.session, locale)}</Badge>
+        )}
         {owned && (
-          <Badge className={`hold-badge ${stylex.props(styles.holdBadge).className}`}>持仓</Badge>
+          <Badge className={`hold-badge ${stylex.props(styles.holdBadge).className}`}>
+            {i18n('homePositions')}
+          </Badge>
         )}
         {earningsDate && (
           <Badge tone="accent" className="earnings-badge">
-            财报 {earningsDate.slice(5)}
+            {i18n('homeEarnings')}
+            {earningsDate.slice(5)}
           </Badge>
         )}
         {row && <FollowToggle symbol={symbol} initialFollowing={row.ai_following} />}
-        {row?.prediction_stale && <Dot tone="accent" title="预测已过期" />}
+        {row?.prediction_stale && <Dot tone="accent" title={i18n('homePredictionExpired')} />}
         {row && row.alert_count > 0 && (
           <Badge
             tone="down"
@@ -270,13 +279,21 @@ function GridCard({ entry }: { entry: GridEntry }) {
         )}
       </div>
       <div className={`symbol-card-levels ${stylex.props(styles.symbolCardLevels).className}`}>
-        <span
-          className={flowStyle ? stylex.props(flowStyle).className : undefined}
-        >
-          {fmtFlowLabeled(flow)}
+        <span className={flowStyle ? stylex.props(flowStyle).className : undefined}>
+          {fmtFlowLabeled(flow, locale)}
         </span>
-        {row && <span>止损 {pctCell(row.stop_distance_pct)}</span>}
-        {row && <span>目标1 {pctCell(row.target1_distance_pct)}</span>}
+        {row && (
+          <span>
+            {i18n('homeStopLoss')}
+            {pctCell(row.stop_distance_pct)}
+          </span>
+        )}
+        {row && (
+          <span>
+            {i18n('homeTargetOne')}
+            {pctCell(row.target1_distance_pct)}
+          </span>
+        )}
         {row && <ReassessButton symbol={symbol} />}
       </div>
       {comment && (
@@ -297,6 +314,7 @@ function GridCard({ entry }: { entry: GridEntry }) {
 }
 
 function TailCell({ entry }: { entry: GridEntry }) {
+  const { t: i18n, locale } = useLocale();
   const pct = entry.quote?.pct ?? null;
   const tone = flowTone(entry.flow);
   return (
@@ -318,12 +336,13 @@ function TailCell({ entry }: { entry: GridEntry }) {
             ).className
           }`}
         >
-          {fmtFlow(entry.flow)}
+          {fmtFlow(entry.flow, locale)}
         </span>
       )}
       {entry.earningsDate && (
         <Badge tone="accent" className="earnings-badge">
-          财报 {entry.earningsDate.slice(5)}
+          {i18n('homeEarnings')}
+          {entry.earningsDate.slice(5)}
         </Badge>
       )}
     </a>
@@ -336,9 +355,10 @@ export function SymbolGrid(props: {
   portfolio: PortfolioSummary | null;
   events: HomeEvents | null;
 }) {
+  const { t: i18n } = useLocale();
   const entries = buildGridEntries(props);
   if (!entries.length) {
-    return <Empty>自选和持仓还是空的——去长桥加自选，或在 cockpit 跑一次分析</Empty>;
+    return <Empty>{i18n('homeWatchlistPositionsEmpty')}</Empty>;
   }
   const cards = entries.filter((e) => e.row != null || e.owned);
   const tail = entries.filter((e) => e.row == null && !e.owned);
@@ -360,6 +380,7 @@ export function SymbolGrid(props: {
 }
 
 function MoverTail({ movers, quiet }: { movers: GridEntry[]; quiet: GridEntry[] }) {
+  const { t: i18n } = useLocale();
   const [expanded, setExpanded] = useState(false);
   if (!movers.length && !quiet.length) return null;
   return (
@@ -373,7 +394,9 @@ function MoverTail({ movers, quiet }: { movers: GridEntry[]; quiet: GridEntry[] 
           className={`watch-tail-fold ${stylex.props(styles.tailFold).className}`}
           onClick={() => setExpanded((v) => !v)}
         >
-          {expanded ? '收起 ▴' : `+ ${quiet.length} 只平静 ▾`}
+          {expanded
+            ? i18n('homeCollapseQuietSymbols')
+            : i18n('homeQuietSymbols', { count: quiet.length })}
         </button>
       )}
       {expanded && quiet.map((entry) => <TailCell key={entry.symbol} entry={entry} />)}

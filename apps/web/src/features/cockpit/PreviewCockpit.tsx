@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { ArrowLeft } from 'lucide-react';
@@ -128,6 +129,7 @@ export function PreviewCockpit({
   onLive: () => void;
   onSelectAnalysis: (id: string | null) => void;
 }) {
+  const { t: i18n, locale } = useLocale();
   const symLabel = sym.toUpperCase().replace(/\.US$/, '');
   const desktopShell = isDesktopRealtime();
   const {
@@ -169,7 +171,7 @@ export function PreviewCockpit({
         <p>
           <a className={`back-link ${stylex.props(styles.backLink).className}`} href="/">
             <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} />{' '}
-            返回列表
+            {i18n('cockpitBack')}
           </a>
         </p>
       </div>
@@ -192,7 +194,7 @@ export function PreviewCockpit({
   const sidebarTabs: SidebarTab[] = [
     {
       key: 'prediction',
-      label: '预测',
+      label: i18n('cockpitPrediction'),
       content: built.sidebar.prediction ? (
         <>
           <PredictionTab
@@ -212,20 +214,15 @@ export function PreviewCockpit({
         </>
       ) : analysesRows.length > 0 ? (
         <>
-          <Empty>
-            当前为实时视图——图表会随行情更新；可从右上角切回历史分析，或生成一份当前分析
-          </Empty>
+          <Empty>{i18n('cockpitLiveHelp')}</Empty>
           <GenerateAnalysis sym={sym} />
         </>
       ) : (
-        <GenerateAnalysisCta
-          sym={sym}
-          title="还没有 AI 分析"
-          desc="这只股票还没有分析报告——生成一份，图上会标出关键位和多空判断"
-        />
+        <GenerateAnalysisCta sym={sym} title={i18n('cockpitNoAi')} desc={i18n('cockpitNoAiHelp')} />
       ),
     },
     ...buildSharedSidebarTabs({
+      locale,
       sym,
       sidebar: built.sidebar,
       env,
@@ -256,10 +253,10 @@ export function PreviewCockpit({
             <div className={`topbar-chart ${stylex.props(styles.topbarChart).className}`}>
               <a className={`back-link ${stylex.props(styles.backLink).className}`} href="/">
                 <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} />{' '}
-                列表
+                {i18n('cockpitList')}
               </a>
               <span className={`meta ${stylex.props(styles.topbarMeta).className}`}>{sym}</span>
-              {degraded && <Dot tone="accent" pulse title="数据延迟：行情拉取失败，正在重试" />}
+              {degraded && <Dot tone="accent" pulse title={i18n('cockpitStale')} />}
               <IntradayTimeframeSwitch activeTf={activeIntradayTf} onChange={setIntradayTf} />
               <AnalysisTimeline
                 rows={analysesRows}
@@ -273,7 +270,7 @@ export function PreviewCockpit({
                   className={`tf-load-error ${stylex.props(styles.timeframeLoadError).className}`}
                   title={viewTimeframe.error}
                 >
-                  该周期加载失败
+                  {i18n('cockpitTimeframeFailed')}
                 </span>
               )}
               <span

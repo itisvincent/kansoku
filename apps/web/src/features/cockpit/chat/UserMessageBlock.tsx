@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useEffect, useState } from 'react';
 import type { KeyboardEvent } from 'react';
 import * as stylex from '@stylexjs/stylex';
@@ -135,6 +136,7 @@ export function UserMessageBlock({
   onSubmitEdit?: (text: string) => void;
   onCancelEdit?: () => void;
 }) {
+  const { t: i18n } = useLocale();
   const [active, setActive] = useState(false);
   const [draft, setDraft] = useState(text);
   useEffect(() => {
@@ -174,7 +176,7 @@ export function UserMessageBlock({
             onChange={(event) => setDraft(event.target.value)}
             onKeyDown={onKeyDown}
             rows={1}
-            aria-label="编辑提问"
+            aria-label={i18n('chatEditQuestion')}
           />
           <div className={stylex.props(styles.editBar).className}>
             <button
@@ -182,7 +184,7 @@ export function UserMessageBlock({
               className={stylex.props(styles.cancel).className}
               onClick={onCancelEdit}
             >
-              取消
+              {i18n('chatCancel')}
             </button>
             <button
               type="button"
@@ -190,7 +192,7 @@ export function UserMessageBlock({
               disabled={!draft.trim()}
               onClick={submit}
             >
-              发送
+              {i18n('chatSend')}
             </button>
           </div>
         </>

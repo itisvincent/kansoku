@@ -1,3 +1,5 @@
+import { type MessageKey } from '@web/lib/i18n';
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import { Check, CircleX, Clock, NotebookText } from 'lucide-react';
 import type { OutcomeStatus, SymbolAnalysisRow } from '@kansoku/shared/types';
@@ -5,7 +7,7 @@ import { marketDate } from '@kansoku/shared/time';
 import { fmt, signed } from '@web/lib/format';
 import { marketOfSymbol } from '@web/lib/market';
 import { symbolUrl } from './analysisMode';
-import { DIRECTION_LABEL } from '@web/features/charts/intraday/directionLabels';
+import { tradeDirectionLabel } from '@web/lib/marketLabels';
 import { Badge, MarketTime, SectionTitle } from '@web/ui';
 import { colors, fontSizes } from '../../theme/tokens.stylex';
 
@@ -74,15 +76,19 @@ const styles = stylex.create({
   },
 });
 
-const OUTCOME_LABEL: Record<OutcomeStatus, { icon: typeof Check; tone: string; label: string }> = {
-  hit_target: { icon: Check, tone: 'up', label: '到目标' },
-  hit_stop: { icon: CircleX, tone: 'down', label: '到止损' },
-  held_range: { icon: Check, tone: 'up', label: '守住区间' },
-  broke_range: { icon: CircleX, tone: 'down', label: '破区间' },
-  open: { icon: Clock, tone: '', label: '进行中' },
+const OUTCOME_LABEL: Record<
+  OutcomeStatus,
+  { icon: typeof Check; tone: string; label: MessageKey }
+> = {
+  hit_target: { icon: Check, tone: 'up', label: 'cockpitOutcomeTarget' },
+  hit_stop: { icon: CircleX, tone: 'down', label: 'cockpitOutcomeStop' },
+  held_range: { icon: Check, tone: 'up', label: 'cockpitOutcomeHeld' },
+  broke_range: { icon: CircleX, tone: 'down', label: 'cockpitOutcomeBroke' },
+  open: { icon: Clock, tone: '', label: 'cockpitOutcomeOpen' },
 };
 
 function OutcomeText({ status }: { status: OutcomeStatus }) {
+  const { t: i18n } = useLocale();
   const { icon: Icon, tone, label } = OUTCOME_LABEL[status];
   const toneStyleClassName = stylex.props(
     tone === 'up' && styles.outcomeUp,
@@ -90,7 +96,7 @@ function OutcomeText({ status }: { status: OutcomeStatus }) {
   ).className;
   return (
     <span className={toneStyleClassName}>
-      <Icon className={`icon ${stylex.props(styles.icon).className}`} size={13} /> {label}
+      <Icon className={`icon ${stylex.props(styles.icon).className}`} size={13} /> {i18n(label)}
     </span>
   );
 }
@@ -110,12 +116,13 @@ export function HistoryTab({
   journalByDate,
   onOpenJournal,
 }: HistoryTabProps) {
+  const { t: i18n, locale } = useLocale();
   const market = marketOfSymbol(symbol);
   const journalFor = (row: SymbolAnalysisRow): string | undefined =>
     journalByDate?.get(marketDate(row.created_at));
   return (
     <>
-      <SectionTitle>历史分析</SectionTitle>
+      <SectionTitle>{i18n('cockpitHistory')}</SectionTitle>
       {rows.map((row) => (
         <a
           key={row.id}
@@ -136,16 +143,18 @@ export function HistoryTab({
               <MarketTime value={row.created_at} market={market} />
               {row.id === currentId && (
                 <Badge tone="up" className="p123-badge">
-                  当前
+                  {i18n('cockpitCurrent')}
                 </Badge>
               )}
             </span>
             <span className={`zone-range ${stylex.props(styles.range).className}`}>
-              {row.direction ? DIRECTION_LABEL[row.direction] : '—'}
+              {row.direction ? tradeDirectionLabel(row.direction, locale) : '—'}
             </span>
           </div>
           <div className={`zone-meta md ${stylex.props(styles.meta).className}`}>
-            {row.anchor ? `锚点 $${fmt(row.anchor.price)}` : '无锚点'}
+            {row.anchor
+              ? i18n('cockpitAnchor', { price: fmt(row.anchor.price) })
+              : i18n('cockpitNoAnchor')}
             {' · '}
             {row.outcome ? <OutcomeText status={row.outcome.status} /> : '—'}
             {row.outcome && ` · ${signed(row.outcome.pct_since_anchor)}%`}
@@ -164,7 +173,7 @@ export function HistoryTab({
                     className={`icon ${stylex.props(styles.icon).className}`}
                     size={13}
                   />{' '}
-                  日志
+                  {i18n('cockpitJournal')}
                 </button>
               </>
             )}

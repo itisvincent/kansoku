@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useEffect, useState } from 'react';
 import { ArrowLeft, Bell, ChevronsRight, TriangleAlert } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
@@ -180,6 +181,7 @@ const styles = stylex.create({
 });
 
 export function SymbolCockpit({ sym }: { sym: string }) {
+  const { t: i18n, locale } = useLocale();
   const symLabel = sym.toUpperCase().replace(/\.US$/, '');
   const desktopShell = isDesktopRealtime();
   const market = marketOfSymbol(sym);
@@ -274,7 +276,7 @@ export function SymbolCockpit({ sym }: { sym: string }) {
           <p>
             <a className={`back-link ${stylex.props(styles.backLink).className}`} href="/">
               <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} />{' '}
-              返回列表
+              {i18n('cockpitBack')}
             </a>
           </p>
         </div>
@@ -296,7 +298,7 @@ export function SymbolCockpit({ sym }: { sym: string }) {
         <p>
           <a className={`back-link ${stylex.props(styles.backLink).className}`} href="/">
             <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} />{' '}
-            返回列表
+            {i18n('cockpitBack')}
           </a>
         </p>
       </div>
@@ -313,7 +315,7 @@ export function SymbolCockpit({ sym }: { sym: string }) {
   if (doc.built.kind !== 'intraday')
     return (
       <div className={`page ${stylex.props(styles.page).className}`}>
-        <ErrorBox>该图表格式已不再支持，请重新生成（旧格式重建失败）</ErrorBox>
+        <ErrorBox>{i18n('cockpitOldChart')}</ErrorBox>
       </div>
     );
 
@@ -325,7 +327,7 @@ export function SymbolCockpit({ sym }: { sym: string }) {
   const sidebarTabs: SidebarTab[] = [
     {
       key: 'prediction',
-      label: '预测',
+      label: i18n('cockpitPrediction'),
       content: (
         <>
           <ReanalyzeStrip sym={sym} />
@@ -338,8 +340,8 @@ export function SymbolCockpit({ sym }: { sym: string }) {
             emptyCta={
               <GenerateAnalysisCta
                 sym={sym}
-                title="还没有预测结论"
-                desc="这份图目前只有技术面——生成一份 AI 分析，图上会标出关键位和多空判断"
+                title={i18n('cockpitNoPrediction')}
+                desc={i18n('cockpitNoPredictionHelp')}
               />
             }
           />
@@ -347,6 +349,7 @@ export function SymbolCockpit({ sym }: { sym: string }) {
       ),
     },
     ...buildSharedSidebarTabs({
+      locale,
       sym,
       sidebar: doc.built.sidebar,
       env,
@@ -379,10 +382,10 @@ export function SymbolCockpit({ sym }: { sym: string }) {
             >
               <a className={`back-link ${stylex.props(styles.backLink).className}`} href="/">
                 <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} />{' '}
-                列表
+                {i18n('cockpitList')}
               </a>
               <span className={`meta ${stylex.props(styles.topbarMeta).className}`}>{sym}</span>
-              {degraded && <Dot tone="accent" pulse title="数据延迟：行情拉取失败，正在重试" />}
+              {degraded && <Dot tone="accent" pulse title={i18n('cockpitStale')} />}
               <IntradayTimeframeSwitch activeTf={activeIntradayTf} onChange={setIntradayTf} />
               <AnalysisTimeline
                 rows={analysesRows}
@@ -396,13 +399,13 @@ export function SymbolCockpit({ sym }: { sym: string }) {
                   className={`load-forward-btn ${stylex.props(styles.loadForwardButton).className}`}
                   disabled={forwardBusy}
                   onClick={loadForward}
-                  title="历史图表默认冻结在分析时的走势，点击加载分析日之后的 K 线到最新"
+                  title={i18n('cockpitFrozenHelp')}
                 >
                   <ChevronsRight
                     size={14}
                     className={`load-forward-icon ${stylex.props(styles.loadForwardIcon).className}`}
                   />
-                  <span>{forwardBusy ? '加载中…' : '加载后续 K 线'}</span>
+                  <span>{forwardBusy ? i18n('cockpitLoading') : i18n('cockpitLaterCandles')}</span>
                 </button>
               )}
               {viewTimeframe.error && (
@@ -410,7 +413,7 @@ export function SymbolCockpit({ sym }: { sym: string }) {
                   className={`tf-load-error ${stylex.props(styles.timeframeError).className}`}
                   title={viewTimeframe.error}
                 >
-                  该周期加载失败
+                  {i18n('cockpitTimeframeFailed')}
                 </span>
               )}
               <span
@@ -437,7 +440,7 @@ export function SymbolCockpit({ sym }: { sym: string }) {
                   <span
                     className={`alert-badge-text ${stylex.props(styles.alertBadgeText).className}`}
                   >
-                    有新分析
+                    {i18n('cockpitNewAnalysis')}
                   </span>
                 </button>
               )}
@@ -445,7 +448,10 @@ export function SymbolCockpit({ sym }: { sym: string }) {
                 <Tooltip
                   content={
                     <>
-                      AI {latestAlert.level === 'alert' ? '警报' : '提醒'}{' '}
+                      AI{' '}
+                      {latestAlert.level === 'alert'
+                        ? i18n('cockpitAlert')
+                        : i18n('cockpitReminder')}{' '}
                       <MarketTime value={latestAlert.ts} format="clock" market={market} /> ·{' '}
                       {latestAlert.trigger ?? latestAlert.text}
                     </>
@@ -454,7 +460,12 @@ export function SymbolCockpit({ sym }: { sym: string }) {
                   <button
                     className={`badge badge--${latestAlert.level === 'alert' ? 'down' : 'accent'} alert-badge alert-badge--icon ${stylex.props(styles.alertBadge, styles.alertBadgeIcon).className}`}
                     onClick={() => setActiveTab('ai')}
-                    aria-label={`AI ${latestAlert.level === 'alert' ? '警报' : '提醒'}：${latestAlert.text}`}
+                    aria-label={i18n('cockpitAiAlert', {
+                      level: i18n(
+                        latestAlert.level === 'alert' ? 'cockpitAlert' : 'cockpitReminder',
+                      ),
+                      text: latestAlert.text,
+                    })}
                   >
                     <Dot tone={latestAlert.level === 'alert' ? 'down' : 'accent'} pulse />
                     {latestAlert.level === 'alert' ? (

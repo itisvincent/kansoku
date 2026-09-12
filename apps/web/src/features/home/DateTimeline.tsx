@@ -1,3 +1,5 @@
+import type { Locale } from '../../lib/i18n';
+import { useLocale } from '../../lib/i18n';
 import { useLayoutEffect, useRef, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { colors, fontSizes, fonts, radii } from '../../theme/tokens.stylex';
@@ -117,16 +119,18 @@ const styles = stylex.create({
 
 export type TimelineItem = { date: string; day: string; monthLabel: string | null };
 
-export function buildTimelineItems(datesAsc: string[]): TimelineItem[] {
+export function buildTimelineItems(datesAsc: string[], locale: Locale = 'zh-CN'): TimelineItem[] {
   const newestYear = datesAsc.length > 0 ? datesAsc.at(-1)!.slice(0, 4) : '';
   return datesAsc.map((date, i) => {
     const [y, m, d] = date.split('-');
     const prev = datesAsc[i - 1];
     const isMonthStart = !prev || prev.slice(0, 7) !== date.slice(0, 7);
     const monthLabel = isMonthStart
-      ? y === newestYear
-        ? `${Number(m)}月`
-        : `${y}年${Number(m)}月`
+      ? new Intl.DateTimeFormat(locale, {
+          month: 'short',
+          ...(y === newestYear ? {} : { year: 'numeric' as const }),
+          timeZone: 'UTC',
+        }).format(new Date(Date.UTC(Number(y), Number(m) - 1, 1)))
       : null;
     return { date, day: String(Number(d)), monthLabel };
   });
@@ -141,9 +145,10 @@ export function DateTimeline({
   selected: string;
   onSelect: (date: string) => void;
 }) {
+  const { t: i18n, locale } = useLocale();
   const [expanded, setExpanded] = useState(TIMELINE_PAGE);
   const count = Math.min(dates.length, Math.max(expanded, dates.indexOf(selected) + 1));
-  const items = buildTimelineItems(dates.slice(0, count).reverse());
+  const items = buildTimelineItems(dates.slice(0, count).reverse(), locale);
   const remaining = dates.length - count;
 
   const scrollerRef = useRef<HTMLDivElement>(null);
@@ -163,7 +168,7 @@ export function DateTimeline({
             {...stylex.props(styles.earlier)}
             onClick={() => setExpanded(count + TIMELINE_PAGE)}
           >
-            更早
+            {i18n('homeEarlier')}
           </button>
         )}
         {items.map((it, i) => (

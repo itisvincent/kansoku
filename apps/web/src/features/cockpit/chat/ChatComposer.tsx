@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { ArrowUp, Square } from 'lucide-react';
@@ -173,6 +174,7 @@ export function ChatComposer({
   onValueDetail,
   onKeyDownIntercept,
 }: ChatComposerProps) {
+  const { t: i18n } = useLocale();
   const prefersReducedMotion = useReducedMotion();
   const fieldDisabled = (busy && !allowInputWhileBusy) || disabled;
   const actionDisabled = aborting || (busy ? false : !value.trim() || disabled);
@@ -214,7 +216,7 @@ export function ChatComposer({
         color: busy ? colors.textBright : actionDisabled ? colors.textMuted : '#000',
         flexShrink: 0,
       }}
-      aria-label={busy ? '停止生成' : '发送'}
+      aria-label={busy ? i18n('chatStop') : i18n('chatSend')}
       disabled={actionDisabled}
       onClick={busy ? onAbort : () => onSubmit(value)}
     >

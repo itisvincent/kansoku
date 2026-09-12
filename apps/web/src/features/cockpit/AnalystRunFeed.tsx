@@ -1,3 +1,5 @@
+import { type MessageKey } from '@web/lib/i18n';
+import { useLocale } from '@web/lib/i18n';
 import type {
   AnalystActivity,
   ContextSection,
@@ -12,23 +14,23 @@ import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
 import { PHASE_LABEL } from './AnalysisRunDetails';
 import { useAnalystRunLastEnded, useAnalystRunStatus } from './analystRunsStore';
 
-const TIMEFRAME_LABEL: Record<string, string> = {
-  m5: '5 分钟',
-  m15: '15 分钟',
-  h1: '1 小时',
-  day: '日线',
+const TIMEFRAME_LABEL: Record<string, MessageKey> = {
+  m5: 'cockpitTf5m',
+  m15: 'cockpitTf15m',
+  h1: 'cockpitTf1h',
+  day: 'cockpitTfDay',
 };
 
-const TREND_LABEL: Record<string, string> = {
-  up: '向上',
-  down: '向下',
-  sideways: '震荡',
+const TREND_LABEL: Record<string, MessageKey> = {
+  up: 'cockpitTrendUp',
+  down: 'cockpitTrendDown',
+  sideways: 'cockpitTrendSideways',
 };
 
-const BIAS_LABEL: Record<string, string> = {
-  bullish: '利多',
-  bearish: '利空',
-  neutral: '中性',
+const BIAS_LABEL: Record<string, MessageKey> = {
+  bullish: 'cockpitBiasBullish',
+  bearish: 'cockpitBiasBearish',
+  neutral: 'cockpitBiasNeutral',
 };
 
 const BIAS_TONE: Record<string, 'up' | 'down' | 'muted'> = {
@@ -161,13 +163,14 @@ const styles = stylex.create({
 });
 
 function MidReadBadge() {
+  const { t: i18n } = useLocale();
   return (
     <Badge
       tone="muted"
       className={stylex.props(styles.midBadge).className}
-      title="最终结论可能修正"
+      title={i18n('cockpitPreliminaryHelp')}
     >
-      中间读数
+      {i18n('cockpitPreliminary')}
     </Badge>
   );
 }
@@ -195,11 +198,12 @@ function CardSkeleton({ rows }: { rows: number }) {
 }
 
 function TechnicalCard({ section }: { section: TechnicalSection | undefined }) {
+  const { t: i18n } = useLocale();
   return (
     <Card className="analyst-run-card--technical">
       <div {...stylex.props(styles.cardHead)}>
         <SectionTitle className={stylex.props(styles.cardHeadTitle).className}>
-          技术面读数
+          {i18n('cockpitTechnical')}
         </SectionTitle>
         <MidReadBadge />
       </div>
@@ -212,7 +216,8 @@ function TechnicalCard({ section }: { section: TechnicalSection | undefined }) {
                   key={t.timeframe}
                   className={`chip ${stylex.props(styles.trendChip).className}`}
                 >
-                  {TIMEFRAME_LABEL[t.timeframe] ?? t.timeframe} · {TREND_LABEL[t.trend] ?? t.trend}
+                  {TIMEFRAME_LABEL[t.timeframe] ? i18n(TIMEFRAME_LABEL[t.timeframe]) : t.timeframe}{' '}
+                  · {TREND_LABEL[t.trend] ? i18n(TREND_LABEL[t.trend]) : t.trend}
                 </span>
               ))}
             </div>
@@ -237,11 +242,12 @@ function TechnicalCard({ section }: { section: TechnicalSection | undefined }) {
 }
 
 function ContextCard({ section }: { section: ContextSection | undefined }) {
+  const { t: i18n } = useLocale();
   return (
     <Card className="analyst-run-card--context">
       <div {...stylex.props(styles.cardHead)}>
         <SectionTitle className={stylex.props(styles.cardHeadTitle).className}>
-          消息与资金面
+          {i18n('cockpitContext')}
         </SectionTitle>
         <MidReadBadge />
       </div>
@@ -251,7 +257,7 @@ function ContextCard({ section }: { section: ContextSection | undefined }) {
             tone={BIAS_TONE[section.bias]}
             className={stylex.props(styles.biasBadge).className}
           >
-            {BIAS_LABEL[section.bias] ?? section.bias}
+            {BIAS_LABEL[section.bias] ? i18n(BIAS_LABEL[section.bias]) : section.bias}
           </Badge>
           {section.summary && <p {...stylex.props(styles.summary)}>{section.summary}</p>}
         </>
@@ -275,20 +281,21 @@ function ActivityFeed({
   phase?: ReassessPhase;
   activity?: string;
 }) {
+  const { t: i18n } = useLocale();
   const market = marketOfSymbol(sym);
   const visible = activities.slice().reverse().slice(0, ACTIVITY_LIMIT);
 
   return (
     <div {...stylex.props(styles.feedSection)}>
-      <SectionTitle>分析进度</SectionTitle>
+      <SectionTitle>{i18n('cockpitProgress')}</SectionTitle>
       {running && activity && (
         <div {...stylex.props(styles.feedPhase)}>
-          {phase && <span>{PHASE_LABEL[phase]} · </span>}
+          {phase && <span>{i18n(PHASE_LABEL[phase])} · </span>}
           <span>{activity}</span>
         </div>
       )}
       {visible.length === 0 ? (
-        <Empty>还没有动态</Empty>
+        <Empty>{i18n('cockpitNoActivity')}</Empty>
       ) : (
         <div {...stylex.props(styles.feedList)}>
           {visible.map((entry, i) => (
@@ -317,6 +324,7 @@ function ActivityFeed({
 }
 
 export function AnalystRunFeed({ sym }: { sym: string }) {
+  const { t: i18n } = useLocale();
   const status = useAnalystRunStatus(sym);
   const lastEnded = useAnalystRunLastEnded(sym);
   const source = status ?? lastEnded;
@@ -328,7 +336,9 @@ export function AnalystRunFeed({ sym }: { sym: string }) {
 
   return (
     <div className={`analyst-run-feed ${stylex.props(styles.root).className}`}>
-      {!running && <ErrorBox {...stylex.props(styles.banner)}>分析未完成</ErrorBox>}
+      {!running && (
+        <ErrorBox {...stylex.props(styles.banner)}>{i18n('cockpitIncomplete')}</ErrorBox>
+      )}
       <TechnicalCard section={sections.technical} />
       <ContextCard section={sections.context} />
       <ActivityFeed

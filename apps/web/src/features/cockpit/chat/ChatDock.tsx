@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
@@ -91,6 +92,7 @@ interface ChatDockProps {
 }
 
 export function ChatDock({ chartId, docCreatedAt }: ChatDockProps) {
+  const { t: i18n } = useLocale();
   const {
     session,
     rows,
@@ -158,7 +160,7 @@ export function ChatDock({ chartId, docCreatedAt }: ChatDockProps) {
       onChange={setText}
       busy={busy}
       aborting={aborting}
-      placeholder="就这份分析继续追问…"
+      placeholder={i18n('chatAskPlaceholder')}
       disabled={editing}
       onSubmit={(value) => void submit(value)}
       onAbort={() => void abort()}
@@ -182,7 +184,7 @@ export function ChatDock({ chartId, docCreatedAt }: ChatDockProps) {
       exit={{ opacity: 0, y: 8, scale: 0.97 }}
       transition={{ duration: 0.2, ease: [0.2, 0.9, 0.3, 1] }}
       role="dialog"
-      aria-label="追问面板"
+      aria-label={i18n('chatPanel')}
     >
       {mode === 'float' && (
         <>

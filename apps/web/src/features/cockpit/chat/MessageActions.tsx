@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { Check, Copy, Pencil, RotateCcw } from 'lucide-react';
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
@@ -78,6 +79,7 @@ export function MessageActions({
   retryDisabled?: boolean;
   editDisabled?: boolean;
 }) {
+  const { t: i18n } = useLocale();
   const [copied, setCopied] = useState(false);
 
   return (
@@ -95,7 +97,7 @@ export function MessageActions({
       <button
         type="button"
         className={stylex.props(styles.button).className}
-        aria-label={copied ? '已复制' : '复制'}
+        aria-label={copied ? i18n('chatCopied') : i18n('chatCopy')}
         onClick={() => {
           void navigator.clipboard.writeText(text).then(() => {
             setCopied(true);
@@ -109,7 +111,7 @@ export function MessageActions({
         <button
           type="button"
           className={stylex.props(styles.button).className}
-          aria-label="编辑"
+          aria-label={i18n('chatEdit')}
           disabled={editDisabled}
           onClick={onEdit}
         >
@@ -120,7 +122,7 @@ export function MessageActions({
         <button
           type="button"
           className={stylex.props(styles.button).className}
-          aria-label="重试"
+          aria-label={i18n('chatRetry')}
           disabled={retryDisabled}
           onClick={onRetry}
         >

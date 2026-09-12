@@ -11,4 +11,10 @@ describe('formatElapsedDuration', () => {
   it('clamps future start times to zero', () => {
     expect(formatElapsedDuration(-5_000)).toBe('0 秒');
   });
+
+  it('formats elapsed time in English without changing the duration', () => {
+    expect(formatElapsedDuration(9_900, 'en-US')).toBe('9 sec');
+    expect(formatElapsedDuration(65_000, 'en-US')).toBe('1 min 05 sec');
+    expect(formatElapsedDuration(3_723_000, 'en-US')).toBe('1 hr 02 min 03 sec');
+  });
 });

@@ -1,3 +1,5 @@
+import type { MessageKey, MessageParams } from '../../lib/i18n';
+import { useLocale } from '../../lib/i18n';
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import { GraduationCap } from 'lucide-react';
@@ -74,40 +76,55 @@ function copyFor(
   pool: number | null,
   open: () => void,
   refill: () => void,
+  i18n: (key: MessageKey, params?: MessageParams) => string,
 ): CardCopy {
   const task = fill.task;
   if (task?.status === 'running') {
     return {
-      hint: `${task.activity} · 已入池 ${task.admitted}`,
-      action: '补货中…',
+      hint: i18n('homeAdmittedCases', { activity: task.activity, count: task.admitted }),
+      action: i18n('homeRefillingCases'),
       onAction: () => {},
       disabled: true,
       cancel: true,
     };
   }
   if (pool != null && pool > 0) {
-    return { hint: `案例池还有 ${pool} 局`, action: '开一局', onAction: open };
+    return {
+      hint: i18n('homeCasesAvailable', { count: pool }),
+      action: i18n('homeStartTrainingSession'),
+      onAction: open,
+    };
   }
   // The self-suspended state has to be spoken out loud, otherwise the user meets a
   // pool that silently stopped refilling and has nowhere to look.
   if (fill.autoRefillSuspended) {
-    return { hint: '连续两次没补到，自动补货已暂停', action: '手动补货', onAction: refill };
+    return {
+      hint: i18n('homeCaseRefillSuspended'),
+      action: i18n('homeRefillCasesManually'),
+      onAction: refill,
+    };
   }
   if (task?.status === 'failed') {
     return {
-      hint: `上次补货失败：${task.error ?? '未知原因'}`,
-      action: '重试补货',
+      hint: i18n('homeCaseRefillError', { error: task.error ?? i18n('homeUnknownReason') }),
+      action: i18n('homeRetryCaseRefill'),
       onAction: refill,
     };
   }
   if (task?.status === 'done' && task.admitted === 0) {
-    return { hint: '上次补货没找到合规案例', action: '重试补货', onAction: refill };
+    return {
+      hint: i18n('homeNoSuitableCasesFound'),
+      action: i18n('homeRetryCaseRefill'),
+      onAction: refill,
+    };
   }
-  if (pool === null) return { hint: '案例池读取中…', action: '补货', onAction: refill };
-  return { hint: '案例池是空的', action: '补货', onAction: refill };
+  if (pool === null)
+    return { hint: i18n('homeCasePoolLoading'), action: i18n('homeRefillCases'), onAction: refill };
+  return { hint: i18n('homeCasePoolEmpty'), action: i18n('homeRefillCases'), onAction: refill };
 }
 
 export function TrainerCard() {
+  const { t: i18n } = useLocale();
   const { pro, licensed } = useCapabilities();
   const [pool, setPool] = useState<number | null>(null);
   const ready = pro === true && licensed;
@@ -140,16 +157,17 @@ export function TrainerCard() {
         pool,
         () => requestTrainerWindow(openBridge, { pro, licensed }),
         () => fill.startFill(BASE_PERIOD, Math.max(1, REFILL_TARGET - (pool ?? 0))),
+        i18n,
       )
     : {
-        hint: '订阅后可用',
-        action: '了解订阅',
+        hint: i18n('homeAvailableWithSubscription'),
+        action: i18n('homeViewSubscriptionOptions'),
         onAction: () => requestTrainerWindow(openBridge, { pro, licensed }),
       };
 
   return (
     <>
-      <SectionTitle>盲盘训练</SectionTitle>
+      <SectionTitle>{i18n('homeBlindTraining')}</SectionTitle>
       <Card className={`trainer-card ${stylex.props(styles.card).className}`}>
         <div className={`trainer-card-body ${stylex.props(styles.body).className}`}>
           <GraduationCap {...stylex.props(styles.bodyIcon)} size={18} aria-hidden />
@@ -166,7 +184,7 @@ export function TrainerCard() {
               className={`trainer-card-cancel ${stylex.props(styles.cancel).className}`}
               onClick={fill.abortFill}
             >
-              取消
+              {i18n('homeCancel')}
             </Button>
           )}
           {licensed && (
@@ -174,7 +192,7 @@ export function TrainerCard() {
               className={`trainer-card-stats ${stylex.props(styles.stats).className}`}
               to="/training/stats"
             >
-              统计 →
+              {i18n('homeViewTrainingStats')}
             </Link>
           )}
         </div>

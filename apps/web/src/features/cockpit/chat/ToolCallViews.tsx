@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import { colors, fonts, fontSizes, radii } from '../../../theme/tokens.stylex';
 import { StepRow } from './StepRow.js';
@@ -37,12 +38,13 @@ function ToolDetail({ label, body }: { label: string; body: string }) {
 }
 
 export function ToolRow({ tool }: { tool: PresentedTool }) {
-  const presentation = presentToolCall(tool.label, tool.input);
+  const { t: i18n, locale } = useLocale();
+  const presentation = presentToolCall(tool.label, tool.input, locale);
   const detail =
     tool.input || tool.output ? (
       <>
-        {tool.input ? <ToolDetail label="原始请求" body={tool.input} /> : null}
-        {tool.output ? <ToolDetail label="原始响应" body={tool.output} /> : null}
+        {tool.input ? <ToolDetail label={i18n('chatRequest')} body={tool.input} /> : null}
+        {tool.output ? <ToolDetail label={i18n('chatResponse')} body={tool.output} /> : null}
       </>
     ) : null;
 

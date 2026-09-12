@@ -1,3 +1,4 @@
+import { useLocale } from '../../lib/i18n';
 import { useMemo } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { MarketEvent } from '@kansoku/shared/types';
@@ -32,6 +33,7 @@ export function HomeEventTimeline({
   live: boolean;
   onGenerateCanvas?: (event: MarketEvent) => void;
 }) {
+  const { t: i18n } = useLocale();
   const feed = useMarketEventFeed({ live });
   const health = useEventSourceHealth(live);
   // The calendar above already owns the future; this half of the section is the
@@ -41,7 +43,7 @@ export function HomeEventTimeline({
   return (
     <div {...stylex.props(styles.root)}>
       <MarketEventTape
-        emptyText="今天还没有已发生的市场事件"
+        emptyText={i18n('homeNoMarketEventsToday')}
         events={occurred}
         feed={feed}
         initialVisible={HOME_EVENT_VISIBLE}

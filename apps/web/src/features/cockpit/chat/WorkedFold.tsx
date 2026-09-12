@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { type ReactNode } from 'react';
 import { clsx } from 'clsx';
 import { useConversationFold } from './conversationFold.js';
@@ -25,8 +26,9 @@ export function WorkedFold({
   durationMs: number;
   children: ReactNode;
 }) {
+  const { locale } = useLocale();
   const [open, setOpen] = useConversationFold(id);
-  const label = formatWorkedDuration(durationMs);
+  const label = formatWorkedDuration(durationMs, locale);
 
   return (
     <Fold open={open} onToggle={() => setOpen()} className="chat-worked">

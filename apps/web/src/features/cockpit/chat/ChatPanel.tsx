@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import { ChevronDown, Maximize2, Minimize2 } from 'lucide-react';
 import { MarketTime } from '@web/ui';
@@ -133,6 +134,7 @@ export function ChatPanel({
   onReplaceLast,
   onEditingChange,
 }: ChatPanelProps) {
+  const { t: i18n } = useLocale();
   return (
     <div className={`chat-panel ${stylex.props(styles.panel).className}`}>
       <div
@@ -140,24 +142,26 @@ export function ChatPanel({
         onPointerDown={onDragStart}
       >
         <span className={`chat-panel-title ${stylex.props(styles.title).className}`}>
-          {session?.title ?? '新的追问'}
+          {session?.title ?? i18n('chatNew')}
         </span>
         <span className={`chat-panel-subtitle ${stylex.props(styles.subtitle).className}`}>
-          关于 <MarketTime value={docCreatedAt} format="clock" /> 的分析
+          {i18n('chatAboutAnalysis')}
+          <MarketTime value={docCreatedAt} format="clock" />
+          {i18n('chatAboutAnalysisSuffix')}
         </span>
         <div className={`chat-panel-actions ${stylex.props(styles.actions).className}`}>
           <button
             className={stylex.props(styles.actionButton).className}
             onClick={() => onModeChange(mode === 'full' ? 'float' : 'full')}
-            aria-label={mode === 'full' ? '退出全屏' : '全屏'}
-            title={mode === 'full' ? '退出全屏（Esc）' : '全屏'}
+            aria-label={mode === 'full' ? i18n('chatExitFullscreen') : i18n('chatFullscreen')}
+            title={mode === 'full' ? i18n('chatExitFullscreenHint') : i18n('chatFullscreen')}
           >
             {mode === 'full' ? <Minimize2 size={13} /> : <Maximize2 size={13} />}
           </button>
           <button
             className={stylex.props(styles.actionButton).className}
             onClick={() => onModeChange('dock')}
-            aria-label="收起"
+            aria-label={i18n('chatCollapse')}
           >
             <ChevronDown size={14} />
           </button>
@@ -177,7 +181,7 @@ export function ChatPanel({
         liveTools={liveTools}
         liveBeats={liveBeats}
         suggestions={suggestions}
-        emptyText="还没有对话，在下方输入你的问题"
+        emptyText={i18n('chatEmpty')}
         onPickSuggestion={onPickSuggestion}
         onOpenCanvas={onOpenCanvas}
         onRetryLast={onRetryLast}

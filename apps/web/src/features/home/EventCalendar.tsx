@@ -1,3 +1,5 @@
+import { translate, type Locale } from '../../lib/i18n';
+import { useLocale } from '../../lib/i18n';
 import { useMemo, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { HomeEventItem, HomeEvents } from '@kansoku/shared/types';
@@ -267,7 +269,14 @@ interface DotDescriptor {
   owned: boolean;
 }
 
-const WEEKDAYS = ['日', '一', '二', '三', '四', '五', '六'];
+function weekdays(locale: Locale): string[] {
+  return Array.from({ length: 7 }, (_, day) =>
+    new Intl.DateTimeFormat(locale, {
+      weekday: locale === 'zh-CN' ? 'narrow' : 'short',
+      timeZone: 'UTC',
+    }).format(new Date(Date.UTC(2026, 6, 19 + day))),
+  );
+}
 
 function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
@@ -320,14 +329,14 @@ function shiftMonth(year: number, month: number, delta: number): { year: number;
   return { year: Math.floor(total / 12), month: (total % 12) + 1 };
 }
 
-function weekdayOf(iso: string): string {
+function dayLabel(iso: string, locale: Locale): string {
   const { y, m, d } = parseIso(iso);
-  return WEEKDAYS[new Date(y, m - 1, d).getDay()];
-}
-
-function dayLabel(iso: string): string {
-  const { m, d } = parseIso(iso);
-  return `${m}/${d} · 周${weekdayOf(iso)}`;
+  return new Intl.DateTimeFormat(locale, {
+    month: 'numeric',
+    day: 'numeric',
+    weekday: 'short',
+    timeZone: 'UTC',
+  }).format(new Date(Date.UTC(y, m - 1, d)));
 }
 
 function groupDots(items: HomeEventItem[]): Map<string, DotDescriptor[]> {
@@ -360,11 +369,13 @@ function eventKey(item: HomeEventItem): string {
   return `${item.kind}|${item.date}|${item.ts ?? ''}|${item.symbol ?? ''}|${item.title}`;
 }
 
-function eventDetail(item: HomeEventItem): string | null {
+function eventDetail(item: HomeEventItem, locale: Locale): string | null {
   const parts: string[] = [];
-  if (item.actual != null) parts.push(`实际 ${item.actual}`);
-  if (item.estimate != null) parts.push(`预期 ${item.estimate}`);
-  if (item.previous != null) parts.push(`前值 ${item.previous}`);
+  if (item.actual != null) parts.push(translate(locale, 'homeActualValue', { value: item.actual }));
+  if (item.estimate != null)
+    parts.push(translate(locale, 'homeEstimateValue', { value: item.estimate }));
+  if (item.previous != null)
+    parts.push(translate(locale, 'homePreviousValue', { value: item.previous }));
   return parts.length ? parts.join(' · ') : null;
 }
 
@@ -388,8 +399,9 @@ function DayDots({ list }: { list: DotDescriptor[] }) {
 }
 
 function StripItem({ item }: { item: HomeEventItem }) {
+  const { locale } = useLocale();
   const done = item.kind === 'macro' && item.actual != null;
-  const detail = eventDetail(item);
+  const detail = eventDetail(item, locale);
   return (
     <div
       className={`event-item event-${item.kind}${done ? ' event-done' : ''} ${stylex.props(styles.eventItem, item.kind === 'macro' ? styles.eventMacro : styles.eventEarnings, done && styles.eventDone).className}`}
@@ -425,6 +437,7 @@ function EventStrip({
   selected: string | null;
   onClear: () => void;
 }) {
+  const { t: i18n, locale } = useLocale();
   const grouped = useMemo(() => {
     const map = new Map<string, HomeEventItem[]>();
     for (const item of items) {
@@ -445,13 +458,13 @@ function EventStrip({
             className={`event-strip-clear ${stylex.props(styles.stripClear).className}`}
             onClick={onClear}
           >
-            未来 7 天
+            {i18n('homeNextSevenDays')}
           </button>
         )}
       </div>
       {items.length === 0 ? (
         <div className={`event-strip-empty ${stylex.props(styles.stripEmpty).className}`}>
-          此段无事件
+          {i18n('homeNoEventsInRange')}
         </div>
       ) : (
         grouped.map(([date, group]) => (
@@ -461,7 +474,7 @@ function EventStrip({
           >
             {!selected && (
               <div className={`event-strip-day ${stylex.props(styles.stripDay).className}`}>
-                {dayLabel(date)}
+                {dayLabel(date, locale)}
               </div>
             )}
             {group.map((it) => (
@@ -475,6 +488,7 @@ function EventStrip({
 }
 
 export function EventCalendar({ events, error, after }: EventCalendarProps) {
+  const { t: i18n, locale } = useLocale();
   const todayIso =
     events?.date ??
     isoDate(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
@@ -490,13 +504,13 @@ export function EventCalendar({ events, error, after }: EventCalendarProps) {
     ? (events?.items ?? []).filter((i) => i.date === selected).sort(sortEvents)
     : upcomingWindow(events?.items ?? [], todayIso);
   const stripLabel = selected
-    ? dayLabel(selected)
+    ? dayLabel(selected, locale)
     : after
-      ? '未来 7 天 · 含今日已发生'
-      : '未来 7 天';
+      ? i18n('homeNextSevenDaysIncludingToday')
+      : i18n('homeNextSevenDays');
 
-  if (error) return <NoteBlock>事件日历获取失败，正在重试</NoteBlock>;
-  if (!events) return <NoteBlock>事件日历加载中…</NoteBlock>;
+  if (error) return <NoteBlock>{i18n('homeEventCalendarRetry')}</NoteBlock>;
+  if (!events) return <NoteBlock>{i18n('homeEventCalendarLoading')}</NoteBlock>;
 
   const goto = (delta: number) => setView((v) => shiftMonth(v.year, v.month, delta));
   const resetToday = () => {
@@ -510,7 +524,7 @@ export function EventCalendar({ events, error, after }: EventCalendarProps) {
         <button
           type="button"
           className={`cal-nav-btn ${stylex.props(styles.navButton).className}`}
-          aria-label="上月"
+          aria-label={i18n('homePreviousMonth')}
           onClick={() => goto(-1)}
         >
           ‹
@@ -520,19 +534,23 @@ export function EventCalendar({ events, error, after }: EventCalendarProps) {
           className={`cal-nav-title ${stylex.props(styles.navTitle).className}`}
           onClick={resetToday}
         >
-          {view.year} · {view.month} 月
+          {new Intl.DateTimeFormat(locale, {
+            year: 'numeric',
+            month: 'long',
+            timeZone: 'UTC',
+          }).format(new Date(Date.UTC(view.year, view.month - 1, 1)))}
         </button>
         <button
           type="button"
           className={`cal-nav-btn ${stylex.props(styles.navButton).className}`}
-          aria-label="下月"
+          aria-label={i18n('homeNextMonth')}
           onClick={() => goto(1)}
         >
           ›
         </button>
       </div>
       <div className={`cal-weekdays ${stylex.props(styles.weekdays).className}`}>
-        {WEEKDAYS.map((w) => (
+        {weekdays(locale).map((w) => (
           <span key={w}>{w}</span>
         ))}
       </div>
@@ -554,7 +572,11 @@ export function EventCalendar({ events, error, after }: EventCalendarProps) {
               onClick={() => setSelected(isSelected ? null : d.iso)}
               disabled={disabled}
               aria-pressed={isSelected}
-              aria-label={`${d.iso}${list.length ? ` · ${list.length} 项事件` : ''}`}
+              aria-label={
+                list.length
+                  ? i18n('homeDateEventCount', { date: d.iso, count: list.length })
+                  : d.iso
+              }
             >
               <span
                 className={`cal-day-num ${stylex.props(styles.dayNum, !d.inMonth && styles.dayNumOther, isToday && styles.dayNumToday, isSelected && styles.dayNumSelected).className}`}
@@ -568,7 +590,7 @@ export function EventCalendar({ events, error, after }: EventCalendarProps) {
       </div>
       {!inMonthHasEvents && (
         <div className={`cal-empty-note ${stylex.props(styles.emptyNote).className}`}>
-          此月无预告事件（事件预告仅覆盖近期）
+          {i18n('homeNoUpcomingEventsInMonth')}
         </div>
       )}
       <EventStrip

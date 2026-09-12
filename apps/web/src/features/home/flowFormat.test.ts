@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { flowTone, fmtFlow, fmtFlowLabeled } from './flowFormat';
 
 describe('fmtFlow', () => {
+  it('uses English magnitudes while preserving the amount and sign', () => {
+    expect(fmtFlow(2.35e8, 'en-US')).toBe('+235.0M');
+    expect(fmtFlow(-6.1e4, 'en-US')).toBe('-61.0K');
+    expect(fmtFlow(2.4e9, 'en-US')).toBe('+2.4B');
+    expect(fmtFlowLabeled(-6.1e4, 'en-US')).toBe('Net outflow 61.0K');
+    expect(fmtFlowLabeled(null, 'en-US')).toBe('Net inflow —');
+  });
   it('formats by magnitude with sign', () => {
     expect(fmtFlow(2.35e8)).toBe('+2.4亿');
     expect(fmtFlow(-6.1e4)).toBe('-6.1万');

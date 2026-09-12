@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { Lock, RadioTower } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
 import { Switch } from '@web/ui';
@@ -66,6 +67,7 @@ function FollowControl({
   locked: boolean;
   className?: string;
 }) {
+  const { t: i18n } = useLocale();
   const { following, busy, statusError, change } = useSymbolFollow({ symbol, revision });
   const { guard } = useFeature('symbol-follow');
 
@@ -75,24 +77,22 @@ function FollowControl({
       title={
         locked
           ? following
-            ? '授权已失效，AI 跟进已暂停；可关闭开关，重新开启需订阅'
-            : 'AI 跟进需要有效授权，点击开关订阅解锁'
+            ? i18n('cockpitFollowExpired')
+            : i18n('cockpitFollowLocked')
           : (statusError ??
-            (following
-              ? 'AI 评论员会在后台持续跟进；关闭此图表不会停止'
-              : 'AI 评论员已停止跟进此标的'))
+            (following ? i18n('cockpitFollowBackground') : i18n('cockpitFollowStopped')))
       }
     >
       <RadioTower
         {...stylex.props(styles.icon, Boolean(statusError) && styles.errorIcon)}
         size={13}
       />
-      <span>AI 跟进</span>
+      <span>{i18n('cockpitFollow')}</span>
       {locked && (
         <Lock className={`follow-control-lock ${stylex.props(styles.lock).className}`} size={11} />
       )}
       <Switch
-        ariaLabel="持续跟进 AI 点评"
+        ariaLabel={i18n('cockpitFollowAria')}
         checked={following ?? false}
         disabled={busy}
         onCheckedChange={(checked) => {

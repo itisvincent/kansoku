@@ -1,3 +1,4 @@
+import { translate, type Locale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import type { CockpitComment, IntradaySidebar, SymbolAnalysisRow } from '@kansoku/shared/types';
 import type { SidebarTab } from '@web/features/charts/SidebarTabs';
@@ -17,6 +18,7 @@ const styles = stylex.create({
 });
 
 export function buildSharedSidebarTabs(params: {
+  locale?: Locale;
   sym: string;
   sidebar: IntradaySidebar;
   env: CockpitEnvState;
@@ -50,13 +52,14 @@ export function buildSharedSidebarTabs(params: {
     commentsLoaded,
     unread,
   } = params;
+  const i18n = (key: Parameters<typeof translate>[1]) => translate(params.locale ?? 'zh-CN', key);
   const hasNews =
     Boolean(sidebar.context?.news?.length) || Boolean(sidebar.news?.length) || Boolean(sym);
 
   return [
     {
       key: 'env',
-      label: '环境',
+      label: i18n('cockpitTabEnv'),
       content: (
         <>
           <EnvTab
@@ -72,18 +75,18 @@ export function buildSharedSidebarTabs(params: {
     },
     {
       key: 'news',
-      label: '消息',
+      label: i18n('cockpitTabNews'),
       hidden: !hasNews,
       content: <NewsTab context={sidebar.context} news={sidebar.news ?? []} sym={sym} />,
     },
     {
       key: 'events',
-      label: '事件',
+      label: i18n('cockpitTabEvents'),
       content: <SymbolEventsTab symbol={sym} />,
     },
     {
       key: 'review',
-      label: '复盘',
+      label: i18n('cockpitTabReview'),
       content: (
         <ReviewTab
           symbol={sym}
@@ -102,12 +105,9 @@ export function buildSharedSidebarTabs(params: {
       key: 'ai',
       label: (
         <>
-          AI 点评
+          {i18n('cockpitTabAi')}
           {unread > 0 && (
-            <Badge
-              tone="down"
-              className={stylex.props(styles.unreadBadge).className}
-            >
+            <Badge tone="down" className={stylex.props(styles.unreadBadge).className}>
               {unread}
             </Badge>
           )}

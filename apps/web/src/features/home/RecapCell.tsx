@@ -1,3 +1,4 @@
+import { useLocale } from '../../lib/i18n';
 import type { OverviewRecap, RecapSettlementRow } from '@kansoku/shared/types';
 import * as stylex from '@stylexjs/stylex';
 import { useState } from 'react';
@@ -69,6 +70,7 @@ function summarizeRecap(recap: OverviewRecap | null | undefined): RecapSummary |
 }
 
 export function RecapCell({ date }: { date: string }) {
+  const { t: i18n } = useLocale();
   const [hovered, setHovered] = useState(false);
   const { data } = useIntervalFetch<OverviewRecap>(
     `overview.recap:${date}`,
@@ -80,7 +82,7 @@ export function RecapCell({ date }: { date: string }) {
     summary?.avgPct == null ? '' : summary.avgPct > 0 ? 'up' : summary.avgPct < 0 ? 'down' : '';
   const open = () =>
     openModal({
-      title: `复盘 · ${date}`,
+      title: i18n('homeRecapModalTitle', { date }),
       body: <RecapBoard date={date} defaultExpanded />,
     });
   return (
@@ -90,12 +92,12 @@ export function RecapCell({ date }: { date: string }) {
       onClick={open}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
-      title={`${date} 复盘 · 点击查看详情`}
+      title={i18n('homeOpenRecapDate', { date })}
     >
       <span
         className={`idx-sym ${stylex.props(styles.label, hovered && styles.labelHovered).className}`}
       >
-        复盘
+        {i18n('homeRecap')}
       </span>
       {summary ? (
         <span

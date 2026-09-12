@@ -1,3 +1,5 @@
+import { type MessageKey } from '@web/lib/i18n';
+import { useLocale } from '@web/lib/i18n';
 import type { CockpitComment, CommentStance } from '@kansoku/shared/types';
 import * as stylex from '@stylexjs/stylex';
 import { marketOfSymbol } from '@web/lib/market';
@@ -91,12 +93,15 @@ const LEVEL_TONE: Record<string, 'up' | 'down' | 'accent' | 'solid' | undefined>
   alert: 'down',
   error: 'solid',
 };
-const SOURCE_LABEL: Record<string, string> = { analyst: '分析员', system: '系统' };
+const SOURCE_LABEL: Record<string, MessageKey> = {
+  analyst: 'cockpitSourceAnalyst',
+  system: 'cockpitSourceSystem',
+};
 
-const STANCE_LABEL: Record<CommentStance, string> = {
-  act_per_plan: '按计划执行',
-  wait_confirm: '等确认',
-  no_action: '不构成动作',
+const STANCE_LABEL: Record<CommentStance, MessageKey> = {
+  act_per_plan: 'cockpitStancePlan',
+  wait_confirm: 'cockpitStanceWait',
+  no_action: 'cockpitStanceNone',
 };
 const STANCE_TONE: Record<CommentStance, 'up' | 'accent' | 'muted'> = {
   act_per_plan: 'up',
@@ -113,9 +118,10 @@ function LevelBadge({ level }: { level: string }) {
 }
 
 function StanceBadge({ stance }: { stance: CommentStance }) {
+  const { t: i18n } = useLocale();
   return (
     <Badge tone={STANCE_TONE[stance]} className="stance-badge">
-      {STANCE_LABEL[stance]}
+      {i18n(STANCE_LABEL[stance])}
     </Badge>
   );
 }
@@ -159,9 +165,16 @@ function MetaRow({
 }
 
 function CommentMeta({ symbol, comment }: { symbol: string; comment: CockpitComment }) {
+  const { t: i18n } = useLocale();
   const meta: React.ReactNode[] = [];
-  if (comment.trigger) meta.push(<span key="trigger">触发：{comment.trigger}</span>);
-  if (comment.escalated) meta.push(<span key="escalated">已升级重估</span>);
+  if (comment.trigger)
+    meta.push(
+      <span key="trigger">
+        {i18n('cockpitTrigger')}
+        {comment.trigger}
+      </span>,
+    );
+  if (comment.escalated) meta.push(<span key="escalated">{i18n('cockpitEscalated')}</span>);
   if (comment.chartId)
     meta.push(
       <a
@@ -169,11 +182,11 @@ function CommentMeta({ symbol, comment }: { symbol: string; comment: CockpitComm
         href={symbolUrl(symbol, comment.chartId)}
         className={stylex.props(styles.metaLink).className}
       >
-        查看图表
+        {i18n('cockpitViewChart')}
       </a>,
     );
   if (SOURCE_LABEL[comment.source])
-    meta.push(<span key="source">{SOURCE_LABEL[comment.source]}</span>);
+    meta.push(<span key="source">{i18n(SOURCE_LABEL[comment.source])}</span>);
   if (meta.length === 0) return null;
 
   return (

@@ -101,7 +101,9 @@ let adapters: Record<ConversationKind, ConversationAdapter> | null = null;
 
 export const conversationKey = (kind: ConversationKind, id: string) => `${kind}:${id}`;
 
-export function bindConversationAdapters(next: Record<ConversationKind, ConversationAdapter>): void {
+export function bindConversationAdapters(
+  next: Record<ConversationKind, ConversationAdapter>,
+): void {
   adapters = next;
 }
 export const setConversationAdaptersForTests = bindConversationAdapters;
@@ -250,7 +252,7 @@ function reload(slot: Slot, markError?: string, after?: () => void): void {
       slot.streamText = env.busy ? env.partial : '';
       slot.usage = usageFromEnvelope(env);
       slot.loaded = true;
-      if (slot.hint === '对话记录加载失败') slot.hint = null;
+      if (slot.hint === 'local:chatHistoryLoadFailed') slot.hint = null;
       emit(key);
       after?.();
       disposeIfIdle(key);
@@ -259,7 +261,7 @@ function reload(slot: Slot, markError?: string, after?: () => void): void {
       after?.();
       if (slot.requestSeq !== seq || slot.sendPending) return;
       slot.loaded = true;
-      slot.hint = '对话记录加载失败';
+      slot.hint = 'local:chatHistoryLoadFailed';
       emit(key);
     });
 }
@@ -340,11 +342,29 @@ function attachWs(slot: Slot): void {
 
 function createSlot(kind: ConversationKind, id: string): Slot {
   const slot: Slot = {
-    kind, id, viewers: 0, folds: new Map(), toolSeq: 0, errorSeq: 0, requestSeq: 0,
-    sendPending: false, suggestionsRequested: false, unsubWs: null, settleTimer: null,
-    connectedOnce: false, snapshot: EMPTY_CONVERSATION, session: null, rows: [],
-    busy: false, aborting: false, streamText: '', liveBeats: [], hint: null,
-    loaded: false, suggestions: [], usage: null,
+    kind,
+    id,
+    viewers: 0,
+    folds: new Map(),
+    toolSeq: 0,
+    errorSeq: 0,
+    requestSeq: 0,
+    sendPending: false,
+    suggestionsRequested: false,
+    unsubWs: null,
+    settleTimer: null,
+    connectedOnce: false,
+    snapshot: EMPTY_CONVERSATION,
+    session: null,
+    rows: [],
+    busy: false,
+    aborting: false,
+    streamText: '',
+    liveBeats: [],
+    hint: null,
+    loaded: false,
+    suggestions: [],
+    usage: null,
   };
   slot.snapshot = buildSnapshot(slot);
   return slot;
@@ -380,9 +400,9 @@ export async function sendConversation(
   options?: { replaceLast?: boolean },
 ): Promise<ChatSendResult> {
   const trimmed = text.trim();
-  if (!trimmed) return { ok: false, error: '内容不能为空' };
+  if (!trimmed) return { ok: false, error: 'local:chatEmptyMessage' };
   const slot = getSlot(kind, id);
-  if (!slot) return { ok: false, error: '会话不存在' };
+  if (!slot) return { ok: false, error: 'local:chatSessionMissing' };
   const key = conversationKey(kind, id);
   const adapter = adapterOf(kind);
   const optimisticId = `optimistic-${Date.now()}`;
@@ -457,7 +477,7 @@ export async function abortConversation(kind: ConversationKind, id: string): Pro
 
 export function retryLastConversation(kind: ConversationKind, id: string): Promise<ChatSendResult> {
   const lastUser = lastUserRow(getSlot(kind, id)?.rows ?? []);
-  if (!lastUser?.text) return Promise.resolve({ ok: false, error: '没有可重试的问题' });
+  if (!lastUser?.text) return Promise.resolve({ ok: false, error: 'local:chatNothingToRetry' });
   return sendConversation(kind, id, lastUser.text, { replaceLast: true });
 }
 

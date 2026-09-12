@@ -1,3 +1,4 @@
+import { useLocale, translate, type Locale } from '@web/lib/i18n';
 import { ArrowRight, ChartCandlestick, LayoutDashboard, Library } from 'lucide-react';
 import { cloneElement, createElement, isValidElement } from 'react';
 import type {
@@ -471,21 +472,22 @@ interface DeepLinkCardMeta {
   icon: ReactNode;
 }
 
-function deepLinkCardMeta(link: AppDeepLink): DeepLinkCardMeta {
+function deepLinkCardMeta(link: AppDeepLink, locale: Locale): DeepLinkCardMeta {
+  const i18n = (key: Parameters<typeof translate>[1]) => translate(locale, key);
   switch (link.kind) {
     case 'chart': {
       return {
         variant: 'chart',
-        title: '打开历史图表',
+        title: i18n('cockpitLinkHistory'),
         subject: link.chartId,
-        detail: '自动定位到对应分析',
+        detail: i18n('cockpitLinkLocate'),
         icon: <ChartCandlestick size={16} />,
       };
     }
     case 'symbol-analysis': {
       return {
         variant: 'analysis',
-        title: '打开这份分析',
+        title: i18n('cockpitLinkAnalysis'),
         subject: link.symbol,
         detail: link.analysisId,
         icon: <ChartCandlestick size={16} />,
@@ -494,18 +496,18 @@ function deepLinkCardMeta(link: AppDeepLink): DeepLinkCardMeta {
     case 'symbol-sepa': {
       return {
         variant: 'sepa',
-        title: '打开 SEPA 仪表盘',
+        title: i18n('cockpitLinkSepa'),
         subject: link.symbol,
-        detail: link.analysisId ?? '最新 SEPA 状态',
+        detail: link.analysisId ?? i18n('cockpitLinkLatestSepa'),
         icon: <ChartCandlestick size={16} />,
       };
     }
     case 'symbol-cockpit': {
       return {
         variant: 'cockpit',
-        title: '打开股票驾驶舱',
+        title: i18n('cockpitLinkStock'),
         subject: link.symbol,
-        detail: '最新分析与实时行情',
+        detail: i18n('cockpitLinkLatestStock'),
         icon: <LayoutDashboard size={16} />,
       };
     }
@@ -515,6 +517,7 @@ function deepLinkCardMeta(link: AppDeepLink): DeepLinkCardMeta {
 export function MarkdownLink(
   props: AnchorHTMLAttributes<HTMLAnchorElement> & ExtraProps & { variant?: MarkdownVariant },
 ) {
+  const { locale } = useLocale();
   const { href, children, className, node: _node, variant = 'report', ...anchorProps } = props;
   const appLink = parseAppDeepLink(href);
   if (!appLink)
@@ -533,7 +536,7 @@ export function MarkdownLink(
       </a>
     );
 
-  const meta = deepLinkCardMeta(appLink);
+  const meta = deepLinkCardMeta(appLink, locale);
   return (
     <a
       {...anchorProps}
@@ -592,7 +595,10 @@ function MarkdownInput({
   return (
     <input
       {...props}
-      className={clsx(className, type === 'checkbox' && stylex.props(styles.taskCheckbox).className)}
+      className={clsx(
+        className,
+        type === 'checkbox' && stylex.props(styles.taskCheckbox).className,
+      )}
       type={type}
     />
   );
@@ -670,12 +676,7 @@ function markdownComponents(variant: MarkdownVariant): Components {
     ),
     blockquote: styledElement('blockquote', styles.blockquote, flowStyle),
     hr: styledElement('hr', styles.rule, variant === 'chat' ? styles.ruleChat : styles.ruleReport),
-    img: styledElement(
-      'img',
-      styles.image,
-      variant === 'chat' && styles.imageChat,
-      flowStyle,
-    ),
+    img: styledElement('img', styles.image, variant === 'chat' && styles.imageChat, flowStyle),
     section: ({ children, className, node: _node, ...props }: SemanticProps) => (
       <section
         {...props}
@@ -780,10 +781,7 @@ function markdownComponents(variant: MarkdownVariant): Components {
       node: _node,
       ...props
     }: HTMLAttributes<HTMLTableCellElement> & ExtraProps) => (
-      <td
-        {...props}
-        className={clsx(className, stylex.props(styles.tableCell).className)}
-      >
+      <td {...props} className={clsx(className, stylex.props(styles.tableCell).className)}>
         {children}
       </td>
     ),
@@ -842,22 +840,27 @@ export function openMarkdownModal({
   return openModal({
     title,
     headerAction: documentPath
-      ? (close) => (
-          <button
-            type="button"
-            className={`modal-head-action ${stylex.props(styles.modalAction).className}`}
-            aria-label="在研究库中打开"
-            title="在研究库中打开"
-            onClick={() => {
-              close();
-              navigate(researchRoute('journal', documentPath));
-            }}
-          >
-            <Library size={16} />
-          </button>
-        )
+      ? (close) => <OpenResearchAction close={close} documentPath={documentPath} />
       : undefined,
     body: <Markdown>{markdown}</Markdown>,
     onClose,
   });
+}
+
+function OpenResearchAction({ close, documentPath }: { close: () => void; documentPath: string }) {
+  const { t: i18n } = useLocale();
+  return (
+    <button
+      type="button"
+      className={`modal-head-action ${stylex.props(styles.modalAction).className}`}
+      aria-label={i18n('cockpitOpenResearch')}
+      title={i18n('cockpitOpenResearch')}
+      onClick={() => {
+        close();
+        navigate(researchRoute('journal', documentPath));
+      }}
+    >
+      <Library size={16} />
+    </button>
+  );
 }

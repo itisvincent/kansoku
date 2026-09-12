@@ -1,3 +1,4 @@
+import { translate, type Locale } from '@web/lib/i18n';
 import type { CanvasEntry } from '../../canvas/canvasEntries';
 import { collectCanvasEntries } from '../../canvas/canvasEntries';
 import { mergeTimeline, type TimelineEntry, type TranscriptInsert } from './transcriptTimeline.js';
@@ -58,18 +59,35 @@ export function blockKey(block: TranscriptBlock, index: number): string {
   }
 }
 
-export function formatWorkedDuration(ms: number): string {
-  const sec = Math.floor(Math.max(0, ms) / 1000);
-  if (sec < 1) return '跑了不到 1 秒';
-  if (sec < 60) return `跑了 ${sec} 秒`;
-  const minutes = Math.floor(sec / 60);
-  const leftover = sec % 60;
-  if (minutes < 60) {
-    return leftover === 0 ? `跑了 ${minutes} 分` : `跑了 ${minutes} 分 ${leftover} 秒`;
-  }
+function durationParts(ms: number) {
+  const seconds = Math.floor(Math.max(0, ms) / 1000);
+  const minutes = Math.floor(seconds / 60);
   const hours = Math.floor(minutes / 60);
-  const rest = minutes % 60;
-  return rest === 0 ? `跑了 ${hours} 小时` : `跑了 ${hours} 小时 ${rest} 分`;
+  const suffix =
+    seconds < 1
+      ? 'LessSecond'
+      : seconds < 60
+        ? 'Seconds'
+        : minutes < 60
+          ? seconds % 60 === 0
+            ? 'Minutes'
+            : 'MinutesSeconds'
+          : minutes % 60 === 0
+            ? 'Hours'
+            : 'HoursMinutes';
+  return {
+    suffix,
+    params: {
+      seconds: seconds < 60 ? seconds : seconds % 60,
+      minutes: hours ? minutes % 60 : minutes,
+      hours,
+    },
+  } as const;
+}
+
+export function formatWorkedDuration(ms: number, locale: Locale = 'zh-CN'): string {
+  const { suffix, params } = durationParts(Number.isFinite(ms) ? ms : 0);
+  return translate(locale, `chatWorked${suffix}`, params);
 }
 
 const GIST_MAX_LENGTH = 48;
@@ -83,15 +101,24 @@ export function reasoningGist(text: string): string {
   if (!plain) return '';
   const stop = plain.search(/[!?。！？]|\.\s/);
   const sentence = stop > 0 ? plain.slice(0, stop + 1) : plain;
-  return sentence.length > GIST_MAX_LENGTH ? `${sentence.slice(0, GIST_MAX_LENGTH - 1)}…` : sentence;
+  return sentence.length > GIST_MAX_LENGTH
+    ? `${sentence.slice(0, GIST_MAX_LENGTH - 1)}…`
+    : sentence;
 }
 
-export function formatRuntime(ms: number): string {
-  if (!Number.isFinite(ms) || ms < 0) return '运行中';
-  return formatWorkedDuration(ms).replace(/^跑了/, '运行了');
+export function formatRuntime(ms: number, locale: Locale = 'zh-CN'): string {
+  if (!Number.isFinite(ms) || ms < 0) return translate(locale, 'chatRuntimeUnknown');
+  const { suffix, params } = durationParts(ms);
+  return translate(locale, `chatRuntime${suffix}`, params);
 }
 
-function presentedTool(id: string, label: string, running: boolean, input?: string, output?: string): PresentedTool {
+function presentedTool(
+  id: string,
+  label: string,
+  running: boolean,
+  input?: string,
+  output?: string,
+): PresentedTool {
   return { id, label, running, input, output };
 }
 
@@ -136,7 +163,10 @@ function isToolEntry(entry: TimelineEntry): boolean {
   return entry.kind === 'row' && entry.row.kind === 'tool';
 }
 
-function splitTurns(timeline: TimelineEntry[]): { prefix: TimelineEntry[]; turns: TimelineEntry[][] } {
+function splitTurns(timeline: TimelineEntry[]): {
+  prefix: TimelineEntry[];
+  turns: TimelineEntry[][];
+} {
   const prefix: TimelineEntry[] = [];
   const turns: TimelineEntry[][] = [];
   let current: TimelineEntry[] | null = null;
@@ -300,7 +330,9 @@ function presentLiveTurn(
       : fallbackLiveBlocks(liveTools, streamText, streaming);
   const liveToolList =
     liveBeats && liveBeats.length > 0
-      ? liveBeats.filter((beat): beat is { kind: 'tool'; tool: ChatLiveTool } => beat.kind === 'tool').map((beat) => beat.tool)
+      ? liveBeats
+          .filter((beat): beat is { kind: 'tool'; tool: ChatLiveTool } => beat.kind === 'tool')
+          .map((beat) => beat.tool)
       : liveTools;
   const canvases = canvasesFromRows(userRow?.id ?? 'live', toolRowsFromEntries(rest), liveToolList);
   const errors = rest.filter(isErrorEntry).flatMap(entryToBlocks);
@@ -349,9 +381,7 @@ export function presentTranscript(input: {
   }
 
   if (showLive && turns.length === 0) {
-    out.push(
-      ...presentLiveTurn([], input.liveBeats, liveTools, streamText, Boolean(input.busy)),
-    );
+    out.push(...presentLiveTurn([], input.liveBeats, liveTools, streamText, Boolean(input.busy)));
   }
 
   return out;

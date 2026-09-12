@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen, within } from '@testing-library/rea
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { ConversationTranscript } from './ConversationTranscript';
 import type { ChatRow } from './useChatSession';
+import { LocaleProvider, useLocale } from '@web/lib/i18n';
 
 const subscribeChannel = vi.fn((..._args: unknown[]) => vi.fn());
 vi.mock('@web/lib/ws/wsHub', () => ({
@@ -14,6 +15,7 @@ const store = await import('./conversationStore.js');
 
 afterEach(() => {
   cleanup();
+  localStorage.removeItem('kansoku.locale');
   store.resetConversationStoreForTests();
   vi.restoreAllMocks();
 });
@@ -68,6 +70,37 @@ function renderTranscript(rows: ChatRow[], extra?: Record<string, unknown>) {
 }
 
 describe('ConversationTranscript chrome', () => {
+  it('switches tool labels and durations while preserving transcript content and open folds', () => {
+    localStorage.setItem('kansoku.locale', 'en-US');
+    function LanguageSwitch() {
+      const { setLocale } = useLocale();
+      return <button onClick={() => setLocale('zh-CN')}>Switch language</button>;
+    }
+    render(
+      <LocaleProvider>
+        <LanguageSwitch />
+        <ConversationTranscript
+          rows={completedRows}
+          busy={false}
+          streamText=""
+          liveTools={[]}
+          suggestions={[]}
+          emptyText="Empty"
+          onPickSuggestion={() => {}}
+        />
+      </LocaleProvider>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: /Worked for 1 min 12 sec/ }));
+    expect(screen.getByText('Run data command')).toBeTruthy();
+    expect(screen.getByText('Load analysis workflow')).toBeTruthy();
+    expect(screen.getByText('MRVL 最强')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Switch language' }));
+    expect(
+      screen.getByRole('button', { name: /跑了 1 分 12 秒/ }).getAttribute('aria-expanded'),
+    ).toBe('true');
+    expect(screen.getByText('执行数据命令')).toBeTruthy();
+    expect(screen.getByText('MRVL 最强')).toBeTruthy();
+  });
   it('applies a custom user bubble class', () => {
     renderTranscript([row({ id: 'u1', ts: ts('10:00:00'), kind: 'user', text: '拉三只' })], {
       userBubbleClassName: 'bubble-round',

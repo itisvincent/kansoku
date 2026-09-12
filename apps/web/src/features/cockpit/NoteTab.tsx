@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { Lock, Maximize2 } from 'lucide-react';
@@ -67,6 +68,7 @@ const styles = stylex.create({
 });
 
 export function NoteTab({ symbol }: { symbol: string }) {
+  const { t: i18n } = useLocale();
   const market = marketOfSymbol(symbol);
   const { note, error, reload } = useNote(symbol);
   const onNoteReady = useCallback(() => reload(), [reload]);
@@ -74,7 +76,7 @@ export function NoteTab({ symbol }: { symbol: string }) {
   const { state, locked, guard } = useFeature('deep-dive');
 
   const confirmAndStart = () => {
-    const confirmed = window.confirm('深度分析会跑数分钟，并消耗一次 AI 额度，确定要开始吗？');
+    const confirmed = window.confirm(i18n('cockpitDeepConfirm'));
     if (confirmed) void deepDive.start();
   };
 
@@ -85,13 +87,13 @@ export function NoteTab({ symbol }: { symbol: string }) {
     deepDive.runningSymbol &&
     bareSymbol(deepDive.runningSymbol) !== bareSymbol(symbol);
 
-  let buttonLabel: ReactNode = note?.markdown ? '重新深度分析' : '跑一次深度分析';
+  let buttonLabel: ReactNode = note?.markdown ? i18n('cockpitDeepRerun') : i18n('cockpitDeepRun');
   if (deepDive.running) {
     buttonLabel = runningElsewhere ? (
-      `有分析进行中（${deepDive.runningSymbol}）`
+      i18n('cockpitOtherAnalysis', { symbol: deepDive.runningSymbol! })
     ) : (
       <>
-        分析中…
+        {i18n('cockpitAnalyzingShort')}
         <TimeAgo since={deepDive.startedAt} format="duration" />
       </>
     );
@@ -112,7 +114,7 @@ export function NoteTab({ symbol }: { symbol: string }) {
 
   const openFullscreen = () => {
     if (!note?.markdown) return;
-    openMarkdownModal({ title: `${symbol} 研究笔记`, markdown: note.markdown });
+    openMarkdownModal({ title: i18n('cockpitResearchNotes', { symbol }), markdown: note.markdown });
   };
 
   return (
@@ -121,7 +123,8 @@ export function NoteTab({ symbol }: { symbol: string }) {
         <>
           <div className={stylex.props(styles.header).className}>
             <span className={stylex.props(styles.mtime).className}>
-              更新于 {note.mtime ? <MarketTime value={note.mtime} market={market} /> : '—'}
+              {i18n('cockpitUpdated')}
+              {note.mtime ? <MarketTime value={note.mtime} market={market} /> : '—'}
             </span>
             <div className={stylex.props(styles.actions).className}>
               <button
@@ -129,7 +132,7 @@ export function NoteTab({ symbol }: { symbol: string }) {
                 onClick={openFullscreen}
               >
                 <Maximize2 className={`icon ${stylex.props(styles.icon).className}`} size={13} />{' '}
-                全屏阅读
+                {i18n('cockpitFullscreenRead')}
               </button>
               {button}
             </div>
@@ -144,7 +147,7 @@ export function NoteTab({ symbol }: { symbol: string }) {
         </>
       ) : (
         <>
-          <Empty>还没有 {symbol} 的研究笔记</Empty>
+          <Empty>{i18n('cockpitNoNotes', { symbol })}</Empty>
           {button && (
             <div className={stylex.props(styles.header, styles.headerCenter).className}>
               {button}

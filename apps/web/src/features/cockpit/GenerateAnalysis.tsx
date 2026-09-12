@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import { Button, Spinner } from '@web/ui';
 import { colors, fontSizes } from '../../theme/tokens.stylex';
@@ -26,10 +27,10 @@ const styles = stylex.create({
     fontSize: fontSizes.sm,
   },
   previewButton: {
-    fontSize: fontSizes.md,
-    fontWeight: 600,
-    height: '32px',
-    padding: '0 16px',
+    'fontSize': fontSizes.md,
+    'fontWeight': 600,
+    'height': '32px',
+    'padding': '0 16px',
     ':disabled': {
       height: '32px',
     },
@@ -48,6 +49,7 @@ export function GenerateAnalysis({
   sym: string;
   variant?: GenerateAnalysisVariant;
 }) {
+  const { t: i18n } = useLocale();
   const run = useAnalystRun(sym);
   const isPreview = variant === 'preview';
 
@@ -64,7 +66,7 @@ export function GenerateAnalysis({
           disabled={run.pending || run.running}
         >
           {run.running && <Spinner />}
-          {run.running ? 'AI 分析中…' : 'AI 生成分析'}
+          {run.running ? i18n('cockpitAiRunning') : i18n('cockpitGenerate')}
         </Button>
         {run.hint && (
           <span className={`ai-hint ${stylex.props(styles.hint).className}`}>{run.hint}</span>

@@ -1,3 +1,5 @@
+import { useLocale } from '@web/lib/i18n';
+import { localizeStatusMessage } from './statusMessages';
 import { useEffect, useState } from 'react';
 import type { BenchmarkSeries, CockpitPosition, RelativeVolume } from '@kansoku/shared/types';
 import { useWsChannel } from '@web/lib/ws/useWsChannel';
@@ -16,6 +18,7 @@ export interface CockpitEnvState {
 }
 
 export function useCockpitEnv(sym: string): CockpitEnvState {
+  const { locale } = useLocale();
   const [position, setPosition] = useState<CockpitPosition | null>(null);
   const [relvol, setRelvol] = useState<RelativeVolume | null>(null);
   const [benchmark, setBenchmark] = useState<BenchmarkSeries[] | null>(null);
@@ -40,7 +43,11 @@ export function useCockpitEnv(sym: string): CockpitEnvState {
     position,
     relvol,
     benchmark,
-    positionError: positionDegraded ? '持仓数据获取失败，正在重试' : null,
-    benchmarkError: benchmarkDegraded ? '环境对照数据获取失败，正在重试' : null,
+    positionError: positionDegraded
+      ? localizeStatusMessage('local:cockpitPositionRetry', locale)
+      : null,
+    benchmarkError: benchmarkDegraded
+      ? localizeStatusMessage('local:cockpitBenchmarkRetry', locale)
+      : null,
   };
 }

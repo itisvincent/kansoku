@@ -1,3 +1,4 @@
+import { useLocale } from '../../lib/i18n';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { MarketEvent } from '@kansoku/shared/types';
 import { errorMessage } from '@web/lib/api';
@@ -37,9 +38,10 @@ export function useMarketEventFeed({
   live?: boolean;
   limit?: number;
 }): MarketEventFeedState {
+  const { t } = useLocale();
   const [events, setEvents] = useState<MarketEvent[]>([]);
   const [streamReady, setStreamReady] = useState(false);
-  const [streamError, setStreamError] = useState<string | null>(null);
+  const [streamError, setStreamError] = useState<string | true | null>(null);
   const [dropped, setDropped] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreError, setMoreError] = useState<string | null>(null);
@@ -83,7 +85,7 @@ export function useMarketEventFeed({
           const incoming = envelope.event;
           setEvents((prev) => mergeMarketEvents(prev, [incoming]));
         } else if (envelope.type === 'status' && envelope.degraded) {
-          setStreamError(envelope.error ?? '事件流连接失败');
+          setStreamError(envelope.error ?? true);
         }
       },
       (connected) => {
@@ -135,7 +137,7 @@ export function useMarketEventFeed({
   return {
     events,
     status,
-    error: streamError ?? httpError,
+    error: streamError === true ? t('eventStreamFailure') : (streamError ?? httpError),
     loadingMore,
     moreError,
     exhausted,

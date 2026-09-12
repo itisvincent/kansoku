@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { errorMessage } from '@web/lib/api';
@@ -93,6 +94,7 @@ export function JournalSection({
   onSelect: (name: string | null) => void;
   reloadJournal: () => void;
 }) {
+  const { t: i18n } = useLocale();
   const [loadingName, setLoadingName] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const run = useAnalystRun(symbol);
@@ -143,7 +145,7 @@ export function JournalSection({
         <div className={`ai-reassess ${stylex.props(styles.reassess).className}`}>
           <Button onClick={run.start} disabled={run.pending || run.running}>
             {run.running && <Spinner />}
-            {run.running ? '分析进行中…' : '跑一次分析'}
+            {run.running ? i18n('cockpitAnalyzing') : i18n('cockpitRunAnalysis')}
           </Button>
           {run.hint && (
             <span className={`ai-hint ${stylex.props(styles.hint).className}`}>{run.hint}</span>
@@ -153,7 +155,7 @@ export function JournalSection({
       </div>
       {entries.length === 0 ? (
         <p className={`note-block ${stylex.props(styles.note).className}`}>
-          还没有分析日志——点上面的按钮跑一次
+          {i18n('cockpitNoJournal')}
         </p>
       ) : (
         <div className={`journal-list ${stylex.props(styles.list).className}`}>

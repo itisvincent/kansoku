@@ -1,3 +1,5 @@
+import { useLocale } from '@web/lib/i18n';
+import { localizeStatusMessage } from './statusMessages';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { trackFeatureUsed } from '@web/lib/analytics';
 import { ApiError, errorMessage } from '@web/lib/api';
@@ -8,6 +10,7 @@ export const bareSymbol = (value: string) => value.toUpperCase().replace(/\.US$/
 const STATUS_POLL_MS = 10_000;
 
 export function useDeepDive(symbol: string, onNoteReady: () => void) {
+  const { locale } = useLocale();
   const [pending, setPending] = useState(false);
   const [running, setRunning] = useState(false);
   const [runningSymbol, setRunningSymbol] = useState<string | null>(null);
@@ -68,10 +71,12 @@ export function useDeepDive(symbol: string, onNoteReady: () => void) {
         ) {
           seenFinishedAtRef.current = result.finishedAt;
           if (result.ok) {
-            setSuccessNote(result.dirtyWarning ? '分析完成 ⚠️ 检测到笔记之外的改动' : '分析完成');
+            setSuccessNote(
+              result.dirtyWarning ? 'local:cockpitDeepDirty' : 'local:cockpitDeepComplete',
+            );
             onNoteReady();
           } else {
-            setInlineMessage(result.error ?? '分析失败');
+            setInlineMessage(result.error ?? 'local:cockpitDeepFailed');
           }
         }
       } catch {
@@ -98,10 +103,10 @@ export function useDeepDive(symbol: string, onNoteReady: () => void) {
       setStartedAt(new Date().toISOString());
     } catch (error) {
       if (error instanceof ApiError && error.status === 409) {
-        setInlineMessage('已有分析进行中');
+        setInlineMessage('local:cockpitDeepBusy');
       } else if (error instanceof ApiError && error.status === 503) {
         setDisabled(true);
-        setInlineMessage('未配置深度研究模型，请在 /settings 配置');
+        setInlineMessage('local:cockpitDeepUnconfigured');
       } else {
         setInlineMessage(errorMessage(error));
       }
@@ -116,8 +121,8 @@ export function useDeepDive(symbol: string, onNoteReady: () => void) {
     runningSymbol,
     startedAt,
     disabled,
-    inlineMessage,
-    successNote,
+    inlineMessage: localizeStatusMessage(inlineMessage, locale),
+    successNote: localizeStatusMessage(successNote, locale),
     start,
     initialStatusChecked,
   };

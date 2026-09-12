@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useConversationFold } from './conversationFold.js';
 import { clsx } from 'clsx';
 import * as stylex from '@stylexjs/stylex';
@@ -44,6 +45,7 @@ const styles = stylex.create({
 });
 
 export function SourcesFold({ foldId, sources }: { foldId: string; sources: ChatSource[] }) {
+  const { t: i18n } = useLocale();
   const [open, setOpen] = useConversationFold(foldId);
   if (sources.length === 0) return null;
 
@@ -54,7 +56,7 @@ export function SourcesFold({ foldId, sources }: { foldId: string; sources: Chat
       className={clsx('chat-sources', stylex.props(styles.root).className)}
     >
       <Fold.Trigger fit className={clsx('chat-sources-btn', stylex.props(styles.button).className)}>
-        {sources.length} 个来源
+        {i18n('chatSources', { count: sources.length })}
       </Fold.Trigger>
       <Fold.Panel className={stylex.props(styles.list).className}>
         {sources.map((source) => (
