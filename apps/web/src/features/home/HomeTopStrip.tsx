@@ -4,6 +4,7 @@ import { signed, upDown } from '@web/lib/format';
 import { Badge, DataAgeBadge, Dot } from '@web/ui';
 import { colors, fonts, fontSizes } from '../../theme/tokens.stylex';
 import { RecapCell } from './RecapCell';
+import { useLocale } from '../../lib/i18n';
 
 export const INDEX_SYMBOLS = ['SPY.US', 'QQQ.US', '.DJI.US', '.VIX.US'];
 
@@ -145,28 +146,25 @@ export function HomeTopStrip({
   snapshotAt,
   recapDate,
 }: HomeTopStripProps) {
+  const { t } = useLocale();
   const bySymbol = new Map(quotes.map((q) => [q.symbol, q]));
-  const cells = INDEX_SYMBOLS.map((s) => bySymbol.get(s)).filter(
-    (q): q is QuoteCell => q != null,
-  );
+  const cells = INDEX_SYMBOLS.map((s) => bySymbol.get(s)).filter((q): q is QuoteCell => q != null);
   return (
     <div className={`home-top-strip ${stylex.props(styles.root).className}`}>
       <div className={`hts-id ${stylex.props(styles.id).className}`}>
-        <h1 {...stylex.props(styles.heading)}>盘面</h1>
+        <h1 {...stylex.props(styles.heading)}>{t('marketOverview')}</h1>
         {isToday && sessionLabel && (
           <Badge {...stylex.props(styles.sessionTag)}>{sessionLabel}</Badge>
         )}
         <span className={`num ${stylex.props(styles.date).className}`}>
-          {isToday ? date : `${date} · 历史复盘`}
+          {isToday ? date : `${date} · ${t('historicalRecap')}`}
         </span>
       </div>
       <div className={`hts-cluster ${stylex.props(styles.cluster).className}`}>
         <DataAgeBadge at={snapshotAt} />
-        {degraded && (
-          <Dot tone="accent" pulse title="数据延迟：行情拉取失败，正在重试" />
-        )}
+        {degraded && <Dot tone="accent" pulse title={t('quoteFetchDelayed')} />}
         {cells.length === 0 ? (
-          <span {...stylex.props(styles.indexPlaceholder)}>指数行情连接中…</span>
+          <span {...stylex.props(styles.indexPlaceholder)}>{t('connectingIndexes')}</span>
         ) : (
           cells.map((q) => <IndexCell key={q.symbol} q={q} />)
         )}
@@ -175,9 +173,11 @@ export function HomeTopStrip({
       {market && (
         <span
           className={`market-temp ${stylex.props(styles.marketTemp).className}`}
-          title={`市场温度 ${market.temperature}/100${market.description ? ` · ${market.description}` : ''}`}
+          title={`${t('marketTemperature')} ${market.temperature}/100${market.description ? ` · ${market.description}` : ''}`}
         >
-          <span className="temp-label">温度 {market.temperature}</span>
+          <span className="temp-label">
+            {t('temperature')} {market.temperature}
+          </span>
           <span className={`temp-gauge ${stylex.props(styles.tempGauge).className}`}>
             <i
               {...stylex.props(styles.tempGaugeMarker)}
@@ -186,7 +186,7 @@ export function HomeTopStrip({
           </span>
           {market.valuation != null && market.sentiment != null && (
             <span className="temp-sub">
-              估值 {market.valuation} / 情绪 {market.sentiment}
+              {t('valuation')} {market.valuation} / {t('sentiment')} {market.sentiment}
             </span>
           )}
         </span>

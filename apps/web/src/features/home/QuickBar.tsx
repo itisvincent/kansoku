@@ -8,6 +8,7 @@ import { navigate } from '@web/lib/router';
 import { listRecentSymbols } from '@web/features/charts/recentCharts';
 import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
 import { Chip, Input } from '@web/ui';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   root: {
@@ -75,6 +76,7 @@ export function QuickBar({
   showGlobalActions?: boolean;
 }) {
   const [input, setInput] = useState('');
+  const { t } = useLocale();
   const { pro, licensed } = useCapabilities();
   const shortcutSet = new Set(shortcuts);
   const recent = listRecentSymbols().filter((s) => !shortcutSet.has(s.symbol));
@@ -90,7 +92,7 @@ export function QuickBar({
     <div className={`quickbar ${stylex.props(styles.root).className}`}>
       <Input
         className={stylex.props(styles.input).className}
-        placeholder="代码直达，如 MRVL"
+        placeholder={t('symbolDirectPlaceholder')}
         value={input}
         onChange={(e) => setInput(e.target.value)}
         onKeyDown={(e) => {
@@ -104,7 +106,7 @@ export function QuickBar({
       ))}
       {recent.length > 0 && (
         <span className={stylex.props(styles.recent).className}>
-          最近：
+          {t('recent')}
           {recent.map((s) => (
             <a
               key={s.symbol}
@@ -122,8 +124,8 @@ export function QuickBar({
             <button
               type="button"
               {...stylex.props(styles.action, styles.trial)}
-              aria-label="Kansoku AI"
-              title="Kansoku AI · 免费试用 7 天"
+              aria-label={t('kansokuAi')}
+              title={`${t('kansokuAi')} · ${t('freeTrial7Days')}`}
               onClick={() => openLicenseModal('guard')}
             >
               <Sparkles size={16} />
@@ -132,15 +134,25 @@ export function QuickBar({
           <a
             {...stylex.props(styles.action)}
             href="/research?view=journal"
-            aria-label="研究库"
-            title="研究库"
+            aria-label={t('researchLibrary')}
+            title={t('researchLibrary')}
           >
             <Library size={16} />
           </a>
-          <a {...stylex.props(styles.action)} href="/chat" aria-label="AI 对话" title="AI 对话">
+          <a
+            {...stylex.props(styles.action)}
+            href="/chat"
+            aria-label={t('aiChat')}
+            title={t('aiChat')}
+          >
             <MessageCircle size={16} />
           </a>
-          <a {...stylex.props(styles.action)} href="/settings/ai" aria-label="设置" title="设置">
+          <a
+            {...stylex.props(styles.action)}
+            href="/settings/ai"
+            aria-label={t('settings')}
+            title={t('settings')}
+          >
             <Settings size={16} />
           </a>
         </span>
