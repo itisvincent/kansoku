@@ -14,6 +14,7 @@ import { ExplainAction } from './ExplainAction';
 import { FollowAction } from './FollowAction';
 import { useAnalystRun } from './useAnalystRun';
 import { colors, fontSizes } from '../../theme/tokens.stylex';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   runControl: {
@@ -86,6 +87,7 @@ export function AiTab({
   loaded?: boolean;
   analysisRevision?: string;
 }) {
+  const { t } = useLocale();
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const run = useAnalystRun(symbol, !readOnly);
 
@@ -134,7 +136,7 @@ export function AiTab({
           <div className={`ai-reassess ${stylex.props(styles.reassess).className}`}>
             <Button onClick={run.start} disabled={run.pending || run.running}>
               {run.running && <Spinner />}
-              {run.running ? '重估进行中…' : '重新分析'}
+              {run.running ? t('reassessing') : t('reanalyze')}
             </Button>
             {run.hint && (
               <span className={`ai-hint ${stylex.props(styles.hint).className}`}>{run.hint}</span>
@@ -148,7 +150,7 @@ export function AiTab({
                     className="ai-date-select"
                     value={selectedDate ?? 'today'}
                     options={[
-                      { value: 'today', label: '今天' },
+                      { value: 'today', label: t('today') },
                       ...pastDates.map((d) => ({ value: d, label: d })),
                     ]}
                     onChange={(v) => setSelectedDate(v === 'today' ? null : v)}
@@ -165,7 +167,7 @@ export function AiTab({
 
       {selectedDate && (
         <div className={`note-block ${stylex.props(styles.note).className}`}>
-          显示 {selectedDate} 的点评（今天暂无新点评）
+          {t('showingDateComments', { date: selectedDate })}
         </div>
       )}
 
@@ -187,7 +189,8 @@ export function AiTab({
       return (
         <div key={row.id} {...stylex.props(styles.fold)} onClick={() => toggleFold(row.id)}>
           <MarketTime value={row.from} format="clock" market={market} /> –{' '}
-          <MarketTime value={row.to} format="clock" market={market} /> 无事 ×{row.count}（点击展开）
+          <MarketTime value={row.to} format="clock" market={market} />{' '}
+          {t('noEventCount', { count: row.count })}
         </div>
       );
     }
@@ -195,7 +198,8 @@ export function AiTab({
       <div key={row.id}>
         <div {...stylex.props(styles.fold, styles.foldOpen)} onClick={() => toggleFold(row.id)}>
           <MarketTime value={row.from} format="clock" market={market} /> –{' '}
-          <MarketTime value={row.to} format="clock" market={market} /> 无事 ×{row.count}（收起）
+          <MarketTime value={row.to} format="clock" market={market} />{' '}
+          {t('noEventCountCollapse', { count: row.count })}
         </div>
         {[...row.comments].reverse().map((c) => (
           <CommentEntry key={`${c.ts}-${c.text}`} symbol={symbol} comment={c} />
@@ -208,15 +212,13 @@ export function AiTab({
     if (shownError)
       return (
         <div className={`note-block ${stylex.props(styles.note).className}`}>
-          点评获取失败：{shownError}
+          {t('commentsFetchFailed')}: {shownError}
         </div>
       );
     if (rows.length === 0) {
       return (
         <div className={`note-block ${stylex.props(styles.note).className}`}>
-          {selectedDate
-            ? `${selectedDate} 没有点评`
-            : '暂无点评。盘面出现触发事件时，AI 会在这里给出研判；也可以点上面「重新分析」手动跑一次重估'}
+          {selectedDate ? t('noCommentsOnDate', { date: selectedDate }) : t('noCommentsHint')}
         </div>
       );
     }
