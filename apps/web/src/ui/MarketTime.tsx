@@ -14,6 +14,7 @@ import {
 } from '@kansoku/shared/time';
 import { type TimeDisplayPreference, useTimeDisplayPreference } from '../lib/timeDisplayPreference';
 import { Tooltip } from './Tooltip';
+import { useLocale, type Locale } from '../lib/i18n';
 
 type MarketTimeFormat = 'clock' | 'clock-seconds' | 'date-time' | 'month-day-time';
 
@@ -34,10 +35,16 @@ interface MarketTimeProps {
   zone?: 'market' | 'preferred';
 }
 
-const MARKET_TOOLTIP_LABEL: Record<Market, string> = {
+const MARKET_TOOLTIP_LABEL_ZH: Record<Market, string> = {
   US: '美东时间',
   HK: '港股（香港时间）',
   CN: '北京时间',
+};
+
+const MARKET_TOOLTIP_LABEL_EN: Record<Market, string> = {
+  US: 'US Eastern time',
+  HK: 'Hong Kong time',
+  CN: 'China Standard Time',
 };
 
 function formatTime(
@@ -75,6 +82,7 @@ export function resolveMarketTimePresentation({
   format = 'date-time',
   includeZone,
   market = 'US',
+  locale = 'zh-CN',
 }: {
   value: TimeInput;
   preference: TimeDisplayPreference;
@@ -82,6 +90,7 @@ export function resolveMarketTimePresentation({
   format?: MarketTimeFormat;
   includeZone?: boolean;
   market?: Market;
+  locale?: Locale;
 }): MarketTimePresentation {
   const marketLabel = formatTime(value, format, includeZone, market);
   if (!shouldShowLocalTime(value, timeZone, marketTimeZone(market)))
@@ -90,13 +99,13 @@ export function resolveMarketTimePresentation({
   if (preference === 'local') {
     return {
       label: formatLocalTime(value, timeZone, format, includeZone),
-      tooltip: `${MARKET_TOOLTIP_LABEL[market]} ${formatMarketDateTime(value, true, market)}`,
+      tooltip: `${(locale === 'en-US' ? MARKET_TOOLTIP_LABEL_EN : MARKET_TOOLTIP_LABEL_ZH)[market]} ${formatMarketDateTime(value, true, market)}`,
     };
   }
 
   return {
     label: marketLabel,
-    tooltip: `本地时间 ${formatDateTimeInZone(value, timeZone, true)}`,
+    tooltip: `${locale === 'en-US' ? 'Local time' : '本地时间'} ${formatDateTimeInZone(value, timeZone, true)}`,
   };
 }
 
@@ -111,6 +120,7 @@ export function MarketTime({
   value,
   zone = 'preferred',
 }: MarketTimeProps) {
+  const { locale } = useLocale();
   const userPreference = useTimeDisplayPreference();
   const [nowMs, setNowMs] = useState(() => Date.now());
 
@@ -129,6 +139,7 @@ export function MarketTime({
     format,
     includeZone,
     market,
+    locale,
   });
   const label = preference === 'local' ? presentation.label : (children ?? presentation.label);
 
