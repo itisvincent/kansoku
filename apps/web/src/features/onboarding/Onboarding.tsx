@@ -9,6 +9,7 @@ import { StepAi } from './StepAi';
 import { StepLongbridge } from './StepLongbridge';
 import { StepPro } from './StepPro';
 import { StepTwitter } from './StepTwitter';
+import { useLocale } from '../../lib/i18n';
 
 const BASE_STEPS: { key: OnboardingStep; label: string }[] = [
   { key: 'longbridge', label: '连接数据' },
@@ -221,11 +222,13 @@ export function Onboarding({
   onRecheck: () => void;
   onComplete: () => Promise<void>;
 }) {
+  const { t } = useLocale();
   const [localStep, setLocalStep] = useState<OnboardingStep>(step === 'longbridge' ? 'ai' : step);
   const renderStep = resolveRenderStep(step, localStep);
   const { pro, licensed } = useCapabilities();
   const offerPro = (pro && !licensed) || renderStep === 'pro';
-  const steps = offerPro ? [...BASE_STEPS, PRO_STEP] : BASE_STEPS;
+  const stepLabels = { longbridge: t('connectData'), ai: t('configureAi'), twitter: t('connectX'), pro: 'Kansoku AI' } as const;
+  const steps = (offerPro ? [...BASE_STEPS, PRO_STEP] : BASE_STEPS).map((entry) => ({ ...entry, label: stepLabels[entry.key] }));
 
   return (
     <>
