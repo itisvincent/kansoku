@@ -7,6 +7,7 @@ import { fmt, signed } from '@web/lib/format';
 import { Card, SectionTitle } from '@web/ui';
 import { colors, fonts, fontSizes, radii } from '../../theme/tokens.stylex';
 import { TRAINER_CASE_TAG_LABEL } from './caseTagLabels';
+import { useLocale } from '../../lib/i18n';
 
 const pct = (value: number | null): string => (value === null ? '—' : `${fmt(value * 100, 0)}%`);
 
@@ -105,6 +106,7 @@ const styles = stylex.create({
 });
 
 export function TrainingStatsPage() {
+  const { t } = useLocale();
   const bridge = useMemo(() => getTrainerBridge(), []);
   const [stats, setStats] = useState<TrainerStats | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -125,7 +127,7 @@ export function TrainingStatsPage() {
   if (!bridge)
     return (
       <div className={`trainer-order-error ${stylex.props(styles.orderError).className}`}>
-        训练统计只在桌面端可用
+        {t('trainingDesktopOnly')}
       </div>
     );
   if (error)
@@ -137,7 +139,7 @@ export function TrainingStatsPage() {
   if (!stats)
     return (
       <div className={`trainer-order-panel--status ${stylex.props(styles.orderStatus).className}`}>
-        正在统计…
+        {t('calculatingStats')}
       </div>
     );
 
@@ -148,14 +150,16 @@ export function TrainingStatsPage() {
   return (
     <div className={`training-stats ${stylex.props(styles.root).className}`}>
       <SectionTitle>
-        训练统计
+        {t('trainingStats')}
         <Link className={`training-stats-back ${stylex.props(styles.back).className}`} to="/">
-          ← 回首页
+          ← {t('backHome')}
         </Link>
       </SectionTitle>
       <p className={`trainer-settle-hint ${stylex.props(styles.settleHint).className}`}>
-        共 {stats.completedSessions} 局打完{periods && ` · ${periods}`}
-        {stats.unfinishedSessions > 0 && ` · 另有 ${stats.unfinishedSessions} 局开了没打完，不计入`}
+        {t('completedSessions', { count: stats.completedSessions })}
+        {periods && ` · ${periods}`}
+        {stats.unfinishedSessions > 0 &&
+          ` · ${t('unfinishedSessions', { count: stats.unfinishedSessions })}`}
       </p>
 
       <Card className="training-stats-overview">
@@ -175,10 +179,10 @@ export function TrainingStatsPage() {
 
       <div className={`training-stats-grid ${stylex.props(styles.grid).className}`}>
         <Card>
-          <h4>按结构标签</h4>
+          <h4>{t('byStructureTag')}</h4>
           {stats.byTag.length === 0 && (
             <p className={`trainer-settle-hint ${stylex.props(styles.settleHint).className}`}>
-              还没有打完的局。
+              {t('noCompletedSessions')}
             </p>
           )}
           {stats.byTag.map((row) => (
@@ -197,7 +201,7 @@ export function TrainingStatsPage() {
         </Card>
 
         <Card>
-          <h4>止损体检</h4>
+          <h4>{t('stopHealth')}</h4>
           <Guard block={stats.stopHealth} unit="被止损的局">
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
               <span>被止损后仍到过目标</span>
@@ -218,7 +222,7 @@ export function TrainingStatsPage() {
         </Card>
 
         <Card>
-          <h4>AI 陪练影响</h4>
+          <h4>{t('coachInfluence')}</h4>
           <Guard block={stats.coachInfluence} unit="有分歧的召唤">
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
               <span>被说服改主意</span>
@@ -240,7 +244,7 @@ export function TrainingStatsPage() {
         </Card>
 
         <Card>
-          <h4>推进方式影响</h4>
+          <h4>{t('advanceInfluence')}</h4>
           <Guard block={stats.advanceStyle} unit="成交的笔">
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
               <span>逐根推进期间持仓</span>
@@ -261,7 +265,7 @@ export function TrainingStatsPage() {
         </Card>
 
         <Card>
-          <h4>AI 成绩单</h4>
+          <h4>{t('coachScorecard')}</h4>
           <Guard block={stats.coachScorecard} unit="召唤">
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
               <span>方向准确率</span>
