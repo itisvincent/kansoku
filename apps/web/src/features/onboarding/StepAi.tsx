@@ -306,7 +306,7 @@ export function StepAi({
     logo: <KeyLogo />,
     name: 'API Key',
     tag: null,
-    sub: 'openai · anthropic · google',
+    sub: 'openai · anthropic · google · xAI (Grok)',
     recommended: false,
     action: { label: '填入', accent: false, onClick: () => setShowApiKey((v) => !v) },
   };
