@@ -3,8 +3,10 @@ import { getTrainerBridge } from '@web/features/desktop/desktopTrainerBridge';
 import { useCapabilities } from '@web/features/edition/capabilitiesStore';
 import { Switch } from '@web/ui';
 import { SettingsGroup, SettingsRow } from './SettingsGroup';
+import { useLocale } from '../../lib/i18n';
 
 export function TrainingSection() {
+  const { t } = useLocale();
   const { pro, licensed } = useCapabilities();
   const available = pro === true && licensed && getTrainerBridge() !== null;
   const [enabled, setEnabled] = useState<boolean | null>(null);
@@ -38,12 +40,12 @@ export function TrainingSection() {
   };
 
   return (
-    <SettingsGroup name="盲盘训练">
+    <SettingsGroup name={t('training')}>
       <SettingsRow
-        label="自动补货"
-        description="池容低于 5 局自动补至 15 局；连续补空两次后暂停挂起，手动补一次恢复"
+        label={t('autoRefill')}
+        description={t('autoRefillDescription')}
       >
-        <Switch ariaLabel="自动补货" checked={enabled} onCheckedChange={toggle} />
+        <Switch ariaLabel={t('autoRefill')} checked={enabled} onCheckedChange={toggle} />
       </SettingsRow>
     </SettingsGroup>
   );

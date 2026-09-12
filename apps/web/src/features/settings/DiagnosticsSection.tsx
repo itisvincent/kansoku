@@ -3,8 +3,10 @@ import { Button, openModal } from '@web/ui';
 import { getDesktopLogsBridge } from '../logs/desktopLogs';
 import { LogsViewer } from '../logs/LogsPage';
 import { SettingsGroup, SettingsRow } from './SettingsGroup';
+import { useLocale } from '../../lib/i18n';
 
 export function DiagnosticsSection() {
+  const { t } = useLocale();
   const [bridge] = useState(() => getDesktopLogsBridge());
   const [path, setPath] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -41,19 +43,19 @@ export function DiagnosticsSection() {
 
   const openLogs = () =>
     openModal({
-      title: '诊断日志',
+      title: t('diagnostics'),
       size: 'lg',
       body: <LogsViewer />,
     });
 
   return (
-    <SettingsGroup name="诊断日志">
-      <SettingsRow label="日志目录" mono={path ?? '加载中…'} error={error ?? undefined}>
+    <SettingsGroup name={t('diagnostics')}>
+      <SettingsRow label={t('logDirectory')} mono={path ?? t('loading')} error={error ?? undefined}>
         <Button type="button" disabled={busy} onClick={openLogs}>
-          查看日志
+          {t('viewLogs')}
         </Button>
         <Button type="button" disabled={busy} onClick={() => void reveal()}>
-          在访达中显示
+          {t('showInExplorer')}
         </Button>
       </SettingsRow>
     </SettingsGroup>
