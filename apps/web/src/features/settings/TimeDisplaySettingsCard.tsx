@@ -7,6 +7,7 @@ import {
 } from '@web/lib/timeDisplayPreference';
 import { SegmentedControl, type SegmentedControlOption } from '@web/ui';
 import { SettingsGroup, SettingsRow } from './SettingsGroup';
+import { useLocale } from '../../lib/i18n';
 
 const OPTIONS = [
   { value: 'market', label: '美东时间' },
@@ -23,19 +24,24 @@ const styles = stylex.create({
 });
 
 export function TimeDisplaySettingsCard() {
+  const { t } = useLocale();
   const preference = useTimeDisplayPreference();
+  const options = [
+    { value: 'market', label: t('marketTime') },
+    { value: 'local', label: t('localTime') },
+  ] satisfies readonly SegmentedControlOption<TimeDisplayPreference>[];
 
   return (
-    <SettingsGroup name="时间显示">
+    <SettingsGroup name={t('timeDisplay')}>
       <SettingsRow
-        label="优先显示的时间"
-        description={`本地时区 ${localTimeZone()}，鼠标停上去看另一个时区`}
+        label={t('preferredTime')}
+        description={`${t('localTimezone')} ${localTimeZone()}`}
       >
         <SegmentedControl
-          ariaLabel="优先显示的时间"
+          ariaLabel={t('preferredTime')}
           className={stylex.props(styles.mode).className}
           value={preference}
-          options={OPTIONS}
+          options={options}
           onChange={setTimeDisplayPreference}
         />
       </SettingsRow>

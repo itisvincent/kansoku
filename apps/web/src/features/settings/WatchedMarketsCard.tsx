@@ -6,6 +6,7 @@ import { MARKET_LABEL, type Market } from './types';
 import { SettingsGroup, SettingsRow } from './SettingsGroup';
 import { toggleMarket } from './watchedMarkets';
 import { useSaveQueue } from './useSaveQueue';
+import { useLocale } from '../../lib/i18n';
 
 const MARKET_ORDER: Market[] = ['US', 'HK', 'CN'];
 
@@ -28,6 +29,7 @@ function WatchedMarketsCardLoaded({
   onReload: () => void;
   error: string | null;
 }) {
+  const { t } = useLocale();
   const [markets, setMarkets] = useState<Market[]>(initial);
   const [blockedHint, setBlockedHint] = useState(false);
 
@@ -54,10 +56,10 @@ function WatchedMarketsCardLoaded({
     queue.push(result);
   };
 
-  const notice = blockedHint ? '至少保留一个市场' : error;
+  const notice = blockedHint ? t('keepOneMarket') : error;
 
   return (
-    <SettingsGroup name="关注市场">
+    <SettingsGroup name={t('watchedMarkets')}>
       {MARKET_ORDER.map((market) => (
         <SettingsRow key={market} label={MARKET_LABEL[market]}>
           <Switch

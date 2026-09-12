@@ -5,6 +5,7 @@ import { client } from '@web/lib/client';
 import { Badge, Button, SegmentedControl, type SegmentedControlOption } from '@web/ui';
 import { getDesktopCredentialsBridge, type CredentialsGetResult } from './desktopCredentials';
 import { SettingsGroup, SettingsRow } from './SettingsGroup';
+import { useLocale } from '../../lib/i18n';
 
 const INSTALL_URL = 'https://open.longbridge.com/docs/cli/install';
 
@@ -15,6 +16,7 @@ const REGION_OPTIONS = [
 ] satisfies readonly SegmentedControlOption<LongbridgeRegionPreference>[];
 
 export function LongbridgeSection() {
+  const { t } = useLocale();
   const bridge = getDesktopCredentialsBridge();
   const { data, reload } = useQuery<CredentialsGetResult>(
     bridge ? 'credentials.status' : null,
@@ -31,12 +33,12 @@ export function LongbridgeSection() {
 
   const ready = data?.state === 'ready';
   const label = ready
-    ? '已连接'
+    ? t('marketConnected')
     : data?.state === 'cli_missing'
-      ? '未安装 CLI'
+      ? t('cliNotInstalled')
       : data?.state === 'login_required'
-        ? '需要登录'
-        : 'Token 无法读取';
+        ? t('loginRequired')
+        : t('tokenUnreadable');
 
   const handleRegionChange = async (next: LongbridgeRegionPreference) => {
     setRegionBusy(true);
@@ -52,18 +54,18 @@ export function LongbridgeSection() {
   };
 
   return (
-    <SettingsGroup name="长桥 CLI" badge={<Badge tone={ready ? 'up' : 'down'}>{label}</Badge>}>
+    <SettingsGroup name="Longbridge CLI" badge={<Badge tone={ready ? 'up' : 'down'}>{label}</Badge>}>
       <SettingsRow
-        label="可执行文件"
+        label={t('executable')}
         mono={data?.cliPath ?? '未找到'}
         error={data?.lastError ?? undefined}
       >
-        <Button onClick={reload}>重新检测</Button>
+        <Button onClick={reload}>{t('redetect')}</Button>
       </SettingsRow>
       {region.data ? (
         <SettingsRow
-          label="线路"
-          description="自动模式探测可达线路，改完下次连接生效"
+          label={t('route')}
+          description={t('routeDescription')}
           error={regionError ?? undefined}
         >
           <SegmentedControl
@@ -75,9 +77,9 @@ export function LongbridgeSection() {
           />
         </SettingsRow>
       ) : null}
-      <SettingsRow label="还没装 CLI？" description="安装后回来点重新检测">
+      <SettingsRow label={t('installHint')} description={t('installHintDescription')}>
         <Button onClick={() => window.open(INSTALL_URL, '_blank', 'noopener,noreferrer')}>
-          安装说明
+          {t('installGuide')}
         </Button>
       </SettingsRow>
     </SettingsGroup>
