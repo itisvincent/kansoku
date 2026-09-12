@@ -8,6 +8,7 @@ import { colors, fonts, fontSizes } from '../../theme/tokens.stylex';
 import { SettingsConfirmActions, SettingsConfirmDialog } from './openSettingsConfirm';
 import { DeviceLoginDialog } from './DeviceLoginDialog';
 import { SettingsGroup } from './SettingsGroup';
+import { useLocale } from '../../lib/i18n';
 import { ProviderAuthRow } from './ProviderAuthRow';
 import {
   CODEX_PROVIDER,
@@ -156,6 +157,7 @@ function ResetCredentialsDialog({
   closeModal: () => void;
   onChanged: () => void;
 }) {
+  const { t } = useLocale();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -387,6 +389,7 @@ export function ProviderCredentialsSection({
   lobehubCredits: LobeHubCredits | null;
   lobehubCreditsError: string | null;
 }) {
+  const { t } = useLocale();
   const [editingProvider, setEditingProvider] = useState<string | null>(null);
   const [editKey, setEditKey] = useState('');
   const [busyProvider, setBusyProvider] = useState<string | null>(null);
@@ -496,30 +499,30 @@ export function ProviderCredentialsSection({
   const codex = catalog.providers.find((provider) => provider.id === CODEX_PROVIDER);
   const codexSummary =
     codex?.auth.status === 'configured'
-      ? 'Codex 已登录'
+      ? t('codexLoggedIn')
       : codex?.auth.status === 'error'
-        ? 'Codex 登录异常'
-        : 'Codex 未登录';
+        ? t('codexLoginError')
+        : t('codexNotLoggedIn');
   const lobehubSummary =
     lobehubAccount?.status === 'connected'
-      ? 'LobeHub 已连接'
+      ? t('lobeConnected')
       : lobehubAccount?.status === 'unavailable'
-        ? 'LobeHub 待启用'
-        : 'LobeHub 未连接';
+        ? t('lobePending')
+        : t('lobeNotConnected');
 
   return (
     <SettingsGroup
-      name="Provider 与凭据"
+      name={t('providerCredentials')}
       badge={
         <span className={`settings-conn-summary ${stylex.props(styles.connSummary).className}`}>
-          {apiKeyCount + ' 个 key · ' + codexSummary + ' · ' + lobehubSummary}
+          {apiKeyCount + ' ' + t('keysCount') + ' · ' + codexSummary + ' · ' + lobehubSummary}
         </span>
       }
     >
       {settings.masterKey === 'invalid' ? (
         <div className={`settings-warning-strip ${stylex.props(styles.warningStrip).className}`}>
-          <span>主密钥异常，已存的凭据无法解密</span>
-          <Button onClick={handleReset}>重置全部凭据</Button>
+          <span>{t('masterKeyError')}</span>
+          <Button onClick={handleReset}>{t('resetCredentials')}</Button>
         </div>
       ) : null}
       <div className="settings-provider-list">
@@ -571,13 +574,13 @@ export function ProviderCredentialsSection({
               type="password"
               value={addKey}
               onChange={(event) => setAddKey(event.target.value)}
-              placeholder="API key"
+              placeholder={t('apiKey')}
             />
             <Button
               disabled={addBusy || !effectiveAddProvider || !addKey}
               onClick={() => addCredential(effectiveAddProvider)}
             >
-              {addBusy ? '保存中…' : '添加 Provider'}
+              {addBusy ? t('saving') : t('addProvider')}
             </Button>
             {addError ? (
               <div
