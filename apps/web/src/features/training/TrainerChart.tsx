@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useMemo, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { TrainerView } from '@kansoku/pro-api';
@@ -168,6 +169,8 @@ export interface TrainerChartProps {
 }
 
 export function TrainerChart({ view, sessionId, bridge, onViewChange }: TrainerChartProps) {
+  const { t: tr } = useLocale();
+  const { locale } = useLocale();
   const [epilogueBars, setEpilogueBars] = useState<RawBar[] | null>(null);
   const [expanded, setExpanded] = useState(false);
   // Reset during render (see TrainerOrderPanel's amend-draft reset for the same idiom): the
@@ -179,7 +182,10 @@ export function TrainerChart({ view, sessionId, bridge, onViewChange }: TrainerC
     setEpilogueBars(null);
     setExpanded(false);
   }
-  const built = useMemo(() => buildTrainerIntradayBuilt(view, epilogueBars), [view, epilogueBars]);
+  const built = useMemo(
+    () => buildTrainerIntradayBuilt(view, epilogueBars, tr),
+    [view, epilogueBars, tr],
+  );
   const baseTf = TRAINER_PERIOD_TO_CHART_TF[view.basePeriod];
   const [requestedTf, setRequestedTf] = useState<ChartTf>(baseTf);
   const activeTf = isTrainerLadderTf(view.ladder, requestedTf) ? requestedTf : baseTf;
@@ -201,8 +207,8 @@ export function TrainerChart({ view, sessionId, bridge, onViewChange }: TrainerC
   // which part of the chart they are actually trading.
   const dividers = useMemo(() => {
     const anchor = replayDivider(view);
-    return anchor === null ? [] : [{ ...anchor, label: '题目到此 · 从这里开始操作' }];
-  }, [view]);
+    return anchor === null ? [] : [{ ...anchor, label: tr('trainStartHere') }];
+  }, [view, tr]);
   const overlayTrades = view.terminal ? view.trades : NO_TRADES;
   useTrainerReviewOverlay(chartHandle, overlayTrades, bands, dividers);
 
@@ -235,16 +241,19 @@ export function TrainerChart({ view, sessionId, bridge, onViewChange }: TrainerC
               />
             )}
             <span className={`trainer-title ${stylex.props(styles.title).className}`}>
-              盲盘训练
+              {tr('trainBlind')}
             </span>
             {/* Both halves describe the tier actually on screen. Naming the base period while
                 quoting a base-bar count made the header read as 5m no matter what was displayed,
                 and the count silently meant something else on every other tier. */}
             <span className={`trainer-meta ${stylex.props(styles.meta).className}`}>
-              {view.symbol} · {tfLabel(activeTf)} ·{' '}
+              {view.symbol} · {tfLabel(activeTf, locale)} ·{' '}
               {view.terminal
-                ? '已收盘'
-                : `剩余 ${remaining.approximate ? '约 ' : ''}${remaining.count} 根`}
+                ? tr('trainClosed')
+                : tr('trainRemainingCandles', {
+                    value1: remaining.approximate ? tr('trainApprox') : '',
+                    value2: remaining.count,
+                  })}
             </span>
             {settling ? (
               <div className={`trainer-tabs ${stylex.props(styles.tabs).className}`}>
@@ -252,13 +261,13 @@ export function TrainerChart({ view, sessionId, bridge, onViewChange }: TrainerC
                   className={`trainer-tab${tab === 'settlement' ? ' trainer-tab--on' : ''} ${stylex.props(styles.tab, tab === 'settlement' && styles.tabOn).className}`}
                   onClick={() => setTab('settlement')}
                 >
-                  本局结算
+                  {tr('trainSettlement')}
                 </button>
                 <button
                   className={`trainer-tab${tab === 'review' ? ' trainer-tab--on' : ''} ${stylex.props(styles.tab, tab === 'review' && styles.tabOn).className}`}
                   onClick={() => setTab('review')}
                 >
-                  复盘
+                  {tr('trainReview')}
                 </button>
               </div>
             ) : (
@@ -288,7 +297,7 @@ export function TrainerChart({ view, sessionId, bridge, onViewChange }: TrainerC
                   <span
                     className={`trainer-thumb-expand ${stylex.props(styles.thumbExpand).className}`}
                   >
-                    展开复盘 ⤢
+                    {tr('trainExpandReview')}
                   </span>
                 </button>
               </>

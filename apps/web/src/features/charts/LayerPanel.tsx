@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useState } from 'react';
 import { ChevronDown, ChevronRight, Lock } from 'lucide-react';
 import { Checkbox, SegmentedControl } from '@web/ui';
@@ -39,7 +40,6 @@ export interface LayerPanelProps {
   inline?: boolean;
 }
 
-const RANGE_LABELS: Record<LayerRange, string> = { recent: '近期', all: '全部' };
 const RANGE_ORDER: LayerRange[] = ['recent', 'all'];
 
 const styles = stylex.create({
@@ -79,14 +79,14 @@ const styles = stylex.create({
     fontSize: fontSizes.control,
   },
   header: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '8px',
-    color: colors.textPrimary,
-    fontWeight: 500,
-    cursor: 'pointer',
-    userSelect: 'none',
+    'display': 'flex',
+    'alignItems': 'center',
+    'justifyContent': 'space-between',
+    'gap': '8px',
+    'color': colors.textPrimary,
+    'fontWeight': 500,
+    'cursor': 'pointer',
+    'userSelect': 'none',
     ':hover': {
       backgroundColor: colors.backgroundHover,
     },
@@ -158,13 +158,13 @@ const styles = stylex.create({
     fontSize: fontSizes.control,
   },
   groupLabelOn: {
-    color: colors.textPrimary,
+    'color': colors.textPrimary,
     ':hover': {
       color: colors.textPrimary,
     },
   },
   groupLabelOff: {
-    color: colors.textMuted,
+    'color': colors.textMuted,
     ':hover': {
       color: colors.textPrimary,
     },
@@ -181,14 +181,14 @@ const styles = stylex.create({
     flexShrink: 0,
   },
   locked: {
-    display: 'flex',
-    alignItems: 'center',
-    color: colors.textMuted,
-    padding: '2px 0',
-    cursor: 'pointer',
-    userSelect: 'none',
-    lineHeight: 1.35,
-    fontSize: fontSizes.control,
+    'display': 'flex',
+    'alignItems': 'center',
+    'color': colors.textMuted,
+    'padding': '2px 0',
+    'cursor': 'pointer',
+    'userSelect': 'none',
+    'lineHeight': 1.35,
+    'fontSize': fontSizes.control,
     ':hover': {
       color: colors.textSecondary,
     },
@@ -212,20 +212,20 @@ const styles = stylex.create({
     marginRight: 'auto',
   },
   customToggle: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '3px',
-    width: '100%',
-    padding: '3px 0 2px',
-    fontSize: fontSizes.sm,
-    color: colors.textMuted,
-    backgroundColor: 'transparent',
-    borderStyle: 'none',
-    borderTopColor: colors.border,
-    borderTopStyle: 'solid',
-    borderTopWidth: '1px',
-    cursor: 'pointer',
-    userSelect: 'none',
+    'display': 'flex',
+    'alignItems': 'center',
+    'gap': '3px',
+    'width': '100%',
+    'padding': '3px 0 2px',
+    'fontSize': fontSizes.sm,
+    'color': colors.textMuted,
+    'backgroundColor': 'transparent',
+    'borderStyle': 'none',
+    'borderTopColor': colors.border,
+    'borderTopStyle': 'solid',
+    'borderTopWidth': '1px',
+    'cursor': 'pointer',
+    'userSelect': 'none',
     ':hover': {
       color: colors.textPrimary,
     },
@@ -240,7 +240,7 @@ export function LayerPanel({
   groups,
   checked: checkedProp,
   defaultChecked = true,
-  title = '图层',
+  title: titleOverride,
   defaultCollapsed = true,
   presets,
   onPreset,
@@ -248,6 +248,14 @@ export function LayerPanel({
   onRangeChange,
   inline = false,
 }: LayerPanelProps) {
+  const { t: tr } = useLocale();
+  const RANGE_LABELS: Record<LayerRange, string> = {
+    recent: tr('layerRecent'),
+    all: tr('layerAll'),
+  };
+
+  const { t: i18n } = useLocale();
+  const title = titleOverride ?? i18n('chartLayers');
   const [collapsed, setCollapsed] = useState(defaultCollapsed);
   const [customOpen, setCustomOpen] = useState(false);
   const [internal, setInternal] = useState<Record<string, boolean>>({});
@@ -284,10 +292,10 @@ export function LayerPanel({
     range !== undefined ? (
       <div className={`lp-range ${stylex.props(styles.range).className}`}>
         <span className={`lp-range-label ${stylex.props(styles.rangeLabel).className}`}>
-          标注范围
+          {i18n('chartMarkerRange')}
         </span>
         <SegmentedControl
-          ariaLabel="标注范围"
+          ariaLabel={i18n('chartMarkerRange')}
           size="sm"
           fit
           value={range}
@@ -302,7 +310,11 @@ export function LayerPanel({
       key={g.title ?? `g${gi}`}
       className={`lp-group ${stylex.props(gi === groups.length - 1 ? styles.groupLast : styles.group).className}`}
     >
-      {g.title ? <div className={`lp-group-title ${stylex.props(styles.groupTitle).className}`}>{g.title}</div> : null}
+      {g.title ? (
+        <div className={`lp-group-title ${stylex.props(styles.groupTitle).className}`}>
+          {g.title}
+        </div>
+      ) : null}
       {g.items.map((it) =>
         it.locked ? (
           <div
@@ -319,7 +331,10 @@ export function LayerPanel({
             }}
           >
             <Lock className={`lp-lock-icon ${stylex.props(styles.lockIcon).className}`} size={11} />
-            <span className={`lp-swatch ${stylex.props(styles.swatch).className}`} style={{ background: it.color }} />
+            <span
+              className={`lp-swatch ${stylex.props(styles.swatch).className}`}
+              style={{ background: it.color }}
+            />
             {it.label}
           </div>
         ) : (
@@ -338,7 +353,10 @@ export function LayerPanel({
                 it.toggle(next);
               }}
             />
-            <span className={`lp-swatch ${stylex.props(styles.swatch).className}`} style={{ background: it.color }} />
+            <span
+              className={`lp-swatch ${stylex.props(styles.swatch).className}`}
+              style={{ background: it.color }}
+            />
             {it.label}
           </label>
         ),
@@ -373,11 +391,13 @@ export function LayerPanel({
           )}
         </span>
       </div>
-      <div className={`lp-body ${stylex.props(styles.body, collapsed && styles.bodyCollapsed, inline && styles.bodyInline).className}`}>
+      <div
+        className={`lp-body ${stylex.props(styles.body, collapsed && styles.bodyCollapsed, inline && styles.bodyInline).className}`}
+      >
         {hasPresets ? (
           <>
             <SegmentedControl
-              ariaLabel="预设档"
+              ariaLabel={i18n('chartPresets')}
               className={`lp-presets ${stylex.props(styles.presets).className}`}
               size="sm"
               value={activePreset ?? ''}
@@ -396,15 +416,21 @@ export function LayerPanel({
             >
               <span className={`lp-arrow ${stylex.props(styles.arrow).className}`}>
                 {customOpen ? (
-                  <ChevronDown className={`icon ${stylex.props(styles.icon).className}`} size={11} />
+                  <ChevronDown
+                    className={`icon ${stylex.props(styles.icon).className}`}
+                    size={11}
+                  />
                 ) : (
-                  <ChevronRight className={`icon ${stylex.props(styles.icon).className}`} size={11} />
+                  <ChevronRight
+                    className={`icon ${stylex.props(styles.icon).className}`}
+                    size={11}
+                  />
                 )}
               </span>
-              自定义图层
+              {i18n('chartCustomLayers')}
               {activePreset === null && (
                 <span className={`lp-custom-flag ${stylex.props(styles.customFlag).className}`}>
-                  已修改
+                  {i18n('chartModified')}
                 </span>
               )}
             </button>

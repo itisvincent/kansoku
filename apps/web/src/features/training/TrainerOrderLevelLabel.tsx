@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import {
   useState,
   type FocusEvent as ReactFocusEvent,
@@ -18,9 +19,7 @@ import type {
 } from './TrainerOrderLevels';
 import type { PinnedPane } from './usePinnedPriceY';
 
-const KIND_LABEL: Record<LevelKind, string> = { target: '目标', entry: '入场', stop: '止损' };
 const OFF_SCALE_MARK: Record<'above' | 'below', string> = { above: '▴', below: '▾' };
-const OFF_SCALE_HINT = '这个价格已经不在图上，价格牌钉在面板边上，拖它可以把线拉回来';
 
 const styles = stylex.create({
   level: {
@@ -227,6 +226,15 @@ export function TrainerOrderLevelLabel({
   submit,
   dismiss,
 }: TrainerOrderLevelLabelProps) {
+  const { t: tr } = useLocale();
+  const OFF_SCALE_HINT = tr('trainOffScaleHelp');
+
+  const KIND_LABEL: Record<LevelKind, string> = {
+    target: tr('trainTarget'),
+    entry: tr('trainEntry'),
+    stop: tr('trainStop'),
+  };
+
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   // A settled edit needs its confirm/revert reachable independent of the pointer, which by then has
@@ -267,7 +275,7 @@ export function TrainerOrderLevelLabel({
         className={`trainer-level-pill${onGrab ? ' trainer-level-pill--drag' : ''}${expanded ? '' : ' trainer-level-pill--collapsed'}${offScale ? ' trainer-level-pill--offscale' : ''} ${stylex.props(styles.pill, filled && styles.pillFilled, onGrab && styles.pillDrag, !expanded && styles.pillCollapsed, offScale && styles.pillOffScale).className}`}
         style={{ marginRight: `${marginRight}px` }}
         role="group"
-        aria-label={`${KIND_LABEL[kind]} ${fmt(level.price)}${offScale ? ' 超出图表范围' : ''}`}
+        aria-label={`${KIND_LABEL[kind]} ${fmt(level.price)}${offScale ? ` ${tr('trainOutsideChart')}` : ''}`}
         title={offScale ? OFF_SCALE_HINT : undefined}
         tabIndex={0}
         onPointerDown={onGrab}
@@ -295,8 +303,12 @@ export function TrainerOrderLevelLabel({
             <button
               key={pull.field}
               className={`trainer-level-pull trainer-level-pull--${pull.field}${pull.set ? ' trainer-level-pull--set' : ''} ${stylex.props(styles.pull, pull.set && (pull.field === 'target' ? styles.pullSetTarget : styles.pullSetStop)).className}`}
-              aria-label={`拖出${pull.label}`}
-              title={pull.set ? `拖动改${pull.label}` : `按住往图上拖，放下就是${pull.label}`}
+              aria-label={tr('trainPullLabel', { value1: pull.label })}
+              title={
+                pull.set
+                  ? tr('trainAdjustLabel', { value1: pull.label })
+                  : tr('trainPlaceLabel', { value1: pull.label })
+              }
               onPointerDown={startDrag(pull.field)}
             >
               {pull.label}
@@ -343,14 +355,14 @@ export function TrainerOrderLevelLabel({
                   disabled={level.pending.blocked}
                   onClick={onConfirm}
                 >
-                  确认调整
+                  {tr('trainConfirmAdjust')}
                 </button>
                 <button
                   className={`trainer-level-act ${stylex.props(styles.action).className}`}
-                  aria-label="撤销调整"
+                  aria-label={tr('trainUndoAdjust')}
                   onClick={onRevert}
                 >
-                  撤销
+                  {tr('trainCancel')}
                 </button>
               </>
             ) : (
@@ -364,9 +376,9 @@ export function TrainerOrderLevelLabel({
                 <span
                   className={`trainer-level-submit-label ${stylex.props(styles.submitLabel).className}`}
                 >
-                  进场
+                  {tr('trainEnter')}
                 </span>
-                {SIZE_PRESETS.map(({ label, size }) => (
+                {SIZE_PRESETS(tr).map(({ label, size }) => (
                   <button
                     key={label}
                     className={`trainer-level-act trainer-level-act--go ${stylex.props(styles.action, styles.actionGo).className}`}

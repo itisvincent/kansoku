@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import type { ReactNode } from 'react';
 import type { IntradayBuilt, TimeframeKey } from '@kansoku/shared/types';
 import * as stylex from '@stylexjs/stylex';
@@ -78,11 +79,12 @@ export function IntradayTimeframeSwitch({
   activeTf: ChartTf;
   onChange: (tf: ChartTf) => void;
 }) {
+  const { t: i18n, locale } = useLocale();
   const { visibleTfs } = useIntradayControls();
   return (
     <div
       className={`chart-timeframe-switch ${stylex.props(styles.timeframeSwitch).className}`}
-      aria-label="时间周期"
+      aria-label={i18n('chartTimeframe')}
     >
       {visibleTfs.map((k) => (
         <button
@@ -93,9 +95,9 @@ export function IntradayTimeframeSwitch({
           }
           aria-pressed={k === activeTf}
           onClick={() => onChange(k)}
-          title={tfLabel(k)}
+          title={tfLabel(k, locale)}
         >
-          {tfShortLabel(k)}
+          {tfShortLabel(k, locale)}
         </button>
       ))}
       <TimeframeSettingsMenu />

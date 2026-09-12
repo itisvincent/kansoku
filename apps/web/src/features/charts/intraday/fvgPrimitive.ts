@@ -1,3 +1,4 @@
+import { translate, type Translator } from '@web/lib/i18n';
 import type {
   IChartApi,
   IChartApiBase,
@@ -43,6 +44,7 @@ export const fvgZoneId = (zone: IntradayFvgZone): string =>
   `${FVG_ID_PREFIX}${zone.kind}:${zone.startTime}:${zone.low}:${zone.high}`;
 
 export interface FvgDisplayContext {
+  locale?: import('@web/lib/i18n').Locale;
   currentPrice?: number;
   lastBarTime?: number;
   timeframeLabel?: string;
@@ -260,29 +262,41 @@ export class FvgPrimitive implements ISeriesPrimitive<Time> {
 
 const formatPrice = (price: number) => `$${price.toFixed(2)}`;
 
-export function formatFvgTooltip(zone: IntradayFvgZone, context: FvgDisplayContext = {}): string {
+export function formatFvgTooltip(
+  zone: IntradayFvgZone,
+  context: FvgDisplayContext = {},
+  tr: Translator = (key, params) => translate(context.locale ?? 'zh-CN', key, params),
+): string {
   const { activeLow, activeHigh } = clampActiveRange(zone);
-  const direction = zone.kind === 'bullish' ? '看涨 FVG' : '看跌 FVG';
+  const direction = zone.kind === 'bullish' ? tr('fvgBullish') : tr('fvgBearish');
   const timeframe = context.timeframeLabel ? ` · ${context.timeframeLabel}` : '';
   const mitigation = Math.round((zone.mitigationRatio ?? 0) * 100);
-  const gap = zone.gapRatio === undefined ? '' : ` · 宽度 ${(zone.gapRatio * 100).toFixed(2)}%`;
-  const age = zone.ageBars === undefined ? '' : `${zone.ageBars} 根 K 线前`;
+  const gap =
+    zone.gapRatio === undefined ? '' : tr('fvgWidth', { value1: (zone.gapRatio * 100).toFixed(2) });
+  const age = zone.ageBars === undefined ? '' : tr('fvgAge', { value1: zone.ageBars });
 
   let distance = '';
   if (context.currentPrice !== undefined && context.currentPrice > 0) {
     if (context.currentPrice >= activeLow && context.currentPrice <= activeHigh) {
-      distance = '现价位于剩余区间内';
+      distance = tr('fvgInside');
     } else {
       const edge = context.currentPrice > activeHigh ? activeHigh : activeLow;
       const pct = (Math.abs(edge - context.currentPrice) / context.currentPrice) * 100;
-      distance = `距现价 ${pct.toFixed(2)}% · ${edge < context.currentPrice ? '下方' : '上方'}`;
+      distance = tr('fvgDistance', {
+        value1: pct.toFixed(2),
+        value2: edge < context.currentPrice ? tr('fvgBelow') : tr('fvgAbove'),
+      });
     }
   }
 
   return [
     `${direction}${timeframe}`,
-    `原始 ${formatPrice(zone.low)}–${formatPrice(zone.high)}`,
-    `剩余 ${formatPrice(activeLow)}–${formatPrice(activeHigh)} · 已回补 ${mitigation}%`,
+    tr('fvgOriginal', { value1: formatPrice(zone.low), value2: formatPrice(zone.high) }),
+    tr('fvgRemaining', {
+      value1: formatPrice(activeLow),
+      value2: formatPrice(activeHigh),
+      value3: mitigation,
+    }),
     [age, gap.replace(/^ · /, ''), distance].filter(Boolean).join(' · '),
   ]
     .filter(Boolean)

@@ -1,23 +1,10 @@
+import { useLocale } from '@web/lib/i18n';
 import { StylePanel } from '../charts/drawings/StylePanel';
 import type { DrawingTool } from '../charts/drawings/drawingsMachine';
 import * as stylex from '@stylexjs/stylex';
 import { colors, radii } from '../../theme/tokens.stylex';
 import { TrainerOverlayPortal } from './trainerOverlay';
 import type { TrainerDrawingsApi } from './useTrainerDrawings';
-
-const TOOLS: { tool: DrawingTool; label: string; path: string }[] = [
-  { tool: 'cursor', label: '选择', path: 'M4 2 L4 14 L7.4 11 L9.6 15 L11.4 14 L9.2 10.2 L13 10 Z' },
-  {
-    tool: 'measure',
-    label: '测量',
-    path: 'M3 13 L13 3 M5.5 10.5 L7 12 M8 8 L9.5 9.5 M10.5 5.5 L12 7',
-  },
-  { tool: 'trendline', label: '趋势线', path: 'M2.5 13.5 L13.5 2.5' },
-  { tool: 'polyline', label: '多段线', path: 'M2 12 L6 6 L9 9 L14 3' },
-  { tool: 'hline', label: '水平线', path: 'M2 8 L14 8' },
-  { tool: 'rect', label: '矩形', path: 'M3 4 H13 V12 H3 Z' },
-  { tool: 'fib', label: '斐波那契', path: 'M2 4 H14 M2 8 H14 M2 12 H14' },
-];
 
 const CLEAR_PATH = 'M4 4 L12 12 M12 4 L4 12';
 const UNDO_PATH = 'M6 3 L3 6 L6 9 M3 6 H10 A3.5 3.5 0 0 1 10 13 H7';
@@ -26,8 +13,6 @@ const REDO_PATH = 'M10 3 L13 6 L10 9 M13 6 H6 A3.5 3.5 0 0 0 6 13 H9';
 const isMac =
   typeof navigator !== 'undefined' &&
   /mac|iphone|ipad|ipod/i.test(navigator.platform || navigator.userAgent);
-const UNDO_LABEL = isMac ? '撤销（⌘Z）' : '撤销（Ctrl+Z）';
-const REDO_LABEL = isMac ? '重做（⇧⌘Z）' : '重做（Ctrl+Shift+Z）';
 
 const styles = stylex.create({
   tool: {
@@ -77,6 +62,29 @@ const styles = stylex.create({
 });
 
 export function TrainerDrawingTools({ api }: { api: TrainerDrawingsApi }) {
+  const { t: tr } = useLocale();
+  const REDO_LABEL = isMac ? tr('trainRedoMac') : tr('trainRedoWin');
+
+  const UNDO_LABEL = isMac ? tr('trainUndoMac') : tr('trainUndoWin');
+
+  const TOOLS: { tool: DrawingTool; label: string; path: string }[] = [
+    {
+      tool: 'cursor',
+      label: tr('drawSelect'),
+      path: 'M4 2 L4 14 L7.4 11 L9.6 15 L11.4 14 L9.2 10.2 L13 10 Z',
+    },
+    {
+      tool: 'measure',
+      label: tr('drawMeasure'),
+      path: 'M3 13 L13 3 M5.5 10.5 L7 12 M8 8 L9.5 9.5 M10.5 5.5 L12 7',
+    },
+    { tool: 'trendline', label: tr('drawTrend'), path: 'M2.5 13.5 L13.5 2.5' },
+    { tool: 'polyline', label: tr('drawPolyline'), path: 'M2 12 L6 6 L9 9 L14 3' },
+    { tool: 'hline', label: tr('drawHorizontal'), path: 'M2 8 L14 8' },
+    { tool: 'rect', label: tr('drawRectangle'), path: 'M3 4 H13 V12 H3 Z' },
+    { tool: 'fib', label: tr('drawFib'), path: 'M2 4 H14 M2 8 H14 M2 12 H14' },
+  ];
+
   return (
     <>
       <TrainerOverlayPortal slot="rail">
@@ -88,8 +96,8 @@ export function TrainerDrawingTools({ api }: { api: TrainerDrawingsApi }) {
             aria-label={label}
             title={
               api.tool === tool
-                ? `${label} · 再按一次退出绘图，把图交还给下单`
-                : `${label}（本局有效）`
+                ? tr('trainExitDrawingHelp', { value1: label })
+                : tr('trainSessionDrawing', { value1: label })
             }
             onClick={() => api.setTool(api.tool === tool ? 'off' : tool)}
           >
@@ -142,8 +150,8 @@ export function TrainerDrawingTools({ api }: { api: TrainerDrawingsApi }) {
         <div className={`trainer-rail-sep ${stylex.props(styles.separator).className}`} />
         <button
           className={`trainer-rail-tool ${stylex.props(styles.tool, api.count === 0 && styles.toolDisabled).className}`}
-          aria-label="清除绘图"
-          title="清除本局所有绘图"
+          aria-label={tr('trainClearDrawings')}
+          title={tr('trainClearDrawingsHelp')}
           disabled={api.count === 0}
           onClick={api.clear}
         >

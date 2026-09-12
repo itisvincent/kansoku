@@ -1,3 +1,5 @@
+import { useLocale } from '@web/lib/i18n';
+import { analysisLabel } from '../../analysisLabels';
 import { ArrowRight } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
 import {
@@ -118,21 +120,12 @@ const styles = stylex.create({
   gridValueLeft: { textAlign: 'left' },
 });
 
-const ZONE_KIND_LABEL: Record<string, string> = {
-  entry: '入场区',
-  stop: '止损/失效',
-  target: '目标区',
-  support: '支撑区',
-  resistance: '压力/阻力区',
-  invalidation: '失效区',
-  watch: '观察区',
-};
-
 function BarTime({ value }: { value: number }) {
   return <MarketTime value={value} format="month-day-time" includeZone />;
 }
 
 export function Pattern123Item({ pat }: { pat: Pattern123 }) {
+  const { t: i18n } = useLocale();
   const confirmed = pat.status === 'confirmed';
   return (
     <div className={`check-item signal ${stylex.props(styles.checkItem).className}`}>
@@ -148,7 +141,7 @@ export function Pattern123Item({ pat }: { pat: Pattern123 }) {
             tone={confirmed ? 'up' : 'accent'}
             className={`p123-badge ${stylex.props(styles.p123Badge).className}`}
           >
-            {confirmed ? '已确认' : '酝酿中'}
+            {confirmed ? i18n('chartConfirmed') : i18n('chartForming')}
           </Badge>
         </div>
         <div className={`check-val ${stylex.props(styles.checkValue).className}`}>
@@ -163,7 +156,10 @@ export function Pattern123Item({ pat }: { pat: Pattern123 }) {
         </div>
         {confirmed && pat.confirm && (
           <div className={`check-val ${stylex.props(styles.checkValue).className}`}>
-            <BarTime value={pat.confirm.time} /> 收盘 ${fmt(pat.confirm.price)} 突破触发线 $
+            <BarTime value={pat.confirm.time} />
+            {i18n('chartClosePrice')}
+            {fmt(pat.confirm.price)}
+            {i18n('chartBreakTrigger')}
             {fmt(pat.trigger)}
           </div>
         )}
@@ -173,6 +169,7 @@ export function Pattern123Item({ pat }: { pat: Pattern123 }) {
 }
 
 export function AutoSignalItem({ kindKey, pair }: { kindKey: string; pair: DivergencePair }) {
+  const { locale } = useLocale();
   const meta = AUTO_SIGNAL_META[kindKey];
   if (!meta) return null;
   return (
@@ -184,7 +181,7 @@ export function AutoSignalItem({ kindKey, pair }: { kindKey: string; pair: Diver
       </div>
       <div>
         <div className={`check-label ${stylex.props(styles.checkLabel).className}`}>
-          {meta.title}
+          {analysisLabel(meta.title, locale)}
         </div>
         <div className={`check-val ${stylex.props(styles.checkValue).className}`}>
           <BarTime value={pair.a.time} /> ${fmt(pair.a.price)}{' '}
@@ -192,7 +189,7 @@ export function AutoSignalItem({ kindKey, pair }: { kindKey: string; pair: Diver
           <BarTime value={pair.b.time} /> ${fmt(pair.b.price)}
         </div>
         <div className={`check-val ${stylex.props(styles.checkValue).className}`}>
-          {meta.impact}
+          {analysisLabel(meta.impact, locale)}
         </div>
       </div>
     </div>
@@ -206,6 +203,17 @@ export function PriceZoneCard({
   zone: IntradayPriceZone;
   compact?: boolean;
 }) {
+  const { t: tr } = useLocale();
+  const ZONE_KIND_LABEL: Record<string, string> = {
+    entry: tr('zoneEntry'),
+    stop: tr('zoneStop'),
+    target: tr('zoneTarget'),
+    support: tr('zoneSupport'),
+    resistance: tr('zoneResistance'),
+    invalidation: tr('zoneInvalidation'),
+    watch: tr('zoneWatch'),
+  };
+
   const color = zone.color ?? theme.textSecondary;
   const isBand = Math.abs(zone.high - zone.low) >= 0.0001;
   const zoneStyle = stylex.props(
@@ -245,6 +253,7 @@ export function PriceZoneCard({
 }
 
 export function TargetContextCard({ target }: { target: IntradayTargetContext }) {
+  const { t: i18n } = useLocale();
   return (
     <div {...stylex.props(styles.targetContext)}>
       <div {...stylex.props(styles.targetHead)}>
@@ -261,7 +270,8 @@ export function TargetContextCard({ target }: { target: IntradayTargetContext })
       )}
       {target.condition && (
         <div className={`zone-meta ${stylex.props(styles.zoneMeta).className}`}>
-          条件：{target.condition}
+          {i18n('chartCondition')}
+          {target.condition}
         </div>
       )}
     </div>
@@ -271,9 +281,7 @@ export function TargetContextCard({ target }: { target: IntradayTargetContext })
 export function TechRow({ label, value }: { label: string; value: string }) {
   return (
     <>
-      <div className={`k ${stylex.props(styles.gridKey).className}`}>
-        {label} DIF/DEA/HIST
-      </div>
+      <div className={`k ${stylex.props(styles.gridKey).className}`}>{label} DIF/DEA/HIST</div>
       <div className={`v left ${stylex.props(styles.gridValue, styles.gridValueLeft).className}`}>
         {value}
       </div>

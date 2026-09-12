@@ -1,9 +1,10 @@
+import { useLocale } from '@web/lib/i18n';
 import type { ReactNode } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
 import type { IntradayBuilt, TimeframeKey } from '@kansoku/shared/types';
 import { fmt, signed } from '@web/lib/format';
-import { TF_LABELS } from '../IntradayDashboard';
+import { tfLabel } from '../timeframes';
 import { conclusionOutdated, ReassessCta, type ConclusionReassess } from '../ConclusionCard';
 import { DIRECTION_LABEL } from '../directionLabels';
 import {
@@ -226,6 +227,7 @@ export function PredictionTab({
   reassess,
   emptyCta,
 }: PredictionTabProps) {
+  const { t: i18n, locale } = useLocale();
   const s = built.sidebar;
   const p = s.prediction;
   const ep = s.entryPlan;
@@ -258,19 +260,20 @@ export function PredictionTab({
       {p ? (
         <div className={`verdict ${stylex.props(styles.verdict, verdictTone.frame).className}`}>
           <div className={`verdict-label ${stylex.props(styles.verdictLabel).className}`}>
-            短线方向判断
+            {i18n('chartShortDirection')}
             {predictionStale ? (
               <span className={`stale-badge ${stylex.props(styles.staleBadge).className}`}>
                 <TriangleAlert
                   className={`icon ${stylex.props(styles.icon).className}`}
                   size={13}
                 />{' '}
-                盘中已过期
+                {i18n('chartExpired')}
               </span>
             ) : (
               predictionUpdatedAt && (
                 <span className={`prediction-age ${stylex.props(styles.predictionAge).className}`}>
-                  更新于 <MarketTime value={predictionUpdatedAt} format="clock" includeZone />（
+                  {i18n('chartUpdated')}
+                  <MarketTime value={predictionUpdatedAt} format="clock" includeZone />（
                   <TimeAgo since={predictionUpdatedAt} />）
                 </span>
               )
@@ -279,12 +282,13 @@ export function PredictionTab({
           <div
             className={`verdict-text ${stylex.props(styles.verdictText, verdictTone.text).className}`}
           >
-            {DIRECTION_LABEL[p.direction] ?? '🤔 观望'}
+            {i18n(DIRECTION_LABEL[p.direction] ?? 'chartNeutral')}
           </div>
           {p.anchor && (
             <div className={`verdict-reason ${stylex.props(styles.verdictReason).className}`}>
-              预测点：{TF_LABELS[p.anchor.timeframe] ?? p.anchor.timeframe} ·{' '}
-              <MarketTime value={p.anchor.time} /> · ${fmt(Number(p.anchor.price))}
+              {i18n('chartAnchor')}
+              {tfLabel(p.anchor.timeframe, locale)} · <MarketTime value={p.anchor.time} /> · $
+              {fmt(Number(p.anchor.price))}
             </div>
           )}
           {reassess &&
@@ -296,14 +300,16 @@ export function PredictionTab({
         </div>
       ) : (
         <div className={`verdict ${stylex.props(styles.verdict, styles.verdictNeutral).className}`}>
-          <div className={`verdict-label ${stylex.props(styles.verdictLabel).className}`}>模式</div>
+          <div className={`verdict-label ${stylex.props(styles.verdictLabel).className}`}>
+            {i18n('chartMode')}
+          </div>
           <div
             className={`verdict-text ${stylex.props(styles.verdictText, styles.verdictTextNeutral).className}`}
           >
-            👀 预览模式
+            {i18n('chartPreview')}
           </div>
           <div className={`verdict-reason ${stylex.props(styles.verdictReason).className}`}>
-            仅技术面，暂无预测结论——供分析前读数用
+            {i18n('chartPreviewHelp')}
           </div>
         </div>
       )}
@@ -312,7 +318,7 @@ export function PredictionTab({
       {p && scenarios.length > 0 && (
         <>
           <SectionTitle>
-            情景推演
+            {i18n('chartScenarios')}
             {Math.abs(totalProb - 100) >= 1 && (
               <span className={`warn-red ${stylex.props(styles.warning).className}`}>
                 {' '}
@@ -320,8 +326,7 @@ export function PredictionTab({
                   className={`icon ${stylex.props(styles.icon).className}`}
                   size={13}
                 />{' '}
-                概率合计 {fmt(totalProb, 0)}
-                %，未凑够100
+                {i18n('chartProbabilityTotal', { total: fmt(totalProb, 0) })}
               </span>
             )}
           </SectionTitle>
@@ -343,7 +348,7 @@ export function PredictionTab({
                 className={`zone-meta md ${stylex.props(styles.zoneMeta, styles.zoneMetaMd).className}`}
               >
                 {sc.path ?? ''}
-                {sc.trigger ? ` · 触发：${sc.trigger}` : ''}
+                {sc.trigger ? i18n('chartTrigger', { trigger: sc.trigger }) : ''}
               </div>
             </div>
           ))}
@@ -352,26 +357,31 @@ export function PredictionTab({
 
       {p && rbp && (
         <>
-          <SectionTitle>震荡应对</SectionTitle>
+          <SectionTitle>{i18n('chartRangePlan')}</SectionTitle>
           <div
             className={`zone-meta md ${stylex.props(styles.zoneMeta, styles.zoneMetaMd, styles.zoneMetaAfter).className}`}
           >
             {rbp.low != null && rbp.high != null && (
               <>
-                预判区间 ${fmt(Number(rbp.low))} – ${fmt(Number(rbp.high))}
+                {i18n('chartExpectedRange')}
+                {fmt(Number(rbp.low))} – ${fmt(Number(rbp.high))}
                 {rbp.condition ? ' · ' : ''}
               </>
             )}
             {rbp.condition ?? ''}
           </div>
           <div className={`grid2 ${stylex.props(styles.grid).className}`}>
-            <div className={`k ${stylex.props(styles.gridKey).className}`}>若做多</div>
+            <div className={`k ${stylex.props(styles.gridKey).className}`}>
+              {i18n('chartIfLong')}
+            </div>
             <div
               className={`v left ${stylex.props(styles.gridValue, styles.gridValueLeft).className}`}
             >
               {rbp.long_tactic ?? ''}
             </div>
-            <div className={`k ${stylex.props(styles.gridKey).className}`}>若做空</div>
+            <div className={`k ${stylex.props(styles.gridKey).className}`}>
+              {i18n('chartIfShort')}
+            </div>
             <div
               className={`v left ${stylex.props(styles.gridValue, styles.gridValueLeft).className}`}
             >
@@ -383,7 +393,7 @@ export function PredictionTab({
 
       {p && ep && (
         <>
-          <SectionTitle>入场计划</SectionTitle>
+          <SectionTitle>{i18n('chartEntryPlan')}</SectionTitle>
           {ep.entry_status_note && (
             <div
               className={`note-block ${stylex.props(styles.note).className}${ep.entry_status === 'invalidated' || ep.entry_status === 'stopped' ? ` ${stylex.props(styles.toneDown).className}` : ''}`}
@@ -394,20 +404,24 @@ export function PredictionTab({
           <div
             className={`grid2 ${stylex.props(styles.grid, Boolean(ep.entry_status_note) && styles.gridAfterNote).className}`}
           >
-            <div className={`k ${stylex.props(styles.gridKey).className}`}>入场</div>
+            <div className={`k ${stylex.props(styles.gridKey).className}`}>
+              {i18n('chartEntry')}
+            </div>
             <div className={`v ${stylex.props(styles.gridValue).className}`}>${fmt(ep.entry)}</div>
-            <div className={`k ${stylex.props(styles.gridKey).className}`}>止损</div>
+            <div className={`k ${stylex.props(styles.gridKey).className}`}>{i18n('chartStop')}</div>
             <div className={`v ${stylex.props(styles.gridValue, styles.toneDown).className}`}>
               ${fmt(ep.stop)}
             </div>
             <div className={`k ${stylex.props(styles.gridKey).className}`}>
-              目标1 ({signed(ep.target1_pct, 1)}%)
+              {i18n('chartTarget1')}
+              {signed(ep.target1_pct, 1)}%)
             </div>
             <div className={`v ${stylex.props(styles.gridValue, styles.toneUp).className}`}>
               ${fmt(ep.target1)}
             </div>
             <div className={`k ${stylex.props(styles.gridKey).className}`}>
-              目标2 ({signed(ep.target2_pct, 1)}%)
+              {i18n('chartTarget2')}
+              {signed(ep.target2_pct, 1)}%)
             </div>
             <div className={`v ${stylex.props(styles.gridValue, styles.toneUp).className}`}>
               ${fmt(ep.target2)}
@@ -436,7 +450,7 @@ export function PredictionTab({
                   <div
                     className={`section-subtitle ${stylex.props(styles.sectionSubtitle).className}`}
                   >
-                    入场理由
+                    {i18n('chartEntryReason')}
                   </div>
                   <div
                     className={`note-block strong ${stylex.props(styles.note, styles.noteStrong).className}`}
@@ -450,7 +464,7 @@ export function PredictionTab({
                   <div
                     className={`section-subtitle ${stylex.props(styles.sectionSubtitle).className}`}
                   >
-                    止损理由
+                    {i18n('chartStopReason')}
                   </div>
                   <div className={`note-block ${stylex.props(styles.note).className}`}>
                     {ep.stop_note}
@@ -462,7 +476,7 @@ export function PredictionTab({
           {targetContexts.length > 0 && (
             <>
               <div className={`section-subtitle ${stylex.props(styles.sectionSubtitle).className}`}>
-                目标依据
+                {i18n('chartTargetBasis')}
               </div>
               {targetContexts.map((target) => (
                 <TargetContextCard key={target.key} target={target} />
@@ -472,7 +486,7 @@ export function PredictionTab({
           {priceZones.length > 0 && (
             <>
               <div className={`section-subtitle ${stylex.props(styles.sectionSubtitle).className}`}>
-                关键区间
+                {i18n('chartZones')}
               </div>
               {priceZones.map((zone, i) => (
                 <PriceZoneCard key={`${zone.kind}-${zone.label}-${i}`} zone={zone} compact />
@@ -487,7 +501,7 @@ export function PredictionTab({
 
       {p && signals.length > 0 && (
         <>
-          <SectionTitle>关键标注</SectionTitle>
+          <SectionTitle>{i18n('chartAnnotations')}</SectionTitle>
           {signals.map((sig, i) => (
             <div
               key={i}
@@ -501,7 +515,7 @@ export function PredictionTab({
                   {sig.label ?? ''}
                 </div>
                 <div className={`check-val ${stylex.props(styles.checkValue).className}`}>
-                  {TF_LABELS[sig.timeframe] ?? sig.timeframe}
+                  {tfLabel(sig.timeframe, locale)}
                   {sig.price != null ? ` · $${fmt(sig.price)}` : ''}
                 </div>
               </div>
@@ -523,7 +537,10 @@ export function PredictionTab({
         if (!autoItems.length && !patterns123.length) return null;
         return (
           <>
-            <SectionTitle>自动信号 · {TF_LABELS[activeTf]}</SectionTitle>
+            <SectionTitle>
+              {i18n('chartAutoSignals')}
+              {tfLabel(activeTf, locale)}
+            </SectionTitle>
             {patterns123.map((pat, i) => (
               <Pattern123Item key={`p123-${i}`} pat={pat} />
             ))}
@@ -531,7 +548,7 @@ export function PredictionTab({
               <AutoSignalItem key={i} kindKey={it.kindKey} pair={it.pair} />
             ))}
             <div className={`note-block ${stylex.props(styles.note).className}`}>
-              简化算法自动检测（基于已确认摆动点），仅供参考，不构成买卖依据
+              {i18n('chartAutoSignalsHelp')}
             </div>
           </>
         );
@@ -539,7 +556,7 @@ export function PredictionTab({
 
       {!p && (
         <>
-          <SectionTitle>技术面摘要</SectionTitle>
+          <SectionTitle>{i18n('chartTechnicalSummary')}</SectionTitle>
           <div className={`grid2 ${stylex.props(styles.grid).className}`}>
             {TF_ORDER.map((k) => {
               const t = s.technicals[k];
@@ -547,7 +564,7 @@ export function PredictionTab({
               return (
                 <TechRow
                   key={k}
-                  label={TF_LABELS[k]}
+                  label={tfLabel(k, locale)}
                   value={`${fmt(t.last_dif)} / ${fmt(t.last_dea ?? 0)} / ${fmt(t.last_hist ?? 0)}`}
                 />
               );

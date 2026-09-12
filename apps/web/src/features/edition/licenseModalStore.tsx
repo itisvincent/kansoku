@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import { LocalizedText } from '@web/lib/i18n';
 import { LicenseModalBody } from './LicenseModal';
 import { openModal, resetModalStoreForTests } from '../../ui';
 
@@ -30,7 +31,7 @@ export function openLicenseModal(nextTrigger: LicenseModalTrigger): void {
   emit();
   if (closeFn) return;
   const close = openModal({
-    title: '订阅与授权',
+    title: <LocalizedText message="licenseTitle" />,
     size: 'sm',
     body: (closeModal) => <LicenseModalBody close={closeModal} />,
     onClose: () => {

@@ -2,6 +2,7 @@ import { skillSearchDirs } from '../../platform/env.js';
 import type { Market } from '../../symbols/symbol.utils.js';
 import { loadSkillIndex, readSkill, type SkillRuntime } from '../agents/skills.js';
 import { getWatchedMarketsOrDefault } from '../../marketdata/watchedMarketsStore.js';
+import { interfaceLanguageInstruction } from '../../settings/interfaceLocale.js';
 
 /**
  * Single injection point for the shared trading discipline.
@@ -98,8 +99,10 @@ export function disciplineFor(capability: AgentCapability, repoRoot: string): st
  * resolves the text first and is for callers that own no injection seam.
  */
 export function composeWithDiscipline(disciplineText: string, systemPrompt: string): string {
-  if (!disciplineText) return systemPrompt;
-  return [disciplineText, '', '---', '', systemPrompt].join('\n');
+  const prompt = disciplineText
+    ? [disciplineText, '', '---', '', systemPrompt].join('\n')
+    : systemPrompt;
+  return [prompt, '', interfaceLanguageInstruction()].join('\n');
 }
 
 /** Prepends the discipline to an agent's own system prompt. */
@@ -108,5 +111,6 @@ export function withDiscipline(
   repoRoot: string,
   systemPrompt: string,
 ): string {
+  if (capability === 'mechanical') return systemPrompt;
   return composeWithDiscipline(disciplineFor(capability, repoRoot), systemPrompt);
 }

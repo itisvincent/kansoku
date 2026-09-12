@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import { tfLabel, tfShortLabel, type ChartTf } from '../charts/intraday/timeframes';
 import { TRAINER_PERIOD_TO_CHART_TF, type TrainerLadder } from './payloadToIntradayBuilt';
@@ -45,10 +46,12 @@ export interface TrainerPeriodSwitchProps {
 }
 
 export function TrainerPeriodSwitch({ ladder, activeTf, onChange }: TrainerPeriodSwitchProps) {
+  const { t: tr } = useLocale();
+  const { locale } = useLocale();
   return (
     <div
       className={`chart-timeframe-switch ${stylex.props(styles.root).className}`}
-      aria-label="时间周期"
+      aria-label={tr('chartTimeframe')}
     >
       {ladder.map((period) => {
         const tf = TRAINER_PERIOD_TO_CHART_TF[period];
@@ -60,9 +63,9 @@ export function TrainerPeriodSwitch({ ladder, activeTf, onChange }: TrainerPerio
             }
             aria-pressed={tf === activeTf}
             onClick={() => onChange(tf)}
-            title={tfLabel(tf)}
+            title={tfLabel(tf, locale)}
           >
-            {tfShortLabel(tf)}
+            {tfShortLabel(tf, locale)}
           </button>
         );
       })}

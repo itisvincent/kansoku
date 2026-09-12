@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useState } from 'react';
 import type {
   TrainerAnnotationVerdict,
@@ -10,28 +11,6 @@ import * as stylex from '@stylexjs/stylex';
 import { colors, fontSizes, fonts, radii, sizes } from '../../theme/tokens.stylex';
 import type { TrainerBridge } from '../desktop/desktopTrainerBridge';
 import { coachBarLabel, coachPlanLine, DIRECTION_LABEL } from './coachStance';
-
-const OUTCOME_LABEL: Record<TrainerCoachOutcome, string> = {
-  win: '到目标',
-  loss: '被止损',
-  timeout_flat: '走完没结果',
-  no_fill: '没成交',
-  format_violation: '三价填错',
-  abstained: '它选择观望',
-};
-
-const AGREEMENT_LABEL: Record<TrainerCoachAgreement, string> = {
-  aligned: '同向 · 不进对照',
-  persuaded: '分歧 · 你改了 → 被说服',
-  held: '分歧 · 你没改 → 坚持',
-};
-
-const ANNOTATION_LABEL: Record<TrainerAnnotationVerdict, string> = {
-  sound: '站得住',
-  right_call_wrong_reason: '结论对但理由错',
-  unfounded: '不成立',
-  skipped: '跳过',
-};
 
 const ANNOTATION_ORDER: TrainerAnnotationVerdict[] = [
   'sound',
@@ -183,6 +162,29 @@ export function TrainerCoachCompare({
   onAnnotated,
   onSeek,
 }: TrainerCoachCompareProps) {
+  const { t: tr } = useLocale();
+  const ANNOTATION_LABEL: Record<TrainerAnnotationVerdict, string> = {
+    sound: tr('trainSound'),
+    right_call_wrong_reason: tr('trainRightWrongReason'),
+    unfounded: tr('trainUnsound'),
+    skipped: tr('trainSkip'),
+  };
+
+  const AGREEMENT_LABEL: Record<TrainerCoachAgreement, string> = {
+    aligned: tr('trainSameDirection'),
+    persuaded: tr('trainPersuaded'),
+    held: tr('trainHeldView'),
+  };
+
+  const OUTCOME_LABEL: Record<TrainerCoachOutcome, string> = {
+    win: tr('trainTargetReached'),
+    loss: tr('trainStopped'),
+    timeout_flat: tr('trainNoResult'),
+    no_fill: tr('trainNotFilled'),
+    format_violation: tr('trainInvalidPrices'),
+    abstained: tr('trainCoachWait'),
+  };
+
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -204,9 +206,11 @@ export function TrainerCoachCompare({
         className={`trainer-review-coach ${stylex.props(styles.root).className}`}
         data-testid="trainer-coach-compare"
       >
-        <div className={`trainer-label ${stylex.props(styles.label).className}`}>AI 对照</div>
+        <div className={`trainer-label ${stylex.props(styles.label).className}`}>
+          {tr('trainAiCompare')}
+        </div>
         <p className={`trainer-settle-hint ${stylex.props(styles.hint).className}`}>
-          本局没有问过 AI。
+          {tr('trainNoAi')}
         </p>
       </div>
     );
@@ -218,7 +222,9 @@ export function TrainerCoachCompare({
       data-testid="trainer-coach-compare"
     >
       <div className={`trainer-label ${stylex.props(styles.label).className}`}>
-        AI 对照 · 本局召唤 {calls.length} 次
+        {tr('trainAiCalls')}
+        {calls.length}
+        {tr('trainTimes')}
       </div>
       {error && (
         <span className={`trainer-order-error ${stylex.props(styles.error).className}`}>
@@ -238,10 +244,10 @@ export function TrainerCoachCompare({
                 className={`trainer-chip trainer-coach-at ${stylex.props(styles.chip, styles.at).className}`}
                 onClick={() => onSeek(call.id)}
               >
-                第 {index + 1} 次 · {coachBarLabel(call.cursor)}
+                {tr('trainCoachCall', { count: index + 1, bar: coachBarLabel(call.cursor, tr) })}
               </button>
               <span>
-                AI：<b>{DIRECTION_LABEL[call.ai.direction]}</b>
+                AI：<b>{DIRECTION_LABEL(tr)[call.ai.direction]}</b>
                 {plan.prices && (
                   <span className={`num ${stylex.props(styles.num).className}`}>
                     {' '}
@@ -251,8 +257,10 @@ export function TrainerCoachCompare({
               </span>
               <span className={`trainer-settle-hint ${stylex.props(styles.hint).className}`}>
                 {call.humanBefore
-                  ? `你当时：${DIRECTION_LABEL[call.humanBefore.direction]}`
-                  : '你当时还没表态'}
+                  ? tr('trainYourStance', {
+                      value1: DIRECTION_LABEL(tr)[call.humanBefore.direction],
+                    })
+                  : tr('trainNoStance')}
               </span>
               {verdict && (
                 <>
@@ -269,7 +277,7 @@ export function TrainerCoachCompare({
                     {OUTCOME_LABEL[verdict.outcome]}
                     {verdict.realizedR !== null && ` · ${signed(verdict.realizedR)}R`}
                     {verdict.plannedRewardRisk !== null &&
-                      ` · 计划 ${fmt(verdict.plannedRewardRisk)}:1`}
+                      tr('trainPlannedRrSuffix', { value1: fmt(verdict.plannedRewardRisk) })}
                   </span>
                 </>
               )}
@@ -282,7 +290,7 @@ export function TrainerCoachCompare({
             {verdict?.directionCorrect ? (
               <div className={`trainer-coach-annotate ${stylex.props(styles.annotate).className}`}>
                 <span className={`trainer-settle-hint ${stylex.props(styles.hint).className}`}>
-                  理由站得住吗？
+                  {tr('trainReasonSound')}
                 </span>
                 {ANNOTATION_ORDER.map((option) => {
                   const selected = call.annotation?.verdict === option;
@@ -302,7 +310,7 @@ export function TrainerCoachCompare({
             ) : (
               verdict && (
                 <p className={`trainer-settle-hint ${stylex.props(styles.hint).className}`}>
-                  方向没判对，直接归档，不问理由。
+                  {tr('trainWrongDirection')}
                 </p>
               )
             )}

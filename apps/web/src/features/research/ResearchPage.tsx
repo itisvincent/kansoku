@@ -1,3 +1,5 @@
+import { chineseTranslator, type Translator } from '@web/lib/i18n';
+import { useLocale } from '@web/lib/i18n';
 import { useDeferredValue, useEffect, useState } from 'react';
 import {
   ChartCandlestick,
@@ -24,7 +26,7 @@ import { errorMessage } from '@web/lib/api';
 import { usePollingQuery, useQuery } from '@web/lib/apiHooks';
 import { client } from '@web/lib/client';
 import { queryClient } from '@web/lib/queryClient';
-import { navigate, useQueryParam } from '@web/lib/router';
+import { navigate, routePathname, useQueryParam, useRoute } from '@web/lib/router';
 import { isDesktopRealtime } from '@web/lib/portTransport';
 import {
   Badge,
@@ -57,13 +59,16 @@ import {
 
 const CREATE_HINT_MS = 4000;
 
-const VIEW_LABELS: { value: ResearchView; text: string }[] = [
-  { value: 'stocks', text: '股票档案' },
-  { value: 'journal', text: '研究日志' },
-  { value: 'canvases', text: '画布' },
-];
+function viewOptions(
+  counts: Record<ResearchView, number>,
+  tr: Translator = chineseTranslator,
+): SegmentedControlOption<ResearchView>[] {
+  const VIEW_LABELS: { value: ResearchView; text: string }[] = [
+    { value: 'stocks', text: tr('researchStocks') },
+    { value: 'journal', text: tr('researchJournal') },
+    { value: 'canvases', text: tr('researchCanvas') },
+  ];
 
-function viewOptions(counts: Record<ResearchView, number>): SegmentedControlOption<ResearchView>[] {
   return VIEW_LABELS.map((option) => ({
     value: option.value,
     label: (
@@ -75,32 +80,33 @@ function viewOptions(counts: Record<ResearchView, number>): SegmentedControlOpti
   }));
 }
 
-function explorerLabel(view: ResearchView): string {
-  if (view === 'stocks') return '股票档案';
-  if (view === 'canvases') return '画布';
-  return '研究时间线';
+function explorerLabel(view: ResearchView, tr: Translator = chineseTranslator): string {
+  if (view === 'stocks') return tr('researchStocks');
+  if (view === 'canvases') return tr('researchCanvas');
+  return tr('researchTimeline');
 }
 
-function searchPlaceholder(view: ResearchView): string {
-  if (view === 'stocks') return '搜索股票或正文';
-  if (view === 'canvases') return '搜索标题或标的';
-  return '搜索日期、标的或主题';
+function searchPlaceholder(view: ResearchView, tr: Translator = chineseTranslator): string {
+  if (view === 'stocks') return tr('researchSearchStocks');
+  if (view === 'canvases') return tr('researchSearchCanvas');
+  return tr('researchSearchJournal');
 }
 
 function CanvasQuotaHint({ count }: { count: number }) {
+  const { t: tr } = useLocale();
   const { pro, licensed } = useCapabilities();
   if (licensed) return <span>{count}</span>;
   const atLimit = count >= FREE_CANVAS_LIMIT;
   return (
     <span className={stylex.props(styles.quota).className}>
-      免费 {Math.min(count, FREE_CANVAS_LIMIT)}/{FREE_CANVAS_LIMIT}
+      {tr('researchFree')} {Math.min(count, FREE_CANVAS_LIMIT)}/{FREE_CANVAS_LIMIT}
       {atLimit && pro !== false ? (
         <button
           type="button"
           className={stylex.props(styles.quotaUpgrade).className}
           onClick={() => openLicenseModal('guard')}
         >
-          升级解锁
+          {tr('researchUpgrade')}
         </button>
       ) : null}
     </span>
@@ -665,16 +671,20 @@ function ResearchExplorer({
   error: string | null;
   onSelect: (document: ResearchDocumentMeta) => void;
 }) {
+  const { t: tr } = useLocale();
   if (loading && documents.length === 0) {
     return (
       <div {...stylex.props(styles.state)}>
-        <Spinner /> 正在读取研究资料…
+        <Spinner />
+        {tr('researchLoading')}
       </div>
     );
   }
   if (error) return <ErrorBox className={stylex.props(styles.error).className}>{error}</ErrorBox>;
   if (documents.length === 0)
-    return <Empty className={stylex.props(styles.empty).className}>没有匹配的研究资料</Empty>;
+    return (
+      <Empty className={stylex.props(styles.empty).className}>{tr('researchNoMatches')}</Empty>
+    );
 
   return (
     <div {...stylex.props(styles.documentList)}>
@@ -704,7 +714,7 @@ function ResearchExplorer({
               )}
             </span>
             <span {...stylex.props(styles.documentRowMeta, active && styles.documentRowMetaActive)}>
-              {researchListSecondary(document)}
+              {researchListSecondary(document, tr)}
             </span>
             {showExcerpts && document.excerpt && (
               <span {...stylex.props(styles.documentRowExcerpt)}>{document.excerpt}</span>
@@ -731,15 +741,16 @@ function ResearchReader({
   continuingCanvas: boolean;
   onContinueCanvas: (document: ResearchDocument) => void;
 }) {
+  const { t: tr } = useLocale();
   if (loading && !document) {
     return (
       <div {...stylex.props(styles.state)}>
-        <Spinner /> {downloading ? 'iCloud 正在下载这份文件…' : '正在加载正文…'}
+        <Spinner /> {downloading ? tr('researchIcloudLoading') : tr('researchBodyLoading')}
       </div>
     );
   }
   if (error) return <ErrorBox className={stylex.props(styles.error).className}>{error}</ErrorBox>;
-  if (!document) return <Empty>选择一份研究资料开始阅读</Empty>;
+  if (!document) return <Empty>{tr('researchSelect')}</Empty>;
 
   const cockpitSymbol = document.kind === 'stock' ? document.symbols[0] : null;
   const compactHead = document.kind === 'canvas';
@@ -764,7 +775,7 @@ function ResearchReader({
               }
               tone={document.kind === 'stock' ? 'accent' : undefined}
             >
-              {researchTypeLabel(document.type)}
+              {researchTypeLabel(document.type, tr)}
             </Badge>
             <h2
               {...stylex.props(
@@ -778,9 +789,15 @@ function ResearchReader({
           <div {...stylex.props(styles.readerMeta, compactHead && styles.readerMetaCompact)}>
             <code {...stylex.props(styles.readerMetaCode)}>{document.path}</code>
             <span>
-              更新于 <MarketTime value={document.mtime} format="month-day-time" />
+              {tr('researchUpdated')}
+              <MarketTime value={document.mtime} format="month-day-time" />
             </span>
-            {document.origin?.eventId && <span>来自市场事件 {document.origin.eventId}</span>}
+            {document.origin?.eventId && (
+              <span>
+                {tr('researchFromEvent')}
+                {document.origin.eventId}
+              </span>
+            )}
           </div>
         </div>
         {cockpitSymbol && (
@@ -788,7 +805,8 @@ function ResearchReader({
             className={`btn ${stylex.props(styles.cockpitLink).className}`}
             href={`/symbol/${encodeURIComponent(`${cockpitSymbol}.US`)}`}
           >
-            <ChartCandlestick size={14} /> 打开驾驶舱
+            <ChartCandlestick size={14} />
+            {tr('researchCockpit')}
           </a>
         )}
         {document.kind === 'canvas' && (
@@ -799,7 +817,7 @@ function ResearchReader({
             onClick={() => onContinueCanvas(document)}
           >
             <MessageSquareText size={13} />
-            {continuingCanvas ? '正在打开…' : '在 AI 对话中继续'}
+            {continuingCanvas ? tr('researchOpening') : tr('researchContinueChat')}
           </Button>
         )}
       </header>
@@ -817,6 +835,7 @@ function ResearchReader({
 }
 
 function ResearchCanvasBody({ path }: { path: string }) {
+  const { t: tr } = useLocale();
   const slug = canvasSlugFromResearchPath(path);
   const { data, loading, error } = useQuery(slug ? `canvas.get:${slug}` : null, () =>
     slug ? client.canvas.get({ slug }) : Promise.reject(new Error('Invalid canvas path')),
@@ -824,12 +843,13 @@ function ResearchCanvasBody({ path }: { path: string }) {
   if (loading && !data) {
     return (
       <div {...stylex.props(styles.state)}>
-        <Spinner /> 正在打开画布…
+        <Spinner />
+        {tr('researchOpeningCanvas')}
       </div>
     );
   }
   if (error) return <ErrorBox className={stylex.props(styles.error).className}>{error}</ErrorBox>;
-  if (!data || !slug) return <Empty>画布不存在</Empty>;
+  if (!data || !slug) return <Empty>{tr('researchCanvasMissing')}</Empty>;
   return <CanvasFrame source={data.source} slug={data.slug} data={data.data} />;
 }
 
@@ -846,11 +866,12 @@ function ResearchContext({
   onSelect: (document: ResearchDocumentMeta) => void;
   onDocumentChanged: (document?: ResearchDocument) => void;
 }) {
+  const { t: tr } = useLocale();
   if (!selected) return null;
   const related = relatedDocuments(selected, allDocuments).slice(0, 8);
 
   return (
-    <aside {...stylex.props(styles.context)} aria-label="关联研究资料">
+    <aside {...stylex.props(styles.context)} aria-label={tr('researchRelated')}>
       {document ? (
         <ResearchAssistant
           key={document.path}
@@ -862,7 +883,8 @@ function ResearchContext({
         />
       ) : (
         <div {...stylex.props(styles.state)}>
-          <Spinner /> 正在加载正文…
+          <Spinner />
+          {tr('researchBodyLoading')}
         </div>
       )}
     </aside>
@@ -870,9 +892,11 @@ function ResearchContext({
 }
 
 export function ResearchPage() {
-  useTitle('研究库');
+  const { t: tr } = useLocale();
+  useTitle(tr('researchLibrary'));
   const view = parseResearchView(useQueryParam('view'));
   const selectedPath = useQueryParam('path');
+  const route = useRoute();
   const [query, setQuery] = useState('');
   const [createHint, setCreateHint] = useState<string | null>(null);
   const [continuingCanvasPath, setContinuingCanvasPath] = useState<string | null>(null);
@@ -930,8 +954,13 @@ export function ResearchPage() {
 
   useEffect(() => {
     if (!selected || selected.path === selectedPath) return;
+    // The route is global: while this tab navigates away (deep link, in-page
+    // link, background-tab refresh) the route flips off /research before this
+    // page unmounts, and syncing the selection then would bounce the tab
+    // straight back to the research route. Only sync on the research route.
+    if (routePathname(route) !== '/research') return;
     navigate(researchRoute(view, selected.path), { replace: true });
-  }, [selectedDocumentPath, selectedPath, view]);
+  }, [route, selectedDocumentPath, selectedPath, view]);
 
   const selectDocument = (next: ResearchDocumentMeta) => {
     setQuery('');
@@ -956,14 +985,16 @@ export function ResearchPage() {
       result.document,
     );
     reloadAll();
-    if (result.existed) setCreateHint('已存在，已为你打开');
+    if (result.existed) setCreateHint(tr('researchAlreadyExists'));
   };
   const openCreateDialog = () => openCreateResearchDialog(kind, handleResearchCreated);
   const continueCanvasInChat = async (canvas: ResearchDocument) => {
     if (continuingCanvasPath) return;
     setContinuingCanvasPath(canvas.path);
     try {
-      const { session } = await client.assistant.createSession({ title: `画布：${canvas.title}` });
+      const { session } = await client.assistant.createSession({
+        title: tr('researchCanvasTitle', { value1: canvas.title }),
+      });
       queryClient.setQueryData<AssistantSessionMeta[]>(['assistant.sessions'], (current) => [
         session,
         ...(current ?? []).filter((item) => item.id !== session.id),
@@ -990,22 +1021,25 @@ export function ResearchPage() {
       className={`fullpage research-page ${stylex.props(styles.fullpage, styles.page, desktopShell && styles.fullpageDesktop).className}`}
     >
       <header {...stylex.props(styles.header, desktopShell && styles.headerDesktop)}>
-        <a href="/" {...stylex.props(styles.home)} aria-label="回首页">
+        <a href="/" {...stylex.props(styles.home)} aria-label={tr('uiHome')}>
           <ChevronLeft size={13} {...stylex.props(styles.homeChevron)} />
           <span {...stylex.props(styles.titleIcon)}>
             <Library size={13} />
           </span>
-          <h1 {...stylex.props(styles.titleHeadingTitle)}>研究库</h1>
+          <h1 {...stylex.props(styles.titleHeadingTitle)}>{tr('researchLibrary')}</h1>
         </a>
         <SegmentedControl
-          ariaLabel="研究库视图"
+          ariaLabel={tr('researchViews')}
           className={`research-view-switch ${stylex.props(styles.viewSwitch).className}`}
           onChange={changeView}
-          options={viewOptions({
-            stocks: stockCount,
-            journal: journalCount,
-            canvases: canvasCount,
-          })}
+          options={viewOptions(
+            {
+              stocks: stockCount,
+              journal: journalCount,
+              canvases: canvasCount,
+            },
+            tr,
+          )}
           size="lg"
           value={view}
           variant="plain"
@@ -1015,20 +1049,20 @@ export function ResearchPage() {
             <label {...stylex.props(styles.search)}>
               <Search size={14} aria-hidden="true" {...stylex.props(styles.searchIcon)} />
               <span className={`sr-only ${stylex.props(styles.visuallyHidden).className}`}>
-                搜索研究资料
+                {tr('researchSearch')}
               </span>
               <Input
                 type="search"
                 value={query}
                 className={stylex.props(styles.searchInput).className}
-                placeholder={searchPlaceholder(view)}
+                placeholder={searchPlaceholder(view, tr)}
                 onChange={(event) => setQuery(event.target.value)}
               />
             </label>
             <button
               type="button"
               {...stylex.props(styles.refresh)}
-              aria-label="刷新研究资料"
+              aria-label={tr('researchRefresh')}
               onClick={refresh}
             >
               <RefreshCw size={14} />
@@ -1047,11 +1081,11 @@ export function ResearchPage() {
           minSize={EXPLORER_MIN_WIDTH}
           maxSize={EXPLORER_MAX_WIDTH}
           storageKey={EXPLORER_WIDTH_STORAGE_KEY}
-          handleLabel="调整研究资料栏宽度"
+          handleLabel={tr('researchResize')}
         >
           <aside {...stylex.props(styles.explorer)}>
             <div {...stylex.props(styles.explorerHead)}>
-              <span>{explorerLabel(view)}</span>
+              <span>{explorerLabel(view, tr)}</span>
               {view === 'canvases' ? (
                 <CanvasQuotaHint count={canvasCount} />
               ) : (
@@ -1060,7 +1094,8 @@ export function ResearchPage() {
                   {...stylex.props(styles.newButton)}
                   onClick={openCreateDialog}
                 >
-                  <Plus size={12} /> 新建
+                  <Plus size={12} />
+                  {tr('researchNewShort')}
                 </button>
               )}
             </div>

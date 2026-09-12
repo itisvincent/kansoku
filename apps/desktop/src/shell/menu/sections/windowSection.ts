@@ -1,33 +1,34 @@
+import { desktopText } from '../../i18n.js';
 import type { MenuItemConstructorOptions } from 'electron';
 import type { MenuActionDeps } from '../types.js';
 
 export function buildWindowSection(deps: MenuActionDeps): MenuItemConstructorOptions {
   return {
-    label: '窗口',
+    label: desktopText('窗口', 'Window'),
     submenu: [
       {
-        label: '新建窗口',
+        label: desktopText('新建窗口', 'New window'),
         accelerator: 'CmdOrCtrl+N',
         click: () => deps.newWindow(),
       },
       {
-        label: '新建标签页',
+        label: desktopText('新建标签页', 'New tab'),
         accelerator: 'CmdOrCtrl+T',
         click: () => deps.newTab(),
       },
       {
-        label: '关闭标签页',
+        label: desktopText('关闭标签页', 'Close tab'),
         accelerator: 'CmdOrCtrl+W',
         click: () => deps.closeTab(),
       },
       { type: 'separator' },
       {
-        label: '下一个标签页',
+        label: desktopText('下一个标签页', 'Next tab'),
         accelerator: 'CmdOrCtrl+Shift+]',
         click: () => deps.nextTab(),
       },
       {
-        label: '上一个标签页',
+        label: desktopText('上一个标签页', 'Previous tab'),
         accelerator: 'CmdOrCtrl+Shift+[',
         click: () => deps.prevTab(),
       },

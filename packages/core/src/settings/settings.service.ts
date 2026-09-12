@@ -15,8 +15,15 @@ import { aiSettingsService } from './aiSettings.service.js';
 import { settingsDeps } from './settings.deps.js';
 import { xaiLogin } from './xaiLogin.js';
 import { ClientError } from '../platform/errors.js';
+import { getInterfaceLocale, setInterfaceLocale } from './interfaceLocale.js';
 
 export const settingsService: SettingsApi = {
+  async getInterfaceLocale() {
+    return { locale: getInterfaceLocale() };
+  },
+  async putInterfaceLocale(input) {
+    return { locale: setInterfaceLocale(input.locale) };
+  },
   async startXaiLogin() {
     const { models, credentials } = settingsDeps();
     const oauth = models.getProvider('xai')?.auth.oauth;

@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import {
   useEffect,
   useRef,
@@ -103,16 +104,16 @@ const styles = stylex.create({
     overflow: 'hidden',
   },
   handle: {
-    position: 'relative',
-    zIndex: 2,
-    flex: '0 0 8px',
-    width: '8px',
-    minWidth: '8px',
-    marginLeft: '-4px',
-    marginRight: '-4px',
-    cursor: 'col-resize',
-    touchAction: 'none',
-    outline: 'none',
+    'position': 'relative',
+    'zIndex': 2,
+    'flex': '0 0 8px',
+    'width': '8px',
+    'minWidth': '8px',
+    'marginLeft': '-4px',
+    'marginRight': '-4px',
+    'cursor': 'col-resize',
+    'touchAction': 'none',
+    'outline': 'none',
     '::after': {
       content: '""',
       position: 'absolute',
@@ -150,7 +151,7 @@ export function ResizablePanel({
   minSize = 220,
   maxSize = 560,
   storageKey,
-  handleLabel = '调整面板宽度',
+  handleLabel: customHandleLabel,
   onSizeChange,
 }: {
   children: ReactNode;
@@ -165,6 +166,8 @@ export function ResizablePanel({
   handleLabel?: string;
   onSizeChange?: (size: number) => void;
 }) {
+  const { t: tr } = useLocale();
+  const handleLabel = customHandleLabel ?? tr('uiResizePanel');
   const initialSizeRef = useRef(clampPanelSize(defaultSize, minSize, maxSize));
   const [size, setSize] = useState(() => readStoredSize(storageKey, defaultSize, minSize, maxSize));
   const sizeRef = useRef(size);
@@ -252,7 +255,7 @@ export function ResizablePanel({
       aria-valuemax={maxSize}
       aria-valuenow={Math.round(size)}
       tabIndex={0}
-      title="拖动调整宽度，双击恢复默认值"
+      title={tr('uiResizePanelHelp')}
       onDoubleClick={resetSize}
       onKeyDown={onKeyDown}
       onPointerDown={onPointerDown}
@@ -269,7 +272,9 @@ export function ResizablePanel({
       style={style}
     >
       {side === 'end' ? handle : null}
-      <div className={`resize-panel-content${contentClassName ? ` ${contentClassName}` : ''} ${stylex.props(styles.content).className}`}>
+      <div
+        className={`resize-panel-content${contentClassName ? ` ${contentClassName}` : ''} ${stylex.props(styles.content).className}`}
+      >
         {children}
       </div>
       {side === 'start' ? handle : null}

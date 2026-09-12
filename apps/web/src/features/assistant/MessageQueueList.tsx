@@ -124,7 +124,11 @@ export function MessageQueueList({
         {queue.map((item, index) => (
           <div key={item.id} {...stylex.props(styles.row, index > 0 && styles.rowDivider)}>
             <span {...stylex.props(styles.text)}>{item.text}</span>
-            {item.error ? <span {...stylex.props(styles.error)}>{item.error}</span> : null}
+            {item.error ? (
+              <span {...stylex.props(styles.error)}>
+                {item.error === '发送失败' ? t('uiSendFailed') : item.error}
+              </span>
+            ) : null}
             <button
               type="button"
               {...stylex.props(styles.remove)}

@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { TrainerLesson } from '@kansoku/pro-api';
@@ -104,6 +105,7 @@ export function TrainerReviewLesson({
   sessionId,
   onChange,
 }: TrainerReviewLessonProps) {
+  const { t: tr } = useLocale();
   const [text, setText] = useState(lesson?.text ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -126,13 +128,15 @@ export function TrainerReviewLesson({
       className={`trainer-review-lesson ${stylex.props(styles.root).className}`}
       data-testid="trainer-review-lesson"
     >
-      <div className={`trainer-label ${stylex.props(styles.label).className}`}>教训</div>
+      <div className={`trainer-label ${stylex.props(styles.label).className}`}>
+        {tr('trainLesson')}
+      </div>
       <div className={`trainer-review-lesson-row ${stylex.props(styles.row).className}`}>
         <input
           className={`trainer-lesson-input ${stylex.props(styles.input).className}`}
           value={text}
-          placeholder="一句话，写你自己的毛病"
-          aria-label="本局教训"
+          placeholder={tr('trainLessonPlaceholder')}
+          aria-label={tr('trainSessionLesson')}
           onChange={(e) => setText(e.target.value)}
         />
         <button
@@ -140,15 +144,15 @@ export function TrainerReviewLesson({
           disabled={busy || text.trim().length === 0}
           onClick={() => void run(() => bridge.saveLesson({ sessionId, text }))}
         >
-          存进训练区
+          {tr('trainSaveLesson')}
         </button>
         <button
           className={`btn btn--accent ${stylex.props(styles.button, styles.accent, (busy || !saved || lesson?.syncedAt !== null) && styles.disabled).className}`}
           disabled={busy || !saved || lesson?.syncedAt !== null}
-          title={saved ? undefined : '先存进训练区'}
+          title={saved ? undefined : tr('trainSaveLessonFirst')}
           onClick={() => void run(() => bridge.syncLesson({ sessionId }))}
         >
-          {lesson?.syncedAt ? '已同步到 lessons.md' : '同步到 journal/lessons.md'}
+          {lesson?.syncedAt ? tr('trainLessonSynced') : tr('trainLessonSync')}
         </button>
       </div>
       {error && (
@@ -157,8 +161,7 @@ export function TrainerReviewLesson({
         </span>
       )}
       <p className={`trainer-settle-hint ${stylex.props(styles.hint).className}`}>
-        默认只存训练区。写的是你自己的操作习惯就值得放行；写的是「这个案例池假突破特别多」就别同步
-        —— 合成盘的特征灌进实盘必读清单是污染。
+        {tr('trainLessonHelp')}
       </p>
     </div>
   );

@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { TrainerCoachCall, TrainerCoachVerdict } from '@kansoku/pro-api';
 import type { TrainerBridge } from '../desktop/desktopTrainerBridge';
 import { TrainerCoachCompare } from './TrainerCoachCompare';
+import { LocaleProvider, useLocale } from '@web/lib/i18n';
 
 function verdict(overrides: Partial<TrainerCoachVerdict> = {}): TrainerCoachVerdict {
   return {
@@ -44,6 +45,34 @@ function bridgeWith(annotate: ReturnType<typeof vi.fn>): TrainerBridge {
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
+});
+
+function LanguageSwitcher() {
+  const { setLocale } = useLocale();
+  return <button onClick={() => setLocale('zh-CN')}>Switch language</button>;
+}
+
+it('switches training controls to Chinese while retaining saved AI text and timeline actions', () => {
+  const onSeek = vi.fn();
+  render(
+    <LocaleProvider>
+      <LanguageSwitcher />
+      <TrainerCoachCompare
+        calls={[call()]}
+        bridge={bridgeWith(vi.fn())}
+        sessionId="run-1"
+        onAnnotated={vi.fn()}
+        onSeek={onSeek}
+      />
+    </LocaleProvider>,
+  );
+  expect(screen.getByRole('button', { name: 'Call 1 · B7' })).toBeTruthy();
+  expect(screen.getByText('冲高未站稳前高，量能收缩')).toBeTruthy();
+  fireEvent.click(screen.getByText('Switch language'));
+  fireEvent.click(screen.getByRole('button', { name: '第 1 次 · B7' }));
+  expect(onSeek).toHaveBeenCalledWith('coach-1');
+  expect(screen.getByText('冲高未站稳前高，量能收缩')).toBeTruthy();
 });
 
 describe('TrainerCoachCompare annotation gate', () => {
@@ -65,7 +94,9 @@ describe('TrainerCoachCompare annotation gate', () => {
   it('archives a refuted call without asking', () => {
     render(
       <TrainerCoachCompare
-        calls={[call({ verdict: verdict({ outcome: 'loss', directionCorrect: false, realizedR: -1 }) })]}
+        calls={[
+          call({ verdict: verdict({ outcome: 'loss', directionCorrect: false, realizedR: -1 }) }),
+        ]}
         bridge={bridgeWith(vi.fn())}
         sessionId="run-1"
         onAnnotated={vi.fn()}

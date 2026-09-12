@@ -1,6 +1,8 @@
 import * as stylex from '@stylexjs/stylex';
 import { money, signed, upDown } from '../../lib/format';
 import { marketOfSymbol } from '../../lib/market';
+import { useLocale } from '../../lib/i18n';
+import { marketSessionLabel } from '../../lib/marketLabels';
 import { colors, fonts, fontSizes } from '../../theme/tokens.stylex';
 import { Badge, MarketTime } from '../../ui';
 import { useLiveQuote } from './useLiveQuote';
@@ -43,6 +45,7 @@ function pctText(pct: number | null): string {
 }
 
 export function TopbarQuote({ sym }: { sym: string }) {
+  const { locale } = useLocale();
   const quote = useLiveQuote(sym);
   if (!quote) return null;
 
@@ -60,7 +63,7 @@ export function TopbarQuote({ sym }: { sym: string }) {
       <span className={`num${numberClassName ? ` ${numberClassName}` : ''}`}>
         {pctText(quote.pct)}
       </span>
-      <Badge className="qc-session">{quote.session}</Badge>
+      <Badge className="qc-session">{marketSessionLabel(quote.session, locale)}</Badge>
       <MarketTime
         className={stylex.props(styles.time).className}
         value={quote.asOf || 0}

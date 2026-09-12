@@ -1,3 +1,4 @@
+import type { MessageKey } from '@web/lib/i18n';
 import { useCallback, useEffect, useState } from 'react';
 import type { FeatureKey } from '@kansoku/pro-api/features';
 import { theme } from '@web/lib/theme';
@@ -59,27 +60,27 @@ const INDICATOR_TOGGLE_ORDER: IndicatorToggleKey[] = [
   ...CHAN_BUYSELL_TOGGLE_KEYS,
 ];
 
-export const INDICATOR_TOGGLE_LABELS: Record<IndicatorToggleKey, string> = {
-  crosses: '金叉死叉',
-  divergence: '自动背离',
-  macdBeichi: 'MACD 背离（K 线级）',
-  pattern123: '123 结构',
-  sb: 'SB 结构',
-  candle: 'K线形态',
-  ai: 'AI 标注',
-  levels: '价位线',
-  fvg: 'FVG 缺口',
-  ema: 'EMA 均线',
-  vwap: 'VWAP',
-  daylevel: '日内参照位',
-  optwall: '期权墙',
-  chanFenxing: '分型',
-  chanBi: '笔',
-  chanXianduan: '线段',
-  chanZhongshu: '中枢',
-  chanBuySell1: '一类',
-  chanBuySell2: '二类',
-  chanBuySell3: '三类',
+export const INDICATOR_TOGGLE_LABELS: Record<IndicatorToggleKey, MessageKey> = {
+  crosses: 'indicatorCross',
+  divergence: 'indicatorDivergence',
+  macdBeichi: 'indicatorMacdDivergence',
+  pattern123: 'indicator123',
+  sb: 'indicatorSb',
+  candle: 'indicatorCandle',
+  ai: 'indicatorAi',
+  levels: 'indicatorLevels',
+  fvg: 'indicatorFvg',
+  ema: 'indicatorEma',
+  vwap: 'indicatorVwap',
+  daylevel: 'indicatorDay',
+  optwall: 'indicatorOptions',
+  chanFenxing: 'indicatorFractal',
+  chanBi: 'indicatorStroke',
+  chanXianduan: 'indicatorSegment',
+  chanZhongshu: 'indicatorCenter',
+  chanBuySell1: 'indicatorType1',
+  chanBuySell2: 'indicatorType2',
+  chanBuySell3: 'indicatorType3',
 };
 
 export const INDICATOR_TOGGLE_COLORS: Record<IndicatorToggleKey, string> = {
@@ -120,14 +121,14 @@ export type MarkerRange = 'recent' | 'all';
 
 export interface IndicatorPreset {
   key: string;
-  label: string;
+  label: MessageKey;
   on: IndicatorToggleKey[];
 }
 
 export const INDICATOR_PRESETS: IndicatorPreset[] = [
-  { key: 'lean', label: '精简', on: ['ema', 'vwap', 'levels', 'daylevel'] },
-  { key: 'std', label: '标准', on: ['ema', 'vwap', 'levels', 'daylevel', 'sb'] },
-  { key: 'all', label: '全部', on: [...BASE_TOGGLE_ORDER] },
+  { key: 'lean', label: 'indicatorLean', on: ['ema', 'vwap', 'levels', 'daylevel'] },
+  { key: 'std', label: 'indicatorStandard', on: ['ema', 'vwap', 'levels', 'daylevel', 'sb'] },
+  { key: 'all', label: 'layerAll', on: [...BASE_TOGGLE_ORDER] },
 ];
 
 export const INDICATOR_STORAGE_KEY = 'intraday-indicators';

@@ -1,3 +1,4 @@
+import { desktopText } from '../i18n.js';
 import { dialog, shell } from 'electron';
 import {
   loadSparkleBridgeForApp,
@@ -16,7 +17,7 @@ import {
   type UpdaterUiStatus,
 } from './status.js';
 
-const OWNER_REPO = 'Innei/kansoku';
+const OWNER_REPO = process.platform === 'win32' ? 'itisvincent/kansoku' : 'Innei/kansoku';
 const TAG_PREFIX = 'desktop-v';
 const CHECK_DELAY_MS = 10_000;
 
@@ -142,7 +143,10 @@ export function createUpdaterHandle(options: {
           break;
         }
         case 'error': {
-          statusStore.set({ kind: 'error', message: event.message ?? '更新失败' });
+          statusStore.set({
+            kind: 'error',
+            message: event.message ?? desktopText('更新失败', 'Update failed'),
+          });
           log(`sparkle update failed: ${event.message ?? 'unknown error'}`);
           break;
         }
@@ -179,8 +183,11 @@ export function createUpdaterHandle(options: {
       if (options.mode === 'dev') {
         showMessage({
           type: 'info',
-          title: '检查更新',
-          message: '开发模式不检查更新。',
+          title: desktopText('检查更新', 'Check for updates'),
+          message: desktopText(
+            '开发模式不检查更新。',
+            'Updates are not checked in development mode.',
+          ),
         });
         return;
       }
@@ -192,8 +199,11 @@ export function createUpdaterHandle(options: {
           log(`checkNow sparkle failed: ${(err as Error).message}`);
           showMessage({
             type: 'error',
-            title: '检查更新',
-            message: `检查更新失败：${(err as Error).message}`,
+            title: desktopText('检查更新', 'Check for updates'),
+            message: desktopText(
+              `检查更新失败：${(err as Error).message}`,
+              `Could not check for updates: ${(err as Error).message}`,
+            ),
           });
         }
         return;
@@ -203,8 +213,8 @@ export function createUpdaterHandle(options: {
       if (!run) {
         showMessage({
           type: 'warning',
-          title: '检查更新',
-          message: '更新检查暂不可用。',
+          title: desktopText('检查更新', 'Check for updates'),
+          message: desktopText('更新检查暂不可用。', 'Update checks are temporarily unavailable.'),
         });
         return;
       }
@@ -217,24 +227,27 @@ export function createUpdaterHandle(options: {
           if (result.kind === 'up-to-date') {
             showMessage({
               type: 'info',
-              title: '检查更新',
-              message: '已是最新版本。',
+              title: desktopText('检查更新', 'Check for updates'),
+              message: desktopText('已是最新版本。', 'You are up to date.'),
             });
             return;
           }
           if (result.kind === 'fetch-failed') {
             showMessage({
               type: 'error',
-              title: '检查更新',
-              message: `检查更新失败：${result.message}`,
+              title: desktopText('检查更新', 'Check for updates'),
+              message: desktopText(
+                `检查更新失败：${result.message}`,
+                `Could not check for updates: ${result.message}`,
+              ),
             });
             return;
           }
           if (result.kind === 'no-release') {
             showMessage({
               type: 'warning',
-              title: '检查更新',
-              message: '没有找到可用的发布版本。',
+              title: desktopText('检查更新', 'Check for updates'),
+              message: desktopText('没有找到可用的发布版本。', 'No release is available.'),
             });
             return;
           }
@@ -242,8 +255,11 @@ export function createUpdaterHandle(options: {
           log(`checkNow weak failed: ${(err as Error).message}`);
           showMessage({
             type: 'error',
-            title: '检查更新',
-            message: `检查更新失败：${(err as Error).message}`,
+            title: desktopText('检查更新', 'Check for updates'),
+            message: desktopText(
+              `检查更新失败：${(err as Error).message}`,
+              `Could not check for updates: ${(err as Error).message}`,
+            ),
           });
         }
       })();
@@ -252,8 +268,11 @@ export function createUpdaterHandle(options: {
       if (options.mode === 'dev') {
         showMessage({
           type: 'info',
-          title: '检查更新',
-          message: '开发模式不检查更新。',
+          title: desktopText('检查更新', 'Check for updates'),
+          message: desktopText(
+            '开发模式不检查更新。',
+            'Updates are not checked in development mode.',
+          ),
         });
         return;
       }
@@ -271,8 +290,11 @@ export function createUpdaterHandle(options: {
           log(`installNow sparkle failed: ${(err as Error).message}`);
           showMessage({
             type: 'error',
-            title: '检查更新',
-            message: `安装更新失败：${(err as Error).message}`,
+            title: desktopText('检查更新', 'Check for updates'),
+            message: desktopText(
+              `安装更新失败：${(err as Error).message}`,
+              `Could not install the update: ${(err as Error).message}`,
+            ),
           });
         }
         return;
@@ -288,8 +310,8 @@ export function createUpdaterHandle(options: {
       if (!run) {
         showMessage({
           type: 'warning',
-          title: '检查更新',
-          message: '更新检查暂不可用。',
+          title: desktopText('检查更新', 'Check for updates'),
+          message: desktopText('更新检查暂不可用。', 'Update checks are temporarily unavailable.'),
         });
         return;
       }
@@ -305,22 +327,25 @@ export function createUpdaterHandle(options: {
           if (result.kind === 'up-to-date') {
             showMessage({
               type: 'info',
-              title: '检查更新',
-              message: '已是最新版本。',
+              title: desktopText('检查更新', 'Check for updates'),
+              message: desktopText('已是最新版本。', 'You are up to date.'),
             });
             return;
           }
           showMessage({
             type: 'warning',
-            title: '检查更新',
-            message: '暂时无法打开更新页面。',
+            title: desktopText('检查更新', 'Check for updates'),
+            message: desktopText('暂时无法打开更新页面。', 'Could not open the update page.'),
           });
         } catch (err) {
           log(`installNow weak failed: ${(err as Error).message}`);
           showMessage({
             type: 'error',
-            title: '检查更新',
-            message: `检查更新失败：${(err as Error).message}`,
+            title: desktopText('检查更新', 'Check for updates'),
+            message: desktopText(
+              `检查更新失败：${(err as Error).message}`,
+              `Could not check for updates: ${(err as Error).message}`,
+            ),
           });
         }
       })();
@@ -330,7 +355,7 @@ export function createUpdaterHandle(options: {
 
 export async function initUpdater(options: InitUpdaterOptions = {}): Promise<UpdaterHandle> {
   const isDev = options.isDev ?? process.env.ELECTRON_DEV === '1';
-  const log = (message: string) => console.debug(`[updater] ${message}`);
+  const log = (message: string) => console.info(`[updater] ${message}`);
   const showMessage = options.showMessage ?? defaultShowMessage;
   const statusStore = createUpdaterStatusStore();
 
@@ -377,7 +402,7 @@ export async function initUpdater(options: InitUpdaterOptions = {}): Promise<Upd
 }
 
 async function runElectronCheck(force = false, silent = false): Promise<CheckForUpdateResult> {
-  const log = (message: string) => console.debug(`[updater] ${message}`);
+  const log = (message: string) => console.info(`[updater] ${message}`);
   const deps = await createElectronFallbackDeps({
     ownerRepo: OWNER_REPO,
     tagPrefix: TAG_PREFIX,
@@ -392,3 +417,5 @@ async function runElectronCheck(force = false, silent = false): Promise<CheckFor
     return { kind: 'fetch-failed', message: (err as Error).message };
   }
 }
+
+

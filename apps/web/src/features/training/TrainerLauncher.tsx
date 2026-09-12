@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type {
   TrainerErrorCode,
@@ -198,23 +199,8 @@ const styles = stylex.create({
 const BASE_PERIOD = '5m';
 const REFILL_TARGET = 15;
 
-const PLAYBOOK = [
-  { title: '选方向', body: '看图定多空。看不准就观望——观望也算一次决定。' },
-  { title: '放线', body: '拖出止损和目标。赚的空间不到亏的 1.5 倍，这一局不让你进。' },
-  { title: '推进', body: '一根一根往前走，每根都要写下你为什么还拿着。走过的不能回头。' },
-  { title: '结算', body: '看你赚了多少，也看曾经到手又吐回去多少。' },
-];
-
 // The pool's own stages, in the order a fill walks them. Naming them turns a wait with nothing on
 // screen into the one thing worth watching here: cases being screened out of years of tape.
-const FILL_PHASES: { key: TrainerFillPhase; label: string }[] = [
-  { key: 'sample', label: '取样' },
-  { key: 'hard-rule-gate', label: '过规则' },
-  { key: 'assemble', label: '拼行情' },
-  { key: 'ai-pick', label: 'AI 挑' },
-  { key: 'anonymize', label: '抹身份' },
-  { key: 'audit', label: '复查' },
-];
 
 interface TrainerSession {
   sessionId: string;
@@ -283,13 +269,22 @@ function TrainerNotice({
 }
 
 function Playbook() {
+  const { t: tr } = useLocale();
+  const PLAYBOOK = [
+    { title: tr('trainHowDirection'), body: tr('trainHowDirectionHelp') },
+    { title: tr('trainHowLines'), body: tr('trainHowLinesHelp') },
+    { title: tr('trainHowAdvance'), body: tr('trainHowAdvanceHelp') },
+    { title: tr('trainHowSettle'), body: tr('trainHowSettleHelp') },
+  ];
+
   return (
     <>
       <header className={`trainer-boot-head ${stylex.props(styles.bootHead).className}`}>
-        <h1 className={`trainer-boot-name ${stylex.props(styles.bootName).className}`}>盲盘训练</h1>
+        <h1 className={`trainer-boot-name ${stylex.props(styles.bootName).className}`}>
+          {tr('trainBlind')}
+        </h1>
         <p className={`trainer-boot-thesis ${stylex.props(styles.bootThesis).className}`}>
-          一段真实发生过的行情，名字和日期都抹掉了。你只看得见光标左边——不知道是谁、哪一年，就没法
-          用记忆代替判断。
+          {tr('trainIntro')}
         </p>
       </header>
       <ol className={`trainer-boot-steps ${stylex.props(styles.bootSteps).className}`}>
@@ -325,6 +320,16 @@ function Playbook() {
 }
 
 function FillPipeline({ task }: { task: TrainerFillTask }) {
+  const { t: tr } = useLocale();
+  const FILL_PHASES: { key: TrainerFillPhase; label: string }[] = [
+    { key: 'sample', label: tr('trainSample') },
+    { key: 'hard-rule-gate', label: tr('trainRules') },
+    { key: 'assemble', label: tr('trainBuildMarket') },
+    { key: 'ai-pick', label: tr('trainAiPick') },
+    { key: 'anonymize', label: tr('trainHideIdentity') },
+    { key: 'audit', label: tr('trainRecheck') },
+  ];
+
   const active = FILL_PHASES.findIndex((phase) => phase.key === task.phase);
   return (
     <ol
@@ -377,6 +382,7 @@ function PoolStatus({
   onRefill: () => void;
   refilling: boolean;
 }) {
+  const { t: tr } = useLocale();
   if (task?.status === 'running')
     return (
       <div className={`trainer-boot-status ${stylex.props(styles.bootStatus).className}`}>
@@ -384,7 +390,7 @@ function PoolStatus({
           <span
             className={`trainer-boot-status-title ${stylex.props(styles.bootStatusTitle).className}`}
           >
-            正在攒案例
+            {tr('trainBuildingCases')}
           </span>
           <span
             className={`trainer-boot-status-count ${stylex.props(styles.bootStatusCount).className}`}
@@ -401,9 +407,12 @@ function PoolStatus({
       </div>
     );
 
-  const title = suspended ? '连着两次没攒到，自动补货停了' : '案例池是空的';
+  const title = suspended ? tr('trainRefillPaused') : tr('trainPoolEmpty');
   const detail =
-    error ?? (task?.status === 'failed' ? `上次补货失败：${task.error ?? '未知原因'}` : null);
+    error ??
+    (task?.status === 'failed'
+      ? tr('trainRefillFailed', { value1: task.error ?? tr('trainUnknownReason') })
+      : null);
   return (
     <div className={`trainer-boot-status ${stylex.props(styles.bootStatus).className}`}>
       <div className={`trainer-boot-status-row ${stylex.props(styles.bootStatusRow).className}`}>
@@ -421,13 +430,14 @@ function PoolStatus({
         </div>
       )}
       <Button disabled={refilling} onClick={onRefill}>
-        补货
+        {tr('trainRefill')}
       </Button>
     </div>
   );
 }
 
 export function TrainerLauncher() {
+  const { t: tr } = useLocale();
   const bridge = useMemo(() => getTrainerBridge(), []);
   const [session, setSession] = useState<TrainerSession | null>(null);
   const [failure, setFailure] = useState<OpenFailure | null>(null);
@@ -488,8 +498,8 @@ export function TrainerLauncher() {
       />
     );
 
-  if (!bridge) return <TrainerNotice title="盲盘训练只在桌面端可用" />;
-  if (opening) return <TrainerNotice title="正在开局…" />;
+  if (!bridge) return <TrainerNotice title={tr('trainDesktopOnly')} />;
+  if (opening) return <TrainerNotice title={tr('trainStarting')} />;
 
   if (poolEmpty)
     return (
@@ -509,9 +519,9 @@ export function TrainerLauncher() {
 
   return (
     <TrainerNotice
-      title="打不开训练局"
+      title={tr('trainCannotOpen')}
       detail={failure?.message}
-      action={{ label: '重试', onClick: reopen }}
+      action={{ label: tr('trainRetry'), onClick: reopen }}
     />
   );
 }

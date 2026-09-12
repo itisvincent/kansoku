@@ -1,12 +1,8 @@
 import type { MessagePipelineContext, MessageProcessor } from '../messageEngine.js';
 import { createInjectedUserMessage, wrapSystemContext } from './systemContext.js';
+import { interfaceLanguageName } from '../../../../settings/interfaceLocale.js';
 
-/**
- * This remains a temporary constant until the UI locale is available to the
- * backend turn builder. Keeping it here makes every Message Engine surface use
- * the same output-language policy.
- */
-export const CURRENT_INTERFACE_LANGUAGE = 'Simplified Chinese';
+export const CURRENT_INTERFACE_LANGUAGE = 'English';
 
 /**
  * Inserts runtime instructions as the first provider-facing message. The agent
@@ -22,7 +18,7 @@ export class AfterSystemPromptLanguageInjector implements MessageProcessor {
     const timestamp = context.messages[0]?.timestamp ?? 0;
     const content = [
       '<interface_language>',
-      `The current interface language is ${CURRENT_INTERFACE_LANGUAGE}.`,
+      `The current interface language is ${interfaceLanguageName()}.`,
       'Generate all natural-language content in this language, not only chat replies.',
       'This includes document bodies, research notes, journals, summaries, edit proposals, annotations, and natural-language fields passed to tools.',
       'Keep source code, identifiers, file paths, tool names, and verbatim quoted source text unchanged unless the user explicitly requests translation.',

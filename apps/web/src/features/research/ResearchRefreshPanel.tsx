@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import {
   BrainCircuit,
   Check,
@@ -20,20 +21,6 @@ import type {
 import * as stylex from '@stylexjs/stylex';
 import { MarketTime, Spinner } from '@web/ui';
 import { colors, fonts, fontSizes, radii, sizes } from '../../theme/tokens.stylex';
-
-const PHASES: { phase: ResearchRefreshPhase; label: string }[] = [
-  { phase: 'preparing', label: '制定计划' },
-  { phase: 'documents', label: '核查文档' },
-  { phase: 'market', label: '检查市场' },
-  { phase: 'synthesis', label: '研判' },
-  { phase: 'proposal', label: '定稿' },
-];
-
-const CONFIDENCE_LABEL: Record<ResearchFinding['confidence'], string> = {
-  high: '确认',
-  medium: '待验证',
-  low: '存疑',
-};
 
 const styles = stylex.create({
   card: {
@@ -324,11 +311,11 @@ const styles = stylex.create({
     padding: '2px 4px',
   },
   evidenceLink: {
-    alignItems: 'center',
-    color: colors.accent,
-    display: 'inline-flex',
-    gap: '3px',
-    textDecoration: 'none',
+    'alignItems': 'center',
+    'color': colors.accent,
+    'display': 'inline-flex',
+    'gap': '3px',
+    'textDecoration': 'none',
     ':hover': {
       color: colors.accent,
     },
@@ -359,12 +346,21 @@ const styles = stylex.create({
 });
 
 function TaskProgress({ task }: { task: ResearchRefreshTask }) {
+  const { t: tr } = useLocale();
+  const PHASES: { phase: ResearchRefreshPhase; label: string }[] = [
+    { phase: 'preparing', label: tr('researchPlan') },
+    { phase: 'documents', label: tr('researchAudit') },
+    { phase: 'market', label: tr('researchMarket') },
+    { phase: 'synthesis', label: tr('researchAssess') },
+    { phase: 'proposal', label: tr('researchFinalize') },
+  ];
+
   const currentIndex =
     task.phase === 'completed'
       ? PHASES.length
       : PHASES.findIndex((item) => item.phase === task.phase);
   return (
-    <div {...stylex.props(styles.progress)} aria-label="研究任务进度">
+    <div {...stylex.props(styles.progress)} aria-label={tr('researchProgress')}>
       <div {...stylex.props(styles.steps)}>
         {PHASES.map((item, index) => {
           const state =
@@ -396,7 +392,8 @@ function TaskProgress({ task }: { task: ResearchRefreshTask }) {
         <Spinner /> {task.activity}
       </p>
       <small {...stylex.props(styles.progressStarted)}>
-        开始于 <MarketTime value={task.startedAt} />
+        {tr('researchStarted')}
+        <MarketTime value={task.startedAt} />
       </small>
     </div>
   );
@@ -415,6 +412,13 @@ function FindingList({
   findings: ResearchFinding[];
   evidence: Map<string, ResearchEvidenceItem>;
 }) {
+  const { t: tr } = useLocale();
+  const CONFIDENCE_LABEL: Record<ResearchFinding['confidence'], string> = {
+    high: tr('researchConfirmed'),
+    medium: tr('researchUnverified'),
+    low: tr('researchQuestionable'),
+  };
+
   return (
     <div {...stylex.props(styles.findings)}>
       {findings.map((finding, index) => (
@@ -435,7 +439,7 @@ function FindingList({
             </span>
           </header>
           <p {...stylex.props(styles.findingAssessment)}>{finding.assessment}</p>
-          <div {...stylex.props(styles.citations)} aria-label="引用证据">
+          <div {...stylex.props(styles.citations)} aria-label={tr('researchEvidence')}>
             {finding.evidenceIds.map((id) => (
               <code {...stylex.props(styles.citation)} key={id} title={evidence.get(id)?.title}>
                 {id}
@@ -449,6 +453,7 @@ function FindingList({
 }
 
 function EvidenceList({ evidence }: { evidence: ResearchEvidenceItem[] }) {
+  const { t: tr } = useLocale();
   return (
     <div>
       {evidence.map((item) => (
@@ -470,7 +475,8 @@ function EvidenceList({ evidence }: { evidence: ResearchEvidenceItem[] }) {
                   target="_blank"
                   rel="noreferrer"
                 >
-                  来源 <ExternalLink size={11} />
+                  {tr('researchSource')}
+                  <ExternalLink size={11} />
                 </a>
               ) : (
                 <code {...stylex.props(styles.evidenceCode)}>{item.locator}</code>
@@ -519,31 +525,38 @@ function ResearchReport({
   task: ResearchRefreshTask;
   report: ResearchRefreshReport;
 }) {
+  const { t: tr } = useLocale();
   const evidence = new Map(report.evidence.map((item) => [item.id, item]));
   return (
     <div {...stylex.props(styles.report)}>
       <div {...stylex.props(styles.reportFirstSection, styles.summary)}>
         <span {...stylex.props(styles.summaryTitle)}>
-          <BrainCircuit size={14} /> 研究报告 · <MarketTime value={task.startedAt} />
+          <BrainCircuit size={14} />
+          {tr('researchReport')}
+          <MarketTime value={task.startedAt} />
         </span>
         <p {...stylex.props(styles.summaryText)}>{report.summary}</p>
         <small {...stylex.props(styles.stats)}>
-          {report.findings.length} 条结论 · {report.risks.length} 条风险 · {report.evidence.length}{' '}
-          个证据源
+          {report.findings.length}
+          {tr('researchConclusionsSuffix')}
+          {report.risks.length}
+          {tr('researchRisksSuffix')}
+          {report.evidence.length} {tr('researchSourcesSuffix')}
         </small>
       </div>
       {report.proposalId ? (
         <div {...stylex.props(styles.reportSection, styles.proposal)}>
-          <FileDiff size={14} /> 已生成修改提案，请在下方逐项审阅。
+          <FileDiff size={14} />
+          {tr('researchProposalReady')}
         </div>
       ) : null}
-      <ReportSection title="主要结论" count={report.findings.length}>
+      <ReportSection title={tr('researchConclusions')} count={report.findings.length}>
         <FindingList findings={report.findings} evidence={evidence} />
       </ReportSection>
-      <ReportSection title="风险项" count={report.risks.length}>
+      <ReportSection title={tr('researchRisks')} count={report.risks.length}>
         <FindingList findings={report.risks} evidence={evidence} />
       </ReportSection>
-      <ReportSection title="待定项" count={report.openQuestions.length}>
+      <ReportSection title={tr('researchOpenQuestions')} count={report.openQuestions.length}>
         <ul {...stylex.props(styles.questions)}>
           {report.openQuestions.map((question, index) => (
             <li {...stylex.props(styles.question)} key={`${question}:${index}`}>
@@ -552,7 +565,7 @@ function ResearchReport({
           ))}
         </ul>
       </ReportSection>
-      <ReportSection title="数据源" count={report.evidence.length}>
+      <ReportSection title={tr('researchDataSources')} count={report.evidence.length}>
         <EvidenceList evidence={report.evidence} />
       </ReportSection>
     </div>
@@ -560,6 +573,7 @@ function ResearchReport({
 }
 
 export function ResearchRefreshCard({ task }: { task: ResearchRefreshTask }) {
+  const { t: tr } = useLocale();
   if (task.status === 'running') {
     return (
       <div {...stylex.props(styles.card)}>
@@ -581,7 +595,7 @@ export function ResearchRefreshCard({ task }: { task: ResearchRefreshTask }) {
           <CircleAlert size={14} {...stylex.props(styles.terminalIcon)} />
           <div>
             <strong {...stylex.props(styles.terminalTitle)}>
-              {task.status === 'aborted' ? '任务已停止' : '研究任务失败'}
+              {task.status === 'aborted' ? tr('researchStopped') : tr('researchFailed')}
             </strong>
             <p {...stylex.props(styles.terminalMessage)}>{task.error ?? task.activity}</p>
           </div>

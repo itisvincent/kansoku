@@ -1,3 +1,4 @@
+import { desktopText } from '../../i18n.js';
 import type { MenuItemConstructorOptions } from 'electron';
 import type { MenuActionDeps } from '../types.js';
 
@@ -6,16 +7,16 @@ export function buildDebugSection(deps: MenuActionDeps): MenuItemConstructorOpti
   if (!devLicense) return null;
   const unlicensed = devLicense.isUnlicensed();
   return {
-    label: '调试',
+    label: desktopText('调试', 'Debug'),
     submenu: [
       {
-        label: '许可：已激活',
+        label: desktopText('许可：已激活', 'License: active'),
         type: 'radio',
         checked: !unlicensed,
         click: () => devLicense.set(false),
       },
       {
-        label: '许可：未激活（模拟）',
+        label: desktopText('许可：未激活（模拟）', 'License: inactive (simulated)'),
         type: 'radio',
         checked: unlicensed,
         click: () => devLicense.set(true),

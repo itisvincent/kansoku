@@ -1,3 +1,4 @@
+import type { MessageKey } from '@web/lib/i18n';
 import type { ComponentType } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import { Cpu, Gauge, Gpu, MemoryStick, Route, Ruler, ScanEye } from 'lucide-react';
@@ -6,6 +7,7 @@ import { getDevDockState, updateDevDock, type DevDockState } from './devDockStor
 interface DevDockItemBase {
   id: string;
   label: string;
+  labelKey?: MessageKey;
   icon: LucideIcon;
   defaultPinned?: boolean;
 }
@@ -28,7 +30,8 @@ export const DEV_DOCK_ITEMS: DevDockItem[] = [
   {
     type: 'readout',
     id: 'route-path',
-    label: '路由',
+    label: 'Route',
+    labelKey: 'devRoute',
     icon: Route,
     slot: 'center',
     defaultPinned: true,
@@ -46,7 +49,8 @@ export const DEV_DOCK_ITEMS: DevDockItem[] = [
   {
     type: 'readout',
     id: 'memory',
-    label: '内存',
+    label: 'Memory',
+    labelKey: 'devMemory',
     icon: MemoryStick,
     slot: 'right',
     defaultPinned: true,
@@ -81,7 +85,8 @@ export const DEV_DOCK_ITEMS: DevDockItem[] = [
   {
     type: 'toggle',
     id: 'mesurer',
-    label: '标尺',
+    label: 'Ruler',
+    labelKey: 'devRuler',
     icon: Ruler,
     getChecked: (state) => state.mesurer,
     onToggle: (mesurer) => updateDevDock({ mesurer }),

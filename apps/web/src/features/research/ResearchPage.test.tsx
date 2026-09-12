@@ -279,3 +279,24 @@ describe('ResearchPage canvases shelf', () => {
     );
   });
 });
+
+describe('ResearchPage leaving-route guard', () => {
+  it('does not bounce navigation away from the research route once a document exists', async () => {
+    const router = memRouter('/research?view=stocks&path=stocks%2FAVGO.md');
+    setActiveRouter(router);
+    list.mockResolvedValue([AVGO_META]);
+    get.mockResolvedValue(AVGO_DOC);
+
+    renderResearchPage();
+    expect((await screen.findByRole('heading', { level: 2 })).textContent).toBe('AVGO');
+
+    // A deep link navigates the active tab away from /research. The
+    // selection-sync effect must not drag it straight back.
+    navigate('/symbol/MU.US');
+
+    // Give the selection-sync effect every chance to (wrongly) fire.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(router.state.location.pathname + router.state.location.search).toBe('/symbol/MU.US');
+  });
+});

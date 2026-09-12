@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import type { TrainerReviewEvent, TrainerReviewEventKind } from '@kansoku/pro-api';
 import * as stylex from '@stylexjs/stylex';
 import { colors, fonts, fontSizes } from '../../theme/tokens.stylex';
@@ -98,6 +99,7 @@ export function TrainerReviewTimeline({
   events,
   onBrush,
 }: TrainerReviewTimelineProps) {
+  const { t: tr } = useLocale();
   const pct = (bar: number) => (max === 0 ? 0 : (bar / max) * 100);
   return (
     <div {...stylex.props(styles.timeline)} data-testid="trainer-review-timeline">
@@ -129,13 +131,13 @@ export function TrainerReviewTimeline({
         min={0}
         max={max}
         value={brush}
-        aria-label="重放到第几根"
+        aria-label={tr('trainReplayBar')}
         onChange={(e) => onBrush(Number(e.target.value))}
       />
       <div {...stylex.props(styles.scale)}>
         <span className={`num ${stylex.props(styles.number).className}`}>B0</span>
         <span className={`trainer-settle-hint ${stylex.props(styles.hint).className}`}>
-          拖时间轴，图还原成当时所见
+          {tr('trainReplayHelp')}
         </span>
         <span className={`num ${stylex.props(styles.number).className}`}>B{brush}</span>
       </div>

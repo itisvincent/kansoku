@@ -1,23 +1,24 @@
+import { desktopText } from '../../i18n.js';
 import type { MenuItemConstructorOptions } from 'electron';
 import type { MenuActionDeps } from '../types.js';
 
 export function buildGoSection(deps: MenuActionDeps): MenuItemConstructorOptions {
   return {
-    label: '前往',
+    label: desktopText('前往', 'Go'),
     submenu: [
       {
-        label: 'AI 对话',
+        label: desktopText('AI 对话', 'AI Chat'),
         accelerator: 'CmdOrCtrl+L',
         click: () => deps.openChat(),
       },
       {
-        label: '研究库',
+        label: desktopText('研究库', 'Research library'),
         accelerator: 'CmdOrCtrl+Shift+L',
         click: () => deps.openResearch(),
       },
       { type: 'separator' },
       {
-        label: '盲盘训练',
+        label: desktopText('盲盘训练', 'Blind training'),
         accelerator: 'CmdOrCtrl+Shift+B',
         click: () => deps.openTrainer(),
       },

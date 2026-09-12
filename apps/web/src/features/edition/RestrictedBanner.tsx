@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { getDesktopCredentialsBridge } from '../settings/desktopCredentials';
 import { dismissRestrictedBanner, useRestrictedMode } from './restrictedMode';
 import { navigate } from '../../lib/router';
@@ -45,6 +46,7 @@ const styles = stylex.create({
 });
 
 export function RestrictedBanner() {
+  const { t: tr } = useLocale();
   const { restricted, dismissed } = useRestrictedMode();
   if (!restricted || dismissed) return null;
 
@@ -52,17 +54,17 @@ export function RestrictedBanner() {
 
   return (
     <div {...stylex.props(styles.root)}>
-      <span>未配置行情凭证 — 部分功能不可用</span>
+      <span>{tr('marketCredentialsMissing')}</span>
       <div {...stylex.props(styles.actions)}>
         {canConfigure && (
           <button {...stylex.props(styles.link)} onClick={() => navigate('/settings/license')}>
-            去设置
+            {tr('uiGoSettings')}
           </button>
         )}
         <button
           {...stylex.props(styles.dismiss)}
           onClick={dismissRestrictedBanner}
-          aria-label="关闭"
+          aria-label={tr('uiClose')}
         >
           ×
         </button>

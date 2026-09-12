@@ -1,18 +1,11 @@
+import { chineseTranslator, type Translator } from '@web/lib/i18n';
+import { useLocale } from '@web/lib/i18n';
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { useCapabilities } from './capabilitiesStore';
 import { useLicenseModalTrigger } from './licenseModalStore';
 import { ActivateForm, LicensePanel, useSubscribeInfo } from '../settings/LicensePanel';
 import { colors, fontSizes, radii, sizes } from '../../theme/tokens.stylex';
-
-const FEATURES = [
-  { name: '个股自动跟踪', desc: '盯盘跟踪，异动自动留言' },
-  { name: '深度研究', desc: '一键深度研究，产出结构化报告' },
-  { name: '研究库 AI', desc: '审阅、刷新、研究资料对谈' },
-  { name: '长期记忆', desc: '偏好与标的下文持久化，跨对话继承' },
-  { name: '盲盘训练', desc: '盖住代码与日期的历史对练，按 R 结算' },
-  { name: '画布', desc: '免费最多 3 张，Pro 不限数量' },
-];
 
 const styles = stylex.create({
   paywall: {
@@ -122,39 +115,47 @@ const styles = stylex.create({
   },
 });
 
-function monthlyCtaLabel(subscribe: {
-  trialDays: number | null;
-  priceLabel: string | null;
-  listPriceLabel: string | null;
-  discountLabel: string | null;
-}): string {
+function monthlyCtaLabel(
+  subscribe: {
+    trialDays: number | null;
+    priceLabel: string | null;
+    listPriceLabel: string | null;
+    discountLabel: string | null;
+  },
+  tr: Translator = chineseTranslator,
+): string {
   const deal = [
     subscribe.discountLabel,
-    subscribe.listPriceLabel ? `原价 ${subscribe.listPriceLabel}` : null,
+    subscribe.listPriceLabel ? tr('licenseListPrice', { value1: subscribe.listPriceLabel }) : null,
   ]
     .filter(Boolean)
     .join('，');
   if (subscribe.trialDays) {
-    const after = subscribe.priceLabel ? ` · 之后 ${subscribe.priceLabel}` : '';
+    const after = subscribe.priceLabel
+      ? tr('licenseThenPrice', { value1: subscribe.priceLabel })
+      : '';
     const tag = deal ? `（${deal}）` : '';
-    return `免费试用 ${subscribe.trialDays} 天${after}${tag}，随时取消`;
+    return tr('licenseTrialCta', { value1: subscribe.trialDays, value2: after, value3: tag });
   }
   const price = subscribe.priceLabel ? ` · ${subscribe.priceLabel}` : '';
   const tag = subscribe.discountLabel ? `（${subscribe.discountLabel}）` : '';
-  return `前往订阅${price}${tag}`;
+  return tr('licenseSubscribeCta', { value1: price, value2: tag });
 }
 
-function yearlyCtaLabel(yearly: {
-  priceLabel: string | null;
-  discountLabel: string | null;
-  savingsLabel: string | null;
-  trialDays: number | null;
-}): string {
+function yearlyCtaLabel(
+  yearly: {
+    priceLabel: string | null;
+    discountLabel: string | null;
+    savingsLabel: string | null;
+    trialDays: number | null;
+  },
+  tr: Translator = chineseTranslator,
+): string {
   const price = yearly.priceLabel ? ` ${yearly.priceLabel}` : '';
   const deal = [yearly.discountLabel, yearly.savingsLabel].filter(Boolean).join(' · ');
   const tag = deal ? `（${deal}）` : '';
-  const trial = yearly.trialDays ? `，同样先免费试用 ${yearly.trialDays} 天` : '';
-  return `或选年付${price}${tag}${trial}`;
+  const trial = yearly.trialDays ? tr('licenseYearlyTrial', { value1: yearly.trialDays }) : '';
+  return tr('licenseYearlyCta', { value1: price, value2: tag, value3: trial });
 }
 
 export function Paywall({
@@ -164,6 +165,16 @@ export function Paywall({
   notice?: 'invalid' | 'expired';
   onActivated: () => void;
 }) {
+  const { t: tr } = useLocale();
+  const FEATURES = [
+    { name: tr('licenseAutoTrack'), desc: tr('licenseAutoTrackHelp') },
+    { name: tr('licenseDeepResearch'), desc: tr('licenseDeepResearchHelp') },
+    { name: tr('licenseResearchAi'), desc: tr('licenseResearchAiHelp') },
+    { name: tr('licenseMemory'), desc: tr('licenseMemoryHelp') },
+    { name: tr('trainBlind'), desc: tr('licenseTrainingHelp') },
+    { name: tr('researchCanvas'), desc: tr('licenseCanvasHelp') },
+  ];
+
   const subscribe = useSubscribeInfo();
   const [showActivate, setShowActivate] = useState(notice !== undefined);
 
@@ -171,7 +182,7 @@ export function Paywall({
     <div {...stylex.props(styles.paywall)}>
       <div {...stylex.props(styles.hero)}>
         <div {...stylex.props(styles.title)}>Kansoku AI</div>
-        <div {...stylex.props(styles.tagline)}>解锁 AI 辅助的交易复盘与研究</div>
+        <div {...stylex.props(styles.tagline)}>{tr('licenseUnlock')}</div>
       </div>
       <ul {...stylex.props(styles.features)}>
         {FEATURES.map((f) => (
@@ -188,7 +199,7 @@ export function Paywall({
           target="_blank"
           rel="noreferrer"
         >
-          {monthlyCtaLabel(subscribe)}
+          {monthlyCtaLabel(subscribe, tr)}
         </a>
       ) : null}
       {subscribe?.yearly ? (
@@ -198,18 +209,18 @@ export function Paywall({
           target="_blank"
           rel="noreferrer"
         >
-          {yearlyCtaLabel(subscribe.yearly)}
+          {yearlyCtaLabel(subscribe.yearly, tr)}
         </a>
       ) : null}
       <div {...stylex.props(styles.hint)}>
-        {subscribe?.trialDays ? '试用期内不会扣款；' : ''}
-        订阅后授权码发至邮箱，下方粘贴激活
+        {subscribe?.trialDays ? tr('licenseTrialFree') : ''}
+        {tr('licenseEmailCode')}
       </div>
       {showActivate ? (
         <ActivateForm notice={notice} showSubscribeLink={false} onActivated={onActivated} />
       ) : (
         <button {...stylex.props(styles.toggle)} onClick={() => setShowActivate(true)}>
-          已有授权码？输入激活
+          {tr('licenseHaveCode')}
         </button>
       )}
     </div>
@@ -217,6 +228,7 @@ export function Paywall({
 }
 
 export function LicenseModalBody({ close }: { close: () => void }) {
+  const { t: tr } = useLocale();
   const trigger = useLicenseModalTrigger();
   const { licensed, license } = useCapabilities();
   const notice =
@@ -225,9 +237,7 @@ export function LicenseModalBody({ close }: { close: () => void }) {
   return (
     <>
       {trigger === 'runtime-403' ? (
-        <div {...stylex.props(styles.runtimeNotice)}>
-          本次操作因授权已失效被拒绝，请重新验证或激活。
-        </div>
+        <div {...stylex.props(styles.runtimeNotice)}>{tr('licenseExpiredAction')}</div>
       ) : null}
       {licensed ? <LicensePanel /> : <Paywall notice={notice} onActivated={close} />}
     </>

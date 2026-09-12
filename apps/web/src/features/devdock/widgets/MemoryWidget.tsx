@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useEffect, useState } from 'react';
 import { useAppProcessMetrics } from './appProcessMetrics';
 import { readoutClass } from './readoutStyles';
@@ -47,6 +48,7 @@ async function sample(): Promise<Sample | null> {
 }
 
 export function MemoryWidget() {
+  const { t: tr } = useLocale();
   const [memory, setMemory] = useState<Sample | null>(null);
   const residentMB = useAppProcessMetrics()?.rendererResidentMB ?? null;
 
@@ -72,14 +74,11 @@ export function MemoryWidget() {
   return (
     <span
       className={readoutClass(percent >= 90 ? 'high' : percent >= 70 ? 'mid' : 'ok')}
-      title={
-        memory.footprintMB === null
-          ? 'JS 堆已用 / 上限'
-          : '渲染进程实际占用（phys_footprint）· 待回收 = 常驻集减实际占用减共享，主要是已释放待系统回收的页，含少量只读库页 · JS 堆已用 / 上限'
-      }
+      title={memory.footprintMB === null ? tr('devJsHeap') : tr('devMemoryHelp')}
     >
-      {memory.footprintMB !== null && `渲染 ${Math.round(memory.footprintMB)} MB · `}
-      {reclaimableMB !== null && `待回收 ${Math.round(reclaimableMB)} MB · `}
+      {memory.footprintMB !== null &&
+        tr('devRendererMb', { value1: Math.round(memory.footprintMB) })}
+      {reclaimableMB !== null && tr('devReclaimableMb', { value1: Math.round(reclaimableMB) })}
       JS {memory.heapUsedMB.toFixed(0)} MB · {percent.toFixed(1)}%
     </span>
   );

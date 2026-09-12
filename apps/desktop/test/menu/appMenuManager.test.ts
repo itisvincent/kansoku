@@ -1,6 +1,10 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setActiveInterfaceLocaleStore } from '@kansoku/core/settings/interfaceLocale';
 import { buildAppMenuTemplate, createAppMenuManager } from '@desktop/shell/menu/appMenuManager.js';
 import type { MenuActionDeps } from '@desktop/shell/menu/types.js';
+
+beforeEach(() => setActiveInterfaceLocaleStore({ get: () => 'zh-CN', set: () => {} }));
+afterEach(() => setActiveInterfaceLocaleStore(null));
 
 function makeDeps(overrides: Partial<MenuActionDeps> = {}): MenuActionDeps {
   return {

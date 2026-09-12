@@ -9,6 +9,7 @@ import type {
   Time,
 } from 'lightweight-charts';
 import { theme } from '@web/lib/theme';
+import { chineseTranslator } from '@web/lib/i18n';
 
 export interface PositionBoxData {
   startTime: number;
@@ -18,6 +19,7 @@ export interface PositionBoxData {
   target1: number;
   target2: number;
   dimmed: boolean;
+  stoppedLabel?: string;
 }
 
 type DrawTarget = Parameters<IPrimitivePaneRenderer['draw']>[0];
@@ -42,6 +44,7 @@ interface TagPx {
   x: number;
   y: number;
   color: string;
+  label: string;
 }
 
 function hexToRgb(hex: string): [number, number, number] {
@@ -63,7 +66,6 @@ const FAR_FILL_ALPHA = 0.22;
 const FAR_STROKE_ALPHA = 0.7;
 const DIVIDER_ALPHA = 0.9;
 const DIMMED_MULT = 0.5;
-const STOPPED_TAG = '已止损';
 
 class PositionBoxRenderer implements IPrimitivePaneRenderer {
   constructor(
@@ -97,7 +99,7 @@ class PositionBoxRenderer implements IPrimitivePaneRenderer {
         ctx.font = '10px sans-serif';
         ctx.textBaseline = 'middle';
         ctx.fillStyle = this.tag.color;
-        ctx.fillText(STOPPED_TAG, this.tag.x, this.tag.y);
+        ctx.fillText(this.tag.label, this.tag.x, this.tag.y);
       }
       ctx.restore();
     });
@@ -187,7 +189,12 @@ class PositionBoxPaneView implements IPrimitivePaneView {
     this.divider = { x1, x2, y: yT1, color: upRgba(DIVIDER_ALPHA * dim) };
     if (data.dimmed) {
       const yTopAll = Math.min(stopBlock.yTop, nearBlock.yTop, farBlock.yTop);
-      this.tag = { x: x1 + 4, y: yTopAll + 9, color: downRgba(0.9) };
+      this.tag = {
+        x: x1 + 4,
+        y: yTopAll + 9,
+        color: downRgba(0.9),
+        label: data.stoppedLabel ?? chineseTranslator('chartStoppedLabel'),
+      };
     }
   }
 

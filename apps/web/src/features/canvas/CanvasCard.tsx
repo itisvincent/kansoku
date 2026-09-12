@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { TimeAgo } from '@web/ui';
 import * as stylex from '@stylexjs/stylex';
 import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
@@ -79,6 +80,7 @@ export function CanvasCard({
   mtime?: string;
   onOpen: () => void;
 }) {
+  const { t: tr } = useLocale();
   return (
     <div className={`canvas-card ${stylex.props(styles.card).className}`}>
       <div
@@ -102,15 +104,15 @@ export function CanvasCard({
             className={`link-button ${stylex.props(styles.action).className}`}
             onClick={onOpen}
           >
-            打开
+            {tr('uiOpen')}
           </button>
           <button
             type="button"
             className={`link-button ${stylex.props(styles.disabledAction).className}`}
             disabled
-            title="本版暂不支持新窗口"
+            title={tr('uiWindowUnsupported')}
           >
-            新窗口
+            {tr('uiOpenWindow')}
           </button>
         </div>
       </div>

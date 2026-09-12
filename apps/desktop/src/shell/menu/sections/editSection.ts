@@ -1,8 +1,9 @@
+import { desktopText } from '../../i18n.js';
 import type { MenuItemConstructorOptions } from 'electron';
 
 export function buildEditSection(): MenuItemConstructorOptions {
   return {
-    label: '编辑',
+    label: desktopText('编辑', 'Edit'),
     submenu: [
       { role: 'undo' },
       { role: 'redo' },
@@ -15,7 +16,7 @@ export function buildEditSection(): MenuItemConstructorOptions {
       { role: 'selectAll' },
       { type: 'separator' },
       {
-        label: '朗读',
+        label: desktopText('朗读', 'Speech'),
         submenu: [{ role: 'startSpeaking' }, { role: 'stopSpeaking' }],
       },
     ],

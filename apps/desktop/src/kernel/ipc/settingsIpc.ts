@@ -7,6 +7,18 @@ export class SettingsIpc extends IpcService implements WrapEnvelope<SettingsApi>
   static readonly groupName = 'settings';
 
   @IpcMethod()
+  getInterfaceLocale() {
+    return toEnvelope('settings.getInterfaceLocale', () => settingsService.getInterfaceLocale());
+  }
+
+  @IpcMethod()
+  putInterfaceLocale(input: Parameters<SettingsApi['putInterfaceLocale']>[0]) {
+    return toEnvelope('settings.putInterfaceLocale', () =>
+      settingsService.putInterfaceLocale(input),
+    );
+  }
+
+  @IpcMethod()
   startXaiLogin() {
     return toEnvelope('settings.startXaiLogin', () => settingsService.startXaiLogin());
   }

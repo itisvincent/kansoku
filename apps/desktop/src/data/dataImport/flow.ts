@@ -1,3 +1,4 @@
+import { desktopText } from '../../shell/i18n.js';
 import type { BrowserWindow } from 'electron';
 import { app, dialog } from 'electron';
 import type { ChartIndexRefreshResult } from '@kansoku/core/charts/store';
@@ -22,14 +23,20 @@ async function runImportFromRepoFlowUnsafe(win: BrowserWindow | null): Promise<v
   if (!app.isPackaged) {
     await messageBox(win, {
       type: 'info',
-      title: '导入 Kansoku 数据',
-      message: '开发模式下 Agent Workspace 本身就是仓库，无需导入。',
+      title: desktopText('导入 Kansoku 数据', 'Import Kansoku data'),
+      message: desktopText(
+        '开发模式下 Agent Workspace 本身就是仓库，无需导入。',
+        'In development mode, the repository is already the Agent Workspace. No import is needed.',
+      ),
     });
     return;
   }
 
   const picked = await openDialog(win, {
-    title: '选择旧的 Kansoku 数据目录或 trade 仓库',
+    title: desktopText(
+      '选择旧的 Kansoku 数据目录或 trade 仓库',
+      'Choose a previous Kansoku data folder or trade repository',
+    ),
     properties: ['openDirectory'],
   });
   if (picked.canceled || picked.filePaths.length === 0) return;
@@ -38,13 +45,22 @@ async function runImportFromRepoFlowUnsafe(win: BrowserWindow | null): Promise<v
   const validation = validateImportSource(sourceRoot, dataRoot);
   if (!validation.ok) {
     const messages: Record<typeof validation.reason, string> = {
-      'self': '所选目录就是当前 Agent Workspace，无需导入。',
-      'missing-content': '所选目录里找不到 journal/ 或 stocks/。',
-      'empty': '所选目录里没有可导入的用户文件。',
+      'self': desktopText(
+        '所选目录就是当前 Agent Workspace，无需导入。',
+        'This folder is already the current Agent Workspace. No import is needed.',
+      ),
+      'missing-content': desktopText(
+        '所选目录里找不到 journal/ 或 stocks/。',
+        'The selected folder does not contain journal/ or stocks/.',
+      ),
+      'empty': desktopText(
+        '所选目录里没有可导入的用户文件。',
+        'The selected folder has no user files to import.',
+      ),
     };
     await messageBox(win, {
       type: 'warning',
-      title: '导入 Kansoku 数据',
+      title: desktopText('导入 Kansoku 数据', 'Import Kansoku data'),
       message: messages[validation.reason],
     });
     return;
@@ -61,31 +77,62 @@ async function runImportFromRepoFlowUnsafe(win: BrowserWindow | null): Promise<v
   }
 
   const summaryLines = [
-    `导入完成：复制 ${result.copied} 个文件，内容相同 ${result.identical} 个。`,
+    desktopText(
+      `导入完成：复制 ${result.copied} 个文件，内容相同 ${result.identical} 个。`,
+      `Import complete: ${result.copied} files copied; ${result.identical} already identical.`,
+    ),
   ];
   if (result.conflicts.length > 0) {
-    summaryLines.push(`保留 ${result.conflicts.length} 个同名冲突副本，没有覆盖现有文件。`);
+    summaryLines.push(
+      desktopText(
+        `保留 ${result.conflicts.length} 个同名冲突副本，没有覆盖现有文件。`,
+        `${result.conflicts.length} conflicting copies preserved; existing files were kept.`,
+      ),
+    );
   }
   if (result.skippedSymlinks.length > 0) {
-    summaryLines.push(`跳过 ${result.skippedSymlinks.length} 个符号链接。`);
+    summaryLines.push(
+      desktopText(
+        `跳过 ${result.skippedSymlinks.length} 个符号链接。`,
+        `${result.skippedSymlinks.length} symbolic links skipped.`,
+      ),
+    );
   }
   if (indexResult) {
     summaryLines.push(
-      `图表索引已同步：识别 ${indexResult.indexed} 个，忽略 ${indexResult.skipped} 个。`,
+      desktopText(
+        `图表索引已同步：识别 ${indexResult.indexed} 个，忽略 ${indexResult.skipped} 个。`,
+        `Chart index updated: ${indexResult.indexed} indexed, ${indexResult.skipped} skipped.`,
+      ),
     );
     if (indexResult.failures.length > 0) {
       summaryLines.push(
         ...indexResult.failures.slice(0, 5).map((failure) => `- ${failure.file}: ${failure.error}`),
       );
       if (indexResult.failures.length > 5) {
-        summaryLines.push(`- 另有 ${indexResult.failures.length - 5} 个文件未进入索引。`);
+        summaryLines.push(
+          desktopText(
+            `- 另有 ${indexResult.failures.length - 5} 个文件未进入索引。`,
+            `- ${indexResult.failures.length - 5} more files were not indexed.`,
+          ),
+        );
       }
     }
   } else if (indexError) {
-    summaryLines.push(`文件已经复制，但图表索引同步失败：${indexError}`);
+    summaryLines.push(
+      desktopText(
+        `文件已经复制，但图表索引同步失败：${indexError}`,
+        `Files were copied, but the chart index could not be updated: ${indexError}`,
+      ),
+    );
   }
   if (result.failed.length > 0) {
-    summaryLines.push(`有 ${result.failed.length} 个文件复制失败：`);
+    summaryLines.push(
+      desktopText(
+        `有 ${result.failed.length} 个文件复制失败：`,
+        `${result.failed.length} files could not be copied:`,
+      ),
+    );
     summaryLines.push(...result.failed.map((failure) => `- ${failure.path}: ${failure.error}`));
   }
   await messageBox(win, {
@@ -97,7 +144,7 @@ async function runImportFromRepoFlowUnsafe(win: BrowserWindow | null): Promise<v
       (indexResult?.skipped ?? 0) > 0
         ? 'warning'
         : 'info',
-    title: '导入 Kansoku 数据',
+    title: desktopText('导入 Kansoku 数据', 'Import Kansoku data'),
     message: summaryLines.join('\n'),
   });
 }
@@ -112,8 +159,8 @@ export async function runImportFromRepoFlow(win: BrowserWindow | null): Promise<
     console.error('[desktop] import-from-repo failed', error);
     await messageBox(win, {
       type: 'error',
-      title: '导入 Kansoku 数据',
-      message: `导入失败：${message}`,
+      title: desktopText('导入 Kansoku 数据', 'Import Kansoku data'),
+      message: desktopText(`导入失败：${message}`, `Import failed: ${message}`),
     });
   }
 }

@@ -1,3 +1,5 @@
+import { chineseTranslator, type Translator } from '@web/lib/i18n';
+import { useLocale } from '@web/lib/i18n';
 import { useState } from 'react';
 import { AnimatePresence, motion } from 'motion/react';
 import { ChevronRight } from 'lucide-react';
@@ -108,9 +110,12 @@ const styles = stylex.create({
   },
 });
 
-function relatedDocumentSecondary(meta: ResearchDocumentMeta): string {
-  if (meta.kind === 'stock') return meta.symbols.join(' · ') || researchTypeLabel(meta.type);
-  return [meta.date, researchTypeLabel(meta.type)].filter(Boolean).join(' · ');
+function relatedDocumentSecondary(
+  meta: ResearchDocumentMeta,
+  tr: Translator = chineseTranslator,
+): string {
+  if (meta.kind === 'stock') return meta.symbols.join(' · ') || researchTypeLabel(meta.type, tr);
+  return [meta.date, researchTypeLabel(meta.type, tr)].filter(Boolean).join(' · ');
 }
 
 export function RelatedMaterialsCard({
@@ -122,6 +127,7 @@ export function RelatedMaterialsCard({
   related: ResearchDocumentMeta[];
   onSelect: (document: ResearchDocumentMeta) => void;
 }) {
+  const { t: tr } = useLocale();
   const [open, setOpen] = useState(false);
   return (
     <div className={`research-related-details ${stylex.props(styles.root).className}`}>
@@ -136,7 +142,11 @@ export function RelatedMaterialsCard({
           {...stylex.props(styles.summaryIcon, open && styles.summaryIconOpen)}
         />
         <span>
-          关联资料 · {selected.symbols.length} 个标的 · {related.length} 条相关记录
+          {tr('researchRelatedMaterials')}
+          {selected.symbols.length}
+          {tr('researchSymbolCountSuffix')}
+          {related.length}
+          {tr('researchRecordsSuffix')}
         </span>
       </button>
       <AnimatePresence initial={false}>
@@ -149,7 +159,9 @@ export function RelatedMaterialsCard({
             transition={{ duration: 0.2, ease: [0.2, 0.9, 0.3, 1] }}
           >
             <section className="research-context-section">
-              <h3 className={stylex.props(styles.contextHeading).className}>关联标的</h3>
+              <h3 className={stylex.props(styles.contextHeading).className}>
+                {tr('researchRelatedSymbols')}
+              </h3>
               {selected.symbols.length > 0 ? (
                 <div
                   className={`research-symbol-links ${stylex.props(styles.symbolLinks).className}`}
@@ -167,14 +179,16 @@ export function RelatedMaterialsCard({
                 </div>
               ) : (
                 <p className={stylex.props(styles.contextParagraph).className}>
-                  这是一份全局记录，不归属于单一股票。
+                  {tr('researchGlobalRecord')}
                 </p>
               )}
             </section>
             <section
               className={`research-context-section ${stylex.props(styles.bodyLastSection).className}`}
             >
-              <h3 className={stylex.props(styles.contextHeading).className}>相关记录</h3>
+              <h3 className={stylex.props(styles.contextHeading).className}>
+                {tr('researchRelatedRecords')}
+              </h3>
               {related.length > 0 ? (
                 <div
                   className={`research-related-list ${stylex.props(styles.relatedList).className}`}
@@ -188,14 +202,14 @@ export function RelatedMaterialsCard({
                     >
                       <span {...stylex.props(styles.relatedTitle)}>{relatedDocument.title}</span>
                       <small {...stylex.props(styles.relatedSecondary)}>
-                        {relatedDocumentSecondary(relatedDocument)}
+                        {relatedDocumentSecondary(relatedDocument, tr)}
                       </small>
                     </button>
                   ))}
                 </div>
               ) : (
                 <p className={stylex.props(styles.contextParagraph).className}>
-                  暂时没有通过标的建立的关联记录。
+                  {tr('researchNoRelated')}
                 </p>
               )}
             </section>

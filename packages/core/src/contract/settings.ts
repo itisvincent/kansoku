@@ -9,6 +9,7 @@ import type {
 import type { LongbridgeRegionPreference } from '../marketdata/longbridgeEndpoints.js';
 import type { Market } from '../symbols/symbol.utils.js';
 import { defineRoutes } from './defineRoutes.js';
+import type { InterfaceLocale } from '../settings/interfaceLocale.js';
 
 export type {
   CatalogModel,
@@ -29,6 +30,8 @@ export interface XaiLoginState {
 }
 
 export interface SettingsApi {
+  getInterfaceLocale(): Promise<{ locale: InterfaceLocale }>;
+  putInterfaceLocale(input: { locale: InterfaceLocale }): Promise<{ locale: InterfaceLocale }>;
   startXaiLogin(): Promise<XaiLoginState>;
   pollXaiLogin(input: { sessionId: string }): Promise<XaiLoginState>;
   cancelXaiLogin(input: { sessionId: string }): Promise<{ cancelled: true }>;
@@ -84,6 +87,8 @@ export interface WebSearchStatus {
 }
 
 export const settingsRoutes = defineRoutes<SettingsApi>('settings', {
+  getInterfaceLocale: { method: 'GET', path: '/interface-locale' },
+  putInterfaceLocale: { method: 'PUT', path: '/interface-locale' },
   startXaiLogin: { method: 'POST', path: '/ai/xai/login' },
   pollXaiLogin: { method: 'GET', path: '/ai/xai/login/:sessionId' },
   cancelXaiLogin: { method: 'DELETE', path: '/ai/xai/login/:sessionId' },

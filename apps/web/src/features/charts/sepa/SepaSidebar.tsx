@@ -1,3 +1,5 @@
+import { useLocale } from '@web/lib/i18n';
+import { analysisLabel, detectorText, sepaVerdictReason } from '../analysisLabels';
 import * as stylex from '@stylexjs/stylex';
 import { Check, TriangleAlert, X } from 'lucide-react';
 import type { SepaBuilt } from '@kansoku/shared/types';
@@ -231,6 +233,7 @@ function rrTone(ep: { rr_great: boolean; rr_ok: boolean }): string {
 }
 
 export function SepaSidebar({ built }: { built: SepaBuilt }) {
+  const { t: i18n, locale } = useLocale();
   const s = built.sidebar;
   const ep = built.chart.entryPlan;
   const zones = built.chart.supportZones;
@@ -251,7 +254,8 @@ export function SepaSidebar({ built }: { built: SepaBuilt }) {
             </span>
           </div>
           <div className={`price-date ${stylex.props(styles.priceDate).className}`}>
-            {s.asOf} · 长桥证券
+            {s.asOf}
+            {i18n('chartProvider')}
           </div>
         </div>
 
@@ -260,7 +264,7 @@ export function SepaSidebar({ built }: { built: SepaBuilt }) {
           style={stylex.props(styles.verdict(s.verdict.color)).style}
         >
           <div className={`verdict-label ${stylex.props(styles.verdictLabel).className}`}>
-            SEPA 结论
+            {i18n('sepaConclusion')}
           </div>
           <div
             className={`verdict-text ${stylex.props(styles.verdictText(s.verdict.color)).className}`}
@@ -269,22 +273,22 @@ export function SepaSidebar({ built }: { built: SepaBuilt }) {
             {s.verdict.label}
           </div>
           <div className={`verdict-reason ${stylex.props(styles.verdictReason).className}`}>
-            {s.verdict.reason}
+            {sepaVerdictReason(s.verdict.reason, locale)}
           </div>
         </div>
 
         {s.stage.length > 0 && (
           <>
-            <SectionTitle>阶段判断</SectionTitle>
+            <SectionTitle>{i18n('sepaStage')}</SectionTitle>
             <div className={`grid2 ${stylex.props(styles.grid2).className}`}>
               {s.stage.map((row) => (
-                <StageRow key={row.k} k={row.k} v={row.v} />
+                <StageRow key={row.k} k={analysisLabel(row.k, locale)} v={row.v} />
               ))}
             </div>
           </>
         )}
 
-        <SectionTitle>趋势模板 8 条</SectionTitle>
+        <SectionTitle>{i18n('sepaTrendTemplate')}</SectionTitle>
         {s.checks.map((c) => {
           const status = CHECK_ICON[c.status] ?? CHECK_ICON.unknown;
           const StatusIcon = status.icon;
@@ -300,35 +304,41 @@ export function SepaSidebar({ built }: { built: SepaBuilt }) {
               </div>
               <div>
                 <div className={`check-label ${stylex.props(styles.checkLabel).className}`}>
-                  {c.label}
+                  {analysisLabel(c.label, locale)}
                 </div>
                 <div className={`check-val ${stylex.props(styles.checkVal).className}`}>
-                  {c.val}
+                  {detectorText(c.val, locale)}
                 </div>
               </div>
             </div>
           );
         })}
 
-        <SectionTitle>关键数值</SectionTitle>
+        <SectionTitle>{i18n('sepaKeyValues')}</SectionTitle>
         <div className={`grid2 ${stylex.props(styles.grid2).className}`}>
           <div className={`k ${stylex.props(styles.key).className}`}>
-            距 52w 高 ${fmt(kv.high52w)}
+            {i18n('sepa52HighDistance')}
+            {fmt(kv.high52w)}
           </div>
           <div className={`v ${stylex.props(styles.value, styles.valueDown).className}`}>
             {signed(kv.h52Pct)}%
           </div>
           <div className={`k ${stylex.props(styles.key).className}`}>
-            距 52w 低 ${fmt(kv.low52w)}
+            {i18n('sepa52LowDistance')}
+            {fmt(kv.low52w)}
           </div>
           <div className={`v ${stylex.props(styles.value, styles.valueUp).className}`}>
             {signed(kv.l52Pct, 0)}%
           </div>
-          <div className={`k ${stylex.props(styles.key).className}`}>距 MA50</div>
+          <div className={`k ${stylex.props(styles.key).className}`}>
+            {i18n('sepaMa50Distance')}
+          </div>
           <div className={`v ${stylex.props(styles.value).className}`}>
             <Num value={kv.ma50Pct} diff suffix="%" />
           </div>
-          <div className={`k ${stylex.props(styles.key).className}`}>距 MA200</div>
+          <div className={`k ${stylex.props(styles.key).className}`}>
+            {i18n('sepaMa200Distance')}
+          </div>
           <div className={`v ${stylex.props(styles.value).className}`}>
             <Num value={kv.ma200Pct} diff suffix="%" />
           </div>
@@ -352,7 +362,7 @@ export function SepaSidebar({ built }: { built: SepaBuilt }) {
 
         {zones.length > 0 && (
           <>
-            <SectionTitle>支撑区</SectionTitle>
+            <SectionTitle>{i18n('sepaSupport')}</SectionTitle>
             {zones.map((z, i) => (
               <div
                 key={i}
@@ -364,7 +374,7 @@ export function SepaSidebar({ built }: { built: SepaBuilt }) {
                     className={`zone-label ${stylex.props(styles.zoneLabel(z.axis_color)).className}`}
                     style={stylex.props(styles.zoneLabel(z.axis_color)).style}
                   >
-                    {z.label}
+                    {analysisLabel(z.label, locale)}
                   </span>
                   <span className={`zone-range ${stylex.props(styles.zoneRange).className}`}>
                     ${fmt(z.low)} – ${fmt(z.high)} (
@@ -372,13 +382,13 @@ export function SepaSidebar({ built }: { built: SepaBuilt }) {
                   </span>
                 </div>
                 <div className={`zone-meta ${stylex.props(styles.zoneMeta).className}`}>
-                  {z.note}
+                  {analysisLabel(z.note, locale)}
                   {z.sources.length > 0 && (
                     <span
                       className={`zone-sources-inline ${stylex.props(styles.zoneSourcesInline).className}`}
                     >
                       {' · '}
-                      {z.sources.join(' / ')}
+                      {z.sources.map((source) => analysisLabel(source, locale)).join(' / ')}
                     </span>
                   )}
                 </div>
@@ -390,35 +400,39 @@ export function SepaSidebar({ built }: { built: SepaBuilt }) {
         {ep && (
           <>
             <SectionTitle>
-              入场计划
+              {i18n('chartEntryPlan')}
               {ep.hypothetical && (
                 <Badge className={`hypo-badge ${stylex.props(styles.hypoBadge).className}`}>
-                  假设性
+                  {i18n('sepaHypothetical')}
                 </Badge>
               )}
             </SectionTitle>
             <div className={`grid2 ${stylex.props(styles.grid2).className}`}>
-              <div className={`k ${stylex.props(styles.key).className}`}>买入区间 (pivot+5%)</div>
+              <div className={`k ${stylex.props(styles.key).className}`}>
+                {i18n('sepaBuyRange')}
+              </div>
               <div className={`v ${stylex.props(styles.value).className}`}>
                 ${fmt(ep.pivot)} – ${fmt(ep.buy_zone_high)}
               </div>
-              <div className={`k ${stylex.props(styles.key).className}`}>止损</div>
+              <div className={`k ${stylex.props(styles.key).className}`}>{i18n('chartStop')}</div>
               <div className={`v ${stylex.props(styles.value, styles.valueDown).className}`}>
                 ${fmt(ep.stop)} ({signed(ep.stop_pct, 1)}%)
               </div>
               <div className={`k ${stylex.props(styles.key).className}`}>
-                第一目标 (+{fmt(ep.target1_pct, 0)}%)
+                {i18n('sepaTarget1')}
+                {fmt(ep.target1_pct, 0)}%)
               </div>
               <div className={`v ${stylex.props(styles.value, styles.valueUp).className}`}>
                 ${fmt(ep.target1)}
               </div>
               <div className={`k ${stylex.props(styles.key).className}`}>
-                第二目标 (+{fmt(ep.target2_pct, 0)}%)
+                {i18n('sepaTarget2')}
+                {fmt(ep.target2_pct, 0)}%)
               </div>
               <div className={`v ${stylex.props(styles.value, styles.valueUp).className}`}>
                 ${fmt(ep.target2)}
               </div>
-              <div className={`k ${stylex.props(styles.key).className}`}>R/R 比例 (基于 T2)</div>
+              <div className={`k ${stylex.props(styles.key).className}`}>{i18n('sepaRr')}</div>
               <div
                 className={`v ${stylex.props(styles.value, rrTone(ep) === 'up' ? styles.valueUp : rrTone(ep) === 'down' ? styles.valueDown : null).className}`}
               >
@@ -426,7 +440,8 @@ export function SepaSidebar({ built }: { built: SepaBuilt }) {
                 {!ep.rr_ok && (
                   <span className={`warn-red ${stylex.props(styles.warnRed).className}`}>
                     {' '}
-                    <TriangleAlert className={stylex.props(styles.icon).className} size={13} /> &lt;2:1 SEPA 不入场
+                    <TriangleAlert className={stylex.props(styles.icon).className} size={13} />
+                    {i18n('sepaNoEntry')}
                   </span>
                 )}
               </div>
@@ -437,35 +452,42 @@ export function SepaSidebar({ built }: { built: SepaBuilt }) {
               </div>
             )}
             <div className={`rule-block ${stylex.props(styles.ruleBlock).className}`}>
-              <b>三阶段止损（SEPA 规则）</b>
-              <br />① 入场后硬止损 −7~8%，绝不下移
-              <br />② 涨 +8%：卖一半，止损上移到本钱（不再亏）
-              <br />③ 涨 +15%：再卖 25%，剩仓沿 20MA 跟踪；跌破 20MA 全清
+              <b>{i18n('sepaStopStages')}</b>
+              <br />
+              {i18n('sepaStop1')}
+              <br />
+              {i18n('sepaStop2')}
+              <br />
+              {i18n('sepaStop3')}
             </div>
           </>
         )}
 
         {s.position && (
           <>
-            <SectionTitle>持仓视角</SectionTitle>
+            <SectionTitle>{i18n('chartPositionView')}</SectionTitle>
             <div className={`grid2 ${stylex.props(styles.grid2).className}`}>
-              <div className={`k ${stylex.props(styles.key).className}`}>持仓</div>
+              <div className={`k ${stylex.props(styles.key).className}`}>
+                {i18n('chartPosition')}
+              </div>
               <div className={`v ${stylex.props(styles.value).className}`}>
                 {s.position.shares} sh
               </div>
-              <div className={`k ${stylex.props(styles.key).className}`}>成本</div>
+              <div className={`k ${stylex.props(styles.key).className}`}>{i18n('chartCost')}</div>
               <div className={`v ${stylex.props(styles.value).className}`}>
                 ${fmt(s.position.cost)}
               </div>
               <div className={`k ${stylex.props(styles.key).className}`}>
-                浮{s.position.unrealized >= 0 ? '盈' : '亏'}
+                {i18n(s.position.unrealized >= 0 ? 'chartUnrealizedGain' : 'chartUnrealizedLoss')}
               </div>
               <div
                 className={`v ${stylex.props(styles.value, s.position.unrealized >= 0 ? styles.valueUp : styles.valueDown).className}`}
               >
                 {signed(s.position.unrealized)} ({signed(s.position.unrealizedPct)}%)
               </div>
-              <div className={`k ${stylex.props(styles.key).className}`}>守仓边界 (50MA)</div>
+              <div className={`k ${stylex.props(styles.key).className}`}>
+                {i18n('sepaHoldBoundary')}
+              </div>
               <div className={`v ${stylex.props(styles.value).className}`}>${fmt(s.ma50Now)}</div>
             </div>
           </>
@@ -475,10 +497,9 @@ export function SepaSidebar({ built }: { built: SepaBuilt }) {
 
         <div className={`disclaimer ${stylex.props(styles.disclaimer).className}`}>
           <TriangleAlert className={stylex.props(styles.icon).className} size={12} />{' '}
-          仅供学习参考，不构成投资建议。数据来源：长桥证券。
+          {i18n('chartDisclaimer')}
           <br />
-          SEPA 框架基于 Mark Minervini 方法。Verdict 自动检测 trend template + extended
-          警戒；形态（VCP / 杯柄 / 平台 / 旗形）需人工目视确认。
+          {i18n('sepaMethodNote')}
         </div>
       </div>
     </div>

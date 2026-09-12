@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setActiveInterfaceLocaleStore } from '@kansoku/core/settings/interfaceLocale';
 import { createUpdaterHandle, startUpdater } from '@desktop/shell/updater/updater.js';
 import { createUpdaterStatusStore } from '@desktop/shell/updater/status.js';
 import type { SparkleBridge } from 'electron-sparkle-updater';
+
+beforeEach(() => setActiveInterfaceLocaleStore({ get: () => 'zh-CN', set: () => {} }));
+afterEach(() => setActiveInterfaceLocaleStore(null));
 
 function mockBridge(overrides: Partial<SparkleBridge> = {}): SparkleBridge {
   return {
@@ -63,12 +67,10 @@ describe('createUpdaterHandle', () => {
       sparkleBridge: bridge,
       statusStore: store,
       showMessage: vi.fn(),
-      runWeakCheck: vi
-        .fn()
-        .mockResolvedValue({
-          kind: 'available',
-          release: { version: '0.43.0', htmlUrl: 'https://example.com/new' },
-        }),
+      runWeakCheck: vi.fn().mockResolvedValue({
+        kind: 'available',
+        release: { version: '0.43.0', htmlUrl: 'https://example.com/new' },
+      }),
     });
     const emit = vi.mocked(bridge.setEventHandler).mock.calls[0]![0];
     emit({ type: 'update-available', version: '0.42.0' });

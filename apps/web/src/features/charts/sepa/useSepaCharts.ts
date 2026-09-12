@@ -26,6 +26,7 @@ import {
 } from '../lw';
 import { seriesPalette, theme } from '@web/lib/theme';
 import { useLocale } from '../../../lib/i18n';
+import { analysisLabel, localizeDetectorMarker } from '../analysisLabels';
 
 const VP_WIDTH = 90;
 
@@ -36,7 +37,8 @@ export function useSepaCharts(
   vrRef: RefObject<HTMLDivElement | null>,
   vpCanvasRef: RefObject<HTMLCanvasElement | null>,
 ): LayerGroup[] {
-  const { t } = useLocale();
+  const { t: tr, locale } = useLocale();
+  const t = tr;
   const [groups, setGroups] = useState<LayerGroup[]>([]);
 
   useEffect(() => {
@@ -55,7 +57,8 @@ export function useSepaCharts(
       wickDownColor: theme.down,
     });
     candle.setData(toCandleData(chart.candles));
-    const candleMarkers = attachMarkers(candle, chart.markers);
+    const localizedMarkers = chart.markers.map((m) => localizeDetectorMarker(m, locale));
+    const candleMarkers = attachMarkers(candle, localizedMarkers);
 
     const lineOpts = { lineWidth: 2 as const, priceLineVisible: false, lastValueVisible: false };
     const ma50 = main.addSeries(LineSeries, { color: seriesPalette[0], ...lineOpts });
@@ -180,7 +183,7 @@ export function useSepaCharts(
         color: z.border,
         lineWidth: 0,
         lineStyle: 0,
-        title: `${z.label} $${z.low.toFixed(0)}-${z.high.toFixed(0)}`,
+        title: `${analysisLabel(z.label, locale)} $${z.low.toFixed(0)}-${z.high.toFixed(0)}`,
       });
       return { series, line, info: z };
     });
@@ -325,8 +328,13 @@ export function useSepaCharts(
       {
         title: t('priceLevels'),
         items: [
-          { key: 'h52w', label: '52w 高', color: seriesPalette[4], toggle: (v) => lineH52w.set(v) },
-          { key: 'l52w', label: '52w 低', color: theme.up, toggle: (v) => lineL52w.set(v) },
+          {
+            key: 'h52w',
+            label: tr('chart52High'),
+            color: seriesPalette[4],
+            toggle: (v) => lineH52w.set(v),
+          },
+          { key: 'l52w', label: tr('chart52Low'), color: theme.up, toggle: (v) => lineL52w.set(v) },
           ...(lineExt
             ? [
                 {
@@ -371,7 +379,7 @@ export function useSepaCharts(
           },
           {
             key: 'ep-line',
-            label: 'pivot / 止损 / T1 / T2',
+            label: tr('chartSepaPlan'),
             color: theme.accent,
             toggle: (v) => lines.forEach((l) => l.set(v)),
           },
@@ -391,7 +399,7 @@ export function useSepaCharts(
           key: 'markers',
           label: t('eventMarkers'),
           color: theme.down,
-          toggle: (v) => candleMarkers.setMarkers(v ? toMarkers(chart.markers) : []),
+          toggle: (v) => candleMarkers.setMarkers(v ? toMarkers(localizedMarkers) : []),
         },
         {
           key: 'vp',
@@ -418,7 +426,7 @@ export function useSepaCharts(
       vrChart.remove();
       setGroups([]);
     };
-  }, [chart, mainRef, rsRef, vrRef, vpCanvasRef, t]);
+  }, [chart, mainRef, rsRef, vrRef, vpCanvasRef, t, tr, locale]);
 
   return groups;
 }

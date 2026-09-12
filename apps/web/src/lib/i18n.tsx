@@ -1,7 +1,7 @@
 import {
   createContext,
   useCallback,
-  useContext,
+  use,
   useEffect,
   useMemo,
   useState,
@@ -13,14 +13,17 @@ import zhCN from './locales/zh-CN';
 export type Locale = 'zh-CN' | 'en-US';
 export type MessageKey = keyof typeof zhCN;
 export type MessageParams = Readonly<Record<string, string | number>>;
+export type Translator = (key: MessageKey, params?: MessageParams) => string;
 export const LOCALE_STORAGE_KEY = 'kansoku.locale';
 const messages = { 'zh-CN': zhCN, 'en-US': enUS };
 
 export function translate(locale: Locale, key: MessageKey, params: MessageParams = {}): string {
-  return messages[locale][key].replace(/\{(\w+)\}/g, (placeholder, name: string) =>
+  return messages[locale][key].replaceAll(/{(\w+)}/g, (placeholder, name: string) =>
     Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : placeholder,
   );
 }
+
+export const chineseTranslator: Translator = (key, params) => translate('zh-CN', key, params);
 
 type LocaleContextValue = {
   locale: Locale;
@@ -39,7 +42,7 @@ function normalizeLocale(value: string | null): Locale {
   return value === 'zh-CN' ? 'zh-CN' : 'en-US';
 }
 
-function readLocale(): Locale {
+export function readLocale(): Locale {
   try {
     return normalizeLocale(window.localStorage.getItem(LOCALE_STORAGE_KEY));
   } catch {
@@ -81,9 +84,14 @@ export function LocaleProvider({ children }: { children: ReactNode }) {
     }),
     [locale, setLocale],
   );
-  return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
+  return <LocaleContext value={value}>{children}</LocaleContext>;
 }
 
 export function useLocale(): LocaleContextValue {
-  return useContext(LocaleContext);
+  return use(LocaleContext);
+}
+
+export function LocalizedText({ message }: { message: MessageKey }) {
+  const { t } = useLocale();
+  return <>{t(message)}</>;
 }

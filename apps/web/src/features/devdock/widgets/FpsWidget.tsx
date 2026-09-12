@@ -1,7 +1,9 @@
+import { useLocale } from '@web/lib/i18n';
 import { useEffect, useState } from 'react';
 import { readoutClass } from './readoutStyles';
 
 export function FpsWidget() {
+  const { t: tr } = useLocale();
   const [fps, setFps] = useState<number | null>(null);
 
   useEffect(() => {
@@ -24,7 +26,10 @@ export function FpsWidget() {
 
   if (fps === null) return null;
   return (
-    <span className={readoutClass(fps < 30 ? 'high' : fps < 50 ? 'mid' : 'ok')} title="每秒帧数">
+    <span
+      className={readoutClass(fps < 30 ? 'high' : fps < 50 ? 'mid' : 'ok')}
+      title={tr('devFpsHelp')}
+    >
       {fps} FPS
     </span>
   );

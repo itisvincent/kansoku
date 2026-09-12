@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { IntradayBuilt } from '@kansoku/shared/types';
+import { LocaleProvider, useLocale } from '@web/lib/i18n';
 
 let capabilities: { features?: Record<string, string> } = {
   features: { 'auto-patterns': 'locked', 'options-walls': 'locked' },
@@ -39,6 +40,30 @@ function renderMenu(value: IntradayBuilt = built) {
 function openCustomLayers() {
   fireEvent.click(screen.getByText('自定义图层'));
 }
+
+function LanguageSwitcher() {
+  const { setLocale } = useLocale();
+  return <button onClick={() => setLocale('zh-CN')}>Switch language</button>;
+}
+
+it('preserves a changed layer when an open menu switches from English to Chinese', () => {
+  render(
+    <LocaleProvider>
+      <LanguageSwitcher />
+      <IntradayControlsProvider>
+        <ChartLayerMenu built={built} activeTf="m5" />
+      </IntradayControlsProvider>
+    </LocaleProvider>,
+  );
+  fireEvent.click(screen.getByText('Custom layers'));
+  const checkbox = screen.getByText('EMA lines').closest('label')!.querySelector('input')!;
+  fireEvent.click(checkbox);
+  const checked = checkbox.checked;
+  fireEvent.click(screen.getByText('Switch language'));
+  expect(screen.getByText('EMA 均线').closest('label')!.querySelector('input')!.checked).toBe(
+    checked,
+  );
+});
 
 describe('ChartLayerMenu pro annotation layer locks', () => {
   it('shows the number of active FVG zones for the selected timeframe', () => {

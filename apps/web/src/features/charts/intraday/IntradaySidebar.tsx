@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useState, type ReactNode } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { TriangleAlert } from 'lucide-react';
@@ -110,6 +111,7 @@ export function IntradaySidebar({
   dock,
   live = false,
 }: IntradaySidebarProps) {
+  const { t: i18n } = useLocale();
   const s = built.sidebar;
   const market = marketOfSymbol(s.symbol);
   const displayedQuote = resolveSidebarQuote(s, useLiveQuote(live ? s.symbol : null));
@@ -123,7 +125,7 @@ export function IntradaySidebar({
   const defaultTabs: SidebarTab[] = [
     {
       key: 'prediction',
-      label: '预测',
+      label: i18n('chartPrediction'),
       content: (
         <PredictionTab
           built={built}
@@ -136,13 +138,13 @@ export function IntradaySidebar({
     },
     {
       key: 'news',
-      label: '消息',
+      label: i18n('chartNewsTab'),
       hidden: !hasNews,
       content: <NewsTab context={s.context} news={s.news ?? []} sym={s.symbol} />,
     },
     {
       key: 'position',
-      label: '持仓',
+      label: i18n('chartPosition'),
       hidden: !hasPosition,
       content: <PositionTab position={s.position} />,
     },
@@ -160,7 +162,7 @@ export function IntradaySidebar({
           </div>
           <div className={`price-date ${stylex.props(styles.priceDate).className}`}>
             {displayedQuote.asOf ? <MarketTime value={displayedQuote.asOf} market={market} /> : ''}{' '}
-            · 长桥证券
+            {i18n('chartProvider')}
           </div>
         </div>
 
@@ -176,10 +178,9 @@ export function IntradaySidebar({
 
         <div className={`disclaimer ${stylex.props(styles.disclaimer).className}`}>
           <TriangleAlert className={`icon ${stylex.props(styles.icon).className}`} size={12} />{' '}
-          仅供学习参考，不构成投资建议。数据来源：长桥证券。
+          {i18n('chartDisclaimer')}
           <br />
-          方向判断、情景推演和入场计划为 AI 分析结论；Pin Bar、MACD 背离标注及 MACD
-          数值由服务端算法自动计算。
+          {i18n('chartMethodNote')}
         </div>
       </div>
 

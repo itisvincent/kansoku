@@ -1,3 +1,5 @@
+import { chineseTranslator, type Translator } from '@web/lib/i18n';
+import { useLocale } from '@web/lib/i18n';
 import { useRef, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type {
@@ -137,13 +139,16 @@ const styles = stylex.create({
 
 // Why the entry buttons on the ticket are locked, said in the tooltip rather than left to the
 // trader to work out from a greyed-out row.
-function entryBlockedReason(entry: EntryDraftApi): string | undefined {
-  if (entry.placement.stop === null && entry.placement.target === null)
-    return '先从票上拖出 SL 和 TP';
-  if (entry.placement.stop === null) return '先从票上拖出 SL 放止损';
-  if (entry.placement.target === null) return '先从票上拖出 TP 放目标';
-  if (!entry.draft) return '现价已经越过你放的线，重新放一次';
-  if (!meetsRewardRiskFloor(entry.draft)) return `盈亏比低于 ${MIN_REWARD_RISK} 下限`;
+function entryBlockedReason(
+  entry: EntryDraftApi,
+  tr: Translator = chineseTranslator,
+): string | undefined {
+  if (entry.placement.stop === null && entry.placement.target === null) return tr('trainPullBoth');
+  if (entry.placement.stop === null) return tr('trainPullStop');
+  if (entry.placement.target === null) return tr('trainPullTarget');
+  if (!entry.draft) return tr('trainStaleLevels');
+  if (!meetsRewardRiskFloor(entry.draft))
+    return tr('trainRewardRiskFloor', { value1: MIN_REWARD_RISK });
   return undefined;
 }
 
@@ -166,6 +171,7 @@ export function TrainerOrderPanel({
   drawingActive = false,
   onTakeChart,
 }: TrainerOrderPanelProps) {
+  const { t: tr } = useLocale();
   const [entryNote, setEntryNote] = useState('');
   const [positionNote, setPositionNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -289,7 +295,7 @@ export function TrainerOrderPanel({
       return;
     }
     setOutcome({
-      text: describeEntryOutcome(filled.data.events, view.basePeriod),
+      text: describeEntryOutcome(filled.data.events, view.basePeriod, tr),
       cursor: filled.data.view.cursor,
     });
     onViewChange(filled.data.view);
@@ -386,7 +392,7 @@ export function TrainerOrderPanel({
       <div
         className={`trainer-lane trainer-order-panel--status ${stylex.props(styles.lane, styles.status).className}`}
       >
-        本局已结束
+        {tr('trainSessionEnded')}
       </div>
     );
   }
@@ -440,8 +446,8 @@ export function TrainerOrderPanel({
           }
           entry={{
             price: entry.entry,
-            badge: entry.direction === 'long' ? '做多' : '做空',
-            text: '市价',
+            badge: entry.direction === 'long' ? tr('trainLong') : tr('trainShort'),
+            text: tr('trainMarket'),
             draggable: false,
             pulls: [
               { field: 'target', label: 'TP', set: entry.placement.target !== null },
@@ -455,12 +461,14 @@ export function TrainerOrderPanel({
           }
           onDrag={(kind, price) => entry.setLevel(kind === 'stop' ? 'stop' : 'target', price)}
           submit={{
-            label: `入场${entry.direction === 'long' ? '做多' : '做空'}`,
+            label: tr('trainEnterDirection', {
+              value1: entry.direction === 'long' ? tr('trainLong') : tr('trainShort'),
+            }),
             disabled: submitting || !entry.draft || !meetsRewardRiskFloor(entry.draft),
-            blockedReason: entryBlockedReason(entry),
+            blockedReason: entryBlockedReason(entry, tr),
             onSubmit: (size) => void submit(size),
           }}
-          dismiss={{ label: '撤销这个计划', onDismiss: entry.clear }}
+          dismiss={{ label: tr('trainUndoPlan'), onDismiss: entry.clear }}
         />
       )}
       <TrainerEntryLane entry={entry} note={entryNote} onNoteChange={setEntryNote} />
@@ -487,6 +495,7 @@ function TrainerPendingOrderLane({
   onCancel,
   submitting,
 }: TrainerPendingOrderLaneProps) {
+  const { t: tr } = useLocale();
   const market = order.entryMode === 'market';
   return (
     <>
@@ -495,16 +504,19 @@ function TrainerPendingOrderLane({
           <b
             className={`${order.direction === 'long' ? 'trainer-chip-long' : 'trainer-chip-short'} ${stylex.props(order.direction === 'long' ? styles.chipLong : styles.chipShort).className}`}
           >
-            {market ? '未成交' : '挂单中'} · {order.direction === 'long' ? '多头' : '空头'}
+            {market ? tr('trainUnfilled') : tr('trainPendingOrder')} ·{' '}
+            {order.direction === 'long' ? tr('trainLongPosition') : tr('trainShortPosition')}
           </b>
           <span>@{order.entry}</span>
           <span className={`trainer-lane-num--stop ${stylex.props(styles.laneNumStop).className}`}>
-            止损 {order.stop}
+            {tr('trainStop')}
+            {order.stop}
           </span>
           <span
             className={`trainer-lane-num--target ${stylex.props(styles.laneNumTarget).className}`}
           >
-            目标 {order.target}
+            {tr('trainTarget')}
+            {order.target}
           </span>
         </div>
       </TrainerOverlayPortal>
@@ -514,15 +526,20 @@ function TrainerPendingOrderLane({
           disabled={submitting}
           onClick={onCancel}
         >
-          撤销挂单
+          {tr('trainCancelOrder')}
         </button>
         <span className={`trainer-lane-spacer ${stylex.props(styles.spacer).className}`} />
         <span className={`trainer-lane-hint ${stylex.props(styles.hint).className}`}>
           {market
-            ? `市价单在下一根 ${basePeriod} 的开盘价成交 —— 按「步进」推进一根就会成交`
-            : `价格触及 ${order.entry} 才成交`}
+            ? tr('trainMarketFillHelp', { value1: basePeriod })
+            : tr('trainTriggerFillHelp', { value1: order.entry })}
         </span>
-        <TrainerNote label="备注" value={note} onChange={onNoteChange} hint="撤单理由，可以留空" />
+        <TrainerNote
+          label={tr('trainNote')}
+          value={note}
+          onChange={onNoteChange}
+          hint={tr('trainCancelNote')}
+        />
       </div>
     </>
   );

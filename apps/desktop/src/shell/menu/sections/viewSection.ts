@@ -1,8 +1,9 @@
+import { desktopText } from '../../i18n.js';
 import type { MenuItemConstructorOptions } from 'electron';
 
 export function buildViewSection(): MenuItemConstructorOptions {
   return {
-    label: '显示',
+    label: desktopText('显示', 'View'),
     submenu: [
       { role: 'reload' },
       { role: 'forceReload' },

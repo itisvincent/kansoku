@@ -1,3 +1,4 @@
+import { desktopText } from '../shell/i18n.js';
 import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow, dialog } from 'electron';
@@ -201,11 +202,11 @@ export class AgentKitIpc extends IpcService {
       const win = BrowserWindow.getFocusedWindow();
       const picked = await (win
         ? dialog.showOpenDialog(win, {
-            title: '选择 Agent Kit 目录',
+            title: desktopText('选择 Agent Kit 目录', 'Choose the Agent Kit folder'),
             properties: ['openDirectory', 'createDirectory'],
           })
         : dialog.showOpenDialog({
-            title: '选择 Agent Kit 目录',
+            title: desktopText('选择 Agent Kit 目录', 'Choose the Agent Kit folder'),
             properties: ['openDirectory', 'createDirectory'],
           }));
       if (picked.canceled || picked.filePaths.length === 0) return buildStatus(store);

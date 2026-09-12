@@ -1,3 +1,4 @@
+import { chineseTranslator, type Translator } from '@web/lib/i18n';
 import type {
   TrainerAnchor,
   TrainerBasePeriod,
@@ -39,11 +40,13 @@ const QUARTER_POSITION = 0.25;
 // with no decision_reason, so a reviewer reads one phrase for one meaning.
 export const NO_REASON_GIVEN = '未提供明确的交易理由。';
 
-export const SIZE_PRESETS = [
-  { label: '1/4', size: QUARTER_POSITION },
-  { label: '1/2', size: HALF_POSITION },
-  { label: '全仓', size: FULL_POSITION },
-];
+export function SIZE_PRESETS(tr: Translator = chineseTranslator) {
+  return [
+    { label: '1/4', size: QUARTER_POSITION },
+    { label: '1/2', size: HALF_POSITION },
+    { label: tr('trainFullPosition'), size: FULL_POSITION },
+  ];
+}
 
 const SIZE_EPSILON = 1e-9;
 

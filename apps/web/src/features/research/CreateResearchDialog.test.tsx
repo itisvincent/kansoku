@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { LocaleProvider, useLocale } from '@web/lib/i18n';
 import type { ResearchCreateResult } from '@kansoku/core/contract/index';
 
 const create = vi.fn();
@@ -61,6 +62,7 @@ function journalResult(overrides: Partial<ResearchCreateResult> = {}): ResearchC
 
 afterEach(() => {
   cleanup();
+  localStorage.clear();
   create.mockReset();
   navigateMock.mockReset();
 });
@@ -183,4 +185,33 @@ describe('CreateResearchDialog', () => {
     });
     expect(screen.getByText('建立').closest('button')?.disabled).toBe(false);
   });
+});
+
+function Switcher() {
+  const { locale, setLocale } = useLocale();
+  return (
+    <button onClick={() => setLocale(locale === 'en-US' ? 'zh-CN' : 'en-US')}>
+      Switch language
+    </button>
+  );
+}
+
+it('updates an open research form in both languages while preserving its draft and actions', () => {
+  const close = vi.fn();
+  render(
+    <LocaleProvider>
+      <Switcher />
+      <CreateResearchDialog initialKind="stock" close={close} onCreated={vi.fn()} />
+    </LocaleProvider>,
+  );
+  const input = screen.getByRole('textbox') as HTMLInputElement;
+  fireEvent.change(input, { target: { value: 'MU.US' } });
+  expect(screen.getByRole('button', { name: 'Create' })).toHaveProperty('disabled', false);
+  fireEvent.click(screen.getByText('Switch language'));
+  expect(screen.getByRole('button', { name: '建立' })).toHaveProperty('disabled', false);
+  expect(input.value).toBe('MU.US');
+  fireEvent.click(screen.getByText('Switch language'));
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  expect(close).toHaveBeenCalledOnce();
+  expect(input.value).toBe('MU.US');
 });

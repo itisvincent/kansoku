@@ -5,6 +5,7 @@ import { buildTimeframeView } from '../analysis/intraday/orchestrator.js';
 import { coerceIntradayTimeframe } from '../analysis/intraday/timeframe.js';
 import { getProvider } from '../marketdata/registry.js';
 import { marketOf } from '../symbols/symbol.utils.js';
+import { loadViewHistory, type HistoryStatus } from './viewHistory.js';
 
 export const VIEW_PERIODS = ['1m', '30m', '4h', 'day', 'week', 'month'] as const;
 export type ViewPeriod = (typeof VIEW_PERIODS)[number];
@@ -22,6 +23,7 @@ export interface ViewTimeframeResult {
   period: ViewPeriod;
   bars: number;
   tf: IntradayTfData;
+  historyStatus?: HistoryStatus;
 }
 
 const cache = new Map<string, { at: number; value: ViewTimeframeResult }>();
@@ -97,11 +99,18 @@ export async function buildViewTimeframe(input: {
 
   const sourcePeriod = period === '4h' ? '1h' : period;
   const sourceCount = period === '4h' ? Math.min(MAX_SOURCE_COUNT, count * 4) : count;
-  const sourceBars = truncateAt(
-    await getProvider(marketOf(symbol)).getKline(symbol, sourcePeriod, sourceCount, 'all'),
+  const provider = getProvider(marketOf(symbol));
+  let sourceBars = truncateAt(
+    await provider.getKline(symbol, sourcePeriod, sourceCount, 'all'),
     asOf,
   );
-  const bars = period === '4h' ? aggregateFourHour(sourceBars) : sourceBars;
+  let historyStatus: HistoryStatus | undefined;
+  if (period === '4h') {
+    const history = await loadViewHistory(provider, symbol, sourceBars, count * 4, asOf);
+    sourceBars = history.bars;
+    historyStatus = history.status;
+  }
+  const bars = (period === '4h' ? aggregateFourHour(sourceBars) : sourceBars).slice(-count);
   if (bars.length < MACD_MIN_BARS) {
     throw new ClientError(
       asOf
@@ -118,6 +127,7 @@ export async function buildViewTimeframe(input: {
     period,
     bars: bars.length,
     tf: buildTimeframeView(coerced, period, symbol),
+    ...(historyStatus ? { historyStatus } : {}),
   };
 
   if (cache.size >= CACHE_MAX_ENTRIES) cache.clear();

@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { clsx } from 'clsx';
 import * as stylex from '@stylexjs/stylex';
 import { ANNOTATION_PALETTE } from '@kansoku/shared/drawings';
@@ -81,10 +82,11 @@ export function StylePanel({
   onPatch: (patch: Partial<AnnotationStyle>) => void;
   className?: string;
 }) {
+  const { t: i18n } = useLocale();
   return (
     <div
       className={clsx(stylex.props(styles.panel).className, className)}
-      aria-label="样式"
+      aria-label={i18n('chartStyle')}
     >
       <div className={stylex.props(styles.row).className}>
         {ANNOTATION_PALETTE.map((color) => (
@@ -107,7 +109,7 @@ export function StylePanel({
               stylex.props(styles.control, styles.width, style?.width === width && styles.active)
                 .className
             }
-            title={`粗细 ${width}`}
+            title={i18n('chartWidth', { width })}
             onClick={() => onPatch({ width })}
           >
             {width}
@@ -115,18 +117,18 @@ export function StylePanel({
         ))}
         <button
           className={stylex.props(styles.control, style?.dash && styles.active).className}
-          title="虚线开关"
+          title={i18n('chartDashedToggle')}
           onClick={() => onPatch({ dash: !style?.dash })}
         >
-          虚线
+          {i18n('chartDashed')}
         </button>
         {showArrow && (
           <button
             className={stylex.props(styles.control, style?.arrow && styles.active).className}
-            title="箭头开关"
+            title={i18n('chartArrowToggle')}
             onClick={() => onPatch({ arrow: !style?.arrow })}
           >
-            箭头
+            {i18n('chartArrow')}
           </button>
         )}
       </div>

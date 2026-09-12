@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import type {
   ContextNewsItem,
@@ -11,21 +12,6 @@ import { NewsSection } from '@web/features/charts/NewsSection';
 import { useQuery } from '@web/lib/apiHooks';
 import { client } from '@web/lib/client';
 import { colors, fontSizes } from '../../../../theme/tokens.stylex';
-
-const TAG_LABEL: Record<ContextNewsTag, string> = {
-  catalyst: '催化',
-  regulatory: '监管',
-  sentiment: '情绪',
-  macro: '宏观',
-};
-
-const SOURCE_LABEL: Record<ContextNewsSource, string> = {
-  longbridge: '长桥',
-  x: 'X',
-  trump: 'Trump',
-  sec: 'SEC',
-  gdelt: 'GDELT',
-};
 
 const styles = stylex.create({
   item: {
@@ -71,6 +57,22 @@ const styles = stylex.create({
 });
 
 function ContextNewsRow({ item }: { item: ContextNewsItem }) {
+  const { t: tr } = useLocale();
+  const SOURCE_LABEL: Record<ContextNewsSource, string> = {
+    longbridge: tr('newsLongbridge'),
+    x: 'X',
+    trump: 'Trump',
+    sec: 'SEC',
+    gdelt: 'GDELT',
+  };
+
+  const TAG_LABEL: Record<ContextNewsTag, string> = {
+    catalyst: tr('newsCatalyst'),
+    regulatory: tr('newsRegulatory'),
+    sentiment: tr('newsSentiment'),
+    macro: tr('newsMacro'),
+  };
+
   const body = (
     <>
       <span className={`news-meta ${stylex.props(styles.meta).className}`}>
@@ -106,6 +108,7 @@ interface NewsTabProps {
 }
 
 export function NewsTab({ context, news, sym }: NewsTabProps) {
+  const { t: i18n } = useLocale();
   const contextNews = context?.news ?? [];
   const { data: fetched, loading } = useQuery<NewsItem[]>(
     sym && news.length === 0 ? `symbols.news:${sym}` : null,
@@ -117,7 +120,7 @@ export function NewsTab({ context, news, sym }: NewsTabProps) {
     <>
       {contextNews.length > 0 && (
         <>
-          <SectionTitle>消息面结论</SectionTitle>
+          <SectionTitle>{i18n('chartNewsConclusion')}</SectionTitle>
           {contextNews.map((item, i) => (
             <ContextNewsRow key={i} item={item} />
           ))}

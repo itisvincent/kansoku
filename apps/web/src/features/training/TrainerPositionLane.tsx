@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import type { TrainerPosition, TrainerView } from '@kansoku/pro-api';
 import { fmt, signed } from '@web/lib/format';
@@ -153,6 +154,7 @@ export function TrainerPositionLane({
   onReduce,
   submitting,
 }: TrainerPositionLaneProps) {
+  const { t: tr } = useLocale();
   const held = openPositionSize(position);
   const headroom = addToFullSize(position);
   const long = position.direction === 'long';
@@ -160,7 +162,11 @@ export function TrainerPositionLane({
   const stopMoved = amendDraft.stop !== position.stop;
   const targetMoved = amendDraft.target !== position.target;
   const pendingNote =
-    verdict === null ? '校验中…' : verdict.allowed ? null : (verdict.error ?? '这笔调整不被允许');
+    verdict === null
+      ? tr('trainValidating')
+      : verdict.allowed
+        ? null
+        : (verdict.error ?? tr('trainAdjustmentDenied'));
   const blocked = submitting || !verdict?.allowed;
   const rAt = (price: number) => {
     const r = levelR(view, null, price);
@@ -184,9 +190,11 @@ export function TrainerPositionLane({
           <b
             className={`${long ? 'trainer-chip-long' : 'trainer-chip-short'} ${stylex.props(long ? styles.chipLong : styles.chipShort).className}`}
           >
-            {long ? '多头' : '空头'}
+            {long ? tr('trainLongPosition') : tr('trainShortPosition')}
           </b>
-          <span>仓位 {formatPositionSize(held)}</span>
+          <span>
+            {tr('trainPosition')} {formatPositionSize(held)}
+          </span>
           <span>@{fmt(position.entryPrice)}</span>
         </div>
       </TrainerOverlayPortal>
@@ -205,7 +213,7 @@ export function TrainerPositionLane({
         }}
         entry={{
           price: position.entryPrice,
-          badge: `${long ? '多头' : '空头'} ${formatPositionSize(held)}`,
+          badge: `${long ? tr('trainLongPosition') : tr('trainShortPosition')} ${formatPositionSize(held)}`,
           text: rAt(lastClose(view)),
           draggable: false,
         }}
@@ -219,19 +227,21 @@ export function TrainerPositionLane({
         onDragEnd={onLevelDragEnd}
         onConfirm={onConfirmAmend}
         onRevert={onRevertAmend}
-        dismiss={{ label: '平仓全部', onDismiss: () => onReduce(null) }}
+        dismiss={{ label: tr('trainCloseAll'), onDismiss: () => onReduce(null) }}
       />
       <div className={`trainer-lane ${stylex.props(styles.lane).className}`}>
-        <span className={`trainer-lane-label ${stylex.props(styles.label).className}`}>加仓</span>
+        <span className={`trainer-lane-label ${stylex.props(styles.label).className}`}>
+          {tr('trainAdd')}
+        </span>
         <div className={`trainer-lane-group ${stylex.props(styles.group).className}`}>
-          {SIZE_PRESETS.map(({ label, size }) => {
+          {SIZE_PRESETS(tr).map(({ label, size }) => {
             const addSize = size === FULL_POSITION ? headroom : size;
             const disabled = submitting || addSize <= 0 || !canAddSize(position, addSize);
             return (
               <button
                 key={label}
                 className={`btn ${stylex.props(styles.button, disabled && styles.buttonDisabled).className}`}
-                aria-label={`加仓 ${label}`}
+                aria-label={tr('trainAddSize', { value1: label })}
                 disabled={disabled}
                 onClick={() => onAdd(addSize)}
               >
@@ -241,9 +251,11 @@ export function TrainerPositionLane({
           })}
         </div>
         <div className={`trainer-lane-sep ${stylex.props(styles.separator).className}`} />
-        <span className={`trainer-lane-label ${stylex.props(styles.label).className}`}>平仓</span>
+        <span className={`trainer-lane-label ${stylex.props(styles.label).className}`}>
+          {tr('trainExit')}
+        </span>
         <div className={`trainer-lane-group ${stylex.props(styles.group).className}`}>
-          {SIZE_PRESETS.map(({ label, size }) => {
+          {SIZE_PRESETS(tr).map(({ label, size }) => {
             // 全仓 sends an unsized reduce — "close whatever is left" — so it stays available on a
             // part-filled holding that a literal 1.0 fraction would exceed.
             const closesEverything = size === FULL_POSITION;
@@ -252,7 +264,7 @@ export function TrainerPositionLane({
               <button
                 key={label}
                 className={`btn${closesEverything ? ' btn--accent' : ''} ${stylex.props(styles.button, closesEverything && styles.buttonAccent, disabled && styles.buttonDisabled).className}`}
-                aria-label={`平仓 ${label}`}
+                aria-label={tr('trainCloseSize', { value1: label })}
                 disabled={disabled}
                 onClick={() => onReduce(closesEverything ? null : size)}
               >
@@ -263,13 +275,13 @@ export function TrainerPositionLane({
         </div>
         <span className={`trainer-lane-spacer ${stylex.props(styles.spacer).className}`} />
         <span className={`trainer-lane-hint ${stylex.props(styles.hint).className}`}>
-          止损和目标直接在图上拖
+          {tr('trainDragStopTarget')}
         </span>
         <TrainerNote
-          label="备注"
+          label={tr('trainNote')}
           value={note}
           onChange={onNoteChange}
-          hint="这笔操作的理由，可以留空"
+          hint={tr('trainActionNote')}
         />
       </div>
     </>

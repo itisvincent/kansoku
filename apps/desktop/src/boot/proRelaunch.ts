@@ -1,3 +1,4 @@
+import { desktopText } from '../shell/i18n.js';
 import { BrowserWindow, app, dialog } from 'electron';
 
 let prompted = false;
@@ -8,11 +9,14 @@ export async function promptProRelaunch(): Promise<void> {
   const win = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0] ?? null;
   const options = {
     type: 'info' as const,
-    buttons: ['立即重启'],
+    buttons: [desktopText('立即重启', 'Restart now')],
     defaultId: 0,
     title: 'Kansoku',
-    message: 'AI 付费功能已解锁',
-    detail: '需要重启应用完成加载，点击「立即重启」后应用会自动重新打开。',
+    message: desktopText('AI 付费功能已解锁', 'Paid AI features are unlocked'),
+    detail: desktopText(
+      '需要重启应用完成加载，点击「立即重启」后应用会自动重新打开。',
+      'Restart the app to finish loading. It will reopen automatically after you choose Restart now.',
+    ),
   };
   await (win ? dialog.showMessageBox(win, options) : dialog.showMessageBox(options));
   console.info('[desktop] bundle key landed — relaunching to load pro');

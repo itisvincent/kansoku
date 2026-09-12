@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import type { NewsItem } from '@kansoku/shared/types';
 import * as stylex from '@stylexjs/stylex';
 import { Badge, MarketTime, NoteBlock, SectionTitle } from '../../ui';
@@ -41,11 +42,12 @@ const styles = stylex.create({
 });
 
 export function NewsSection({ news }: { news: NewsItem[] }) {
+  const { t: i18n } = useLocale();
   if (!news.length) return null;
 
   return (
     <>
-      <SectionTitle>相关新闻</SectionTitle>
+      <SectionTitle>{i18n('chartRelatedNews')}</SectionTitle>
       {news.map((n) => {
         const community = n.url.includes('/topics/');
         return (
@@ -58,13 +60,13 @@ export function NewsSection({ news }: { news: NewsItem[] }) {
           >
             <span className={`news-meta ${stylex.props(styles.meta).className}`}>
               <MarketTime value={n.published_at} format="month-day-time" />
-              <Badge>{community ? '社区' : '新闻'}</Badge>
+              <Badge>{community ? i18n('chartCommunity') : i18n('chartNews')}</Badge>
             </span>
             <span className={`news-title ${stylex.props(styles.title).className}`}>{n.title}</span>
           </a>
         );
       })}
-      <NoteBlock>社区帖为用户观点，非权威信源；引用数据前先核对原始来源</NoteBlock>
+      <NoteBlock>{i18n('chartCommunityNote')}</NoteBlock>
     </>
   );
 }

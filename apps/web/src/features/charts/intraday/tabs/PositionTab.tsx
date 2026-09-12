@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import type { PositionView } from '@kansoku/shared/types';
 import { fmt, signed, upDown } from '@web/lib/format';
@@ -30,19 +31,20 @@ interface PositionTabProps {
 }
 
 export function PositionTab({ position }: PositionTabProps) {
+  const { t: i18n } = useLocale();
   if (!position) return null;
   const tone = upDown(position.unrealized);
 
   return (
     <>
-      <SectionTitle>持仓视角</SectionTitle>
+      <SectionTitle>{i18n('chartPositionView')}</SectionTitle>
       <div className={`grid2 ${stylex.props(styles.grid).className}`}>
-        <div className={`k ${stylex.props(styles.key).className}`}>持仓</div>
+        <div className={`k ${stylex.props(styles.key).className}`}>{i18n('chartPosition')}</div>
         <div className={`v ${stylex.props(styles.value).className}`}>{position.shares} sh</div>
-        <div className={`k ${stylex.props(styles.key).className}`}>成本</div>
+        <div className={`k ${stylex.props(styles.key).className}`}>{i18n('chartCost')}</div>
         <div className={`v ${stylex.props(styles.value).className}`}>${fmt(position.cost)}</div>
         <div className={`k ${stylex.props(styles.key).className}`}>
-          浮{position.unrealized >= 0 ? '盈' : '亏'}
+          {i18n(position.unrealized >= 0 ? 'chartUnrealizedGain' : 'chartUnrealizedLoss')}
         </div>
         <div
           className={`v ${stylex.props(styles.value, tone === 'up' ? styles.valueUp : styles.valueDown).className}`}

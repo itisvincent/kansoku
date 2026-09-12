@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { colors, fontSizes, radii, sizes } from '../../theme/tokens.stylex';
@@ -81,6 +82,7 @@ export interface TrainerNoteProps {
 }
 
 export function TrainerNote({ label, value, onChange, hint }: TrainerNoteProps) {
+  const { t: tr } = useLocale();
   const [open, setOpen] = useState(false);
   const filled = value.trim().length > 0;
 
@@ -90,7 +92,7 @@ export function TrainerNote({ label, value, onChange, hint }: TrainerNoteProps) 
         className={`btn ${stylex.props(styles.button).className}`}
         aria-pressed={open}
         aria-label={label}
-        title={filled ? value : (hint ?? '可以留空，只是留给日后复盘')}
+        title={filled ? value : (hint ?? tr('trainOptionalNote'))}
         onClick={() => setOpen((prev) => !prev)}
       >
         {label}
@@ -102,8 +104,8 @@ export function TrainerNote({ label, value, onChange, hint }: TrainerNoteProps) 
             autoFocus
             className={`input ${stylex.props(styles.input).className}`}
             type="text"
-            aria-label={`${label}内容`}
-            placeholder={hint ?? '可以留空，只是留给日后复盘'}
+            aria-label={tr('trainNoteContent', { value1: label })}
+            placeholder={hint ?? tr('trainOptionalNote')}
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={(e) => {

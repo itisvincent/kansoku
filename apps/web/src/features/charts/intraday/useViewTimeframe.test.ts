@@ -51,6 +51,19 @@ describe('applyLiveQuote', () => {
 });
 
 describe('useViewTimeframe', () => {
+  it('keeps recent candles visible when older history is denied', async () => {
+    viewTimeframe.mockResolvedValue({
+      period: '4h',
+      bars: 2,
+      tf: tfOf(100),
+      historyStatus: 'denied',
+    });
+    const { result } = renderHook(() => useViewTimeframe('NVDA.US', '4h'));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.tf?.candles.at(-1)?.close).toBe(100);
+    expect(result.current.error).toBeNull();
+    expect(result.current.notice).toContain('历史 K 线权限');
+  });
   it('does not fetch for analysis timeframes', () => {
     const { result } = renderHook(() => useViewTimeframe('NVDA.US', 'm15'));
 

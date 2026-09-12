@@ -2,7 +2,7 @@ import { realpathSync } from 'node:fs';
 import { isAbsolute, relative, sep } from 'node:path';
 import type { Plugin } from 'vite';
 
-const PRO_PATH_MARKER = `${sep}apps${sep}pro${sep}`;
+const PRO_PATH_MARKER = '/apps/pro/';
 const AT_FS_PREFIX = '/@fs/';
 
 // Module ids reaching here take several shapes depending on plugin order and
@@ -17,15 +17,17 @@ export function normalizeModuleId(id: string): string {
   const queryIndex = normalized.search(/[#?]/);
   if (queryIndex !== -1) normalized = normalized.slice(0, queryIndex);
   if (normalized.startsWith(AT_FS_PREFIX)) normalized = normalized.slice(AT_FS_PREFIX.length - 1);
+  if (/^\/@fs[A-Za-z]:[/\\]/.test(normalized)) normalized = normalized.slice(4);
+  if (/^\/[A-Za-z]:[/\\]/.test(normalized)) normalized = normalized.slice(1);
   return normalized;
 }
 
 export function isProModule(id: string): boolean {
   const path = normalizeModuleId(id);
   if (path.length === 0) return false;
-  if (path.includes(PRO_PATH_MARKER)) return true;
+  if (path.replaceAll('\\', '/').includes(PRO_PATH_MARKER)) return true;
   try {
-    return realpathSync(path).includes(PRO_PATH_MARKER);
+    return realpathSync(path).replaceAll('\\', '/').includes(PRO_PATH_MARKER);
   } catch {
     return false;
   }
@@ -98,9 +100,7 @@ export function proLeakGuard({ proDir, overlayRoot }: ProLeakGuardOptions): Plug
             problems.push(`pro module outside ${proDir} — ${fileName}: ${id}`);
           }
           if (!flaggedAsPro && realOverlayRoot && isUnderOverlayRoot(id, realOverlayRoot)) {
-            problems.push(
-              `module under overlay root missed by classifier — ${fileName}: ${id}`,
-            );
+            problems.push(`module under overlay root missed by classifier — ${fileName}: ${id}`);
           }
         }
         if (!isEncrypted(fileName)) {

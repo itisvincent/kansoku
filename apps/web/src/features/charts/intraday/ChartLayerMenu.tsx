@@ -1,3 +1,4 @@
+import { useLocale, type Translator } from '@web/lib/i18n';
 import { useMemo } from 'react';
 import type { IntradayBuilt } from '@kansoku/shared/types';
 import type { FeatureKey } from '@kansoku/pro-api/features';
@@ -15,18 +16,13 @@ import {
   type IndicatorToggleKey,
 } from './useIndicatorToggles';
 
-const LAYER_GROUP_DEFS: { title: string; keys: IndicatorToggleKey[] }[] = [
-  { title: '参照', keys: ['ema', 'vwap', 'levels', 'daylevel', 'optwall'] },
-  { title: '结构', keys: ['fvg', 'pattern123', 'sb', 'candle'] },
-  { title: '信号', keys: ['crosses', 'divergence', 'macdBeichi', 'ai'] },
-];
-
 const toLayerItem = (
   key: IndicatorToggleKey,
   setToggle: (key: IndicatorToggleKey, value: boolean) => void,
+  tr: Translator,
 ): LayerItem => ({
   key,
-  label: INDICATOR_TOGGLE_LABELS[key],
+  label: tr(INDICATOR_TOGGLE_LABELS[key]),
   color: INDICATOR_TOGGLE_COLORS[key],
   toggle: (v: boolean) => setToggle(key, v),
 });
@@ -37,6 +33,13 @@ interface ChartLayerMenuProps {
 }
 
 export function ChartLayerMenu({ built, activeTf }: ChartLayerMenuProps) {
+  const { t: tr } = useLocale();
+  const LAYER_GROUP_DEFS: { title: string; keys: IndicatorToggleKey[] }[] = [
+    { title: tr('layerReference'), keys: ['ema', 'vwap', 'levels', 'daylevel', 'optwall'] },
+    { title: tr('layerStructure'), keys: ['fvg', 'pattern123', 'sb', 'candle'] },
+    { title: tr('layerSignals'), keys: ['crosses', 'divergence', 'macdBeichi', 'ai'] },
+  ];
+
   const {
     toggles,
     set: setToggle,
@@ -82,8 +85,8 @@ export function ChartLayerMenu({ built, activeTf }: ChartLayerMenuProps) {
           key,
           label:
             layerDataCounts[key] === undefined
-              ? INDICATOR_TOGGLE_LABELS[key]
-              : `${INDICATOR_TOGGLE_LABELS[key]} · ${layerDataCounts[key]}`,
+              ? tr(INDICATOR_TOGGLE_LABELS[key])
+              : `${tr(INDICATOR_TOGGLE_LABELS[key])} · ${layerDataCounts[key]}`,
           color: INDICATOR_TOGGLE_COLORS[key],
           toggle: (v: boolean) => setToggle(key, v),
           locked,
@@ -96,16 +99,23 @@ export function ChartLayerMenu({ built, activeTf }: ChartLayerMenuProps) {
     return [
       ...staticGroups,
       {
-        title: `缠论结构 ${chanStructureOn}/${CHAN_STRUCTURE_TOGGLE_KEYS.length}`,
-        items: CHAN_STRUCTURE_TOGGLE_KEYS.map((key) => toLayerItem(key, setToggle)),
+        title: tr('chartChanStructure', {
+          on: chanStructureOn,
+          total: CHAN_STRUCTURE_TOGGLE_KEYS.length,
+        }),
+        items: CHAN_STRUCTURE_TOGGLE_KEYS.map((key) => toLayerItem(key, setToggle, tr)),
       },
       {
-        title: `缠论买卖点 ${chanBuySellOn}/${CHAN_BUYSELL_TOGGLE_KEYS.length}`,
-        items: CHAN_BUYSELL_TOGGLE_KEYS.map((key) => toLayerItem(key, setToggle)),
+        title: tr('chartChanSignals', {
+          on: chanBuySellOn,
+          total: CHAN_BUYSELL_TOGGLE_KEYS.length,
+        }),
+        items: CHAN_BUYSELL_TOGGLE_KEYS.map((key) => toLayerItem(key, setToggle, tr)),
       },
     ];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    tr,
     activeTfData,
     lockedToggleKeys,
     setToggle,
@@ -118,9 +128,10 @@ export function ChartLayerMenu({ built, activeTf }: ChartLayerMenuProps) {
     () =>
       INDICATOR_PRESETS.map((p) => ({
         ...p,
+        label: tr(p.label),
         on: p.on.filter((key) => !lockedToggleKeys.has(key)),
       })),
-    [lockedToggleKeys],
+    [lockedToggleKeys, tr],
   );
 
   return (

@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { Component, lazy, Suspense, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { IntradayBuilt } from '@kansoku/shared/types';
@@ -155,6 +156,7 @@ export function IntradayChartOnly({
   popout = false,
   live = false,
 }: IntradayChartOnlyProps) {
+  const { t: i18n } = useLocale();
   const built = useLiveBuilt(frozenBuilt, activeTf, symbol, live);
   const macdHeightKey = namespacedKey(MACD_HEIGHT_KEY, storageNamespace);
   const [macdHeight, setMacdHeight] = useState(() => {
@@ -211,7 +213,7 @@ export function IntradayChartOnly({
     >
       <div className={`chart-block ${stylex.props(styles.chartBlock, styles.mainChart).className}`}>
         <div className={`chart-label ${stylex.props(styles.chartLabel).className}`}>
-          K 线 + 成交量
+          {i18n('chartCandlesVolume')}
         </div>
         <div className={`chart-legend ${stylex.props(styles.chartLegend).className}`}>
           {maSeries
@@ -233,14 +235,14 @@ export function IntradayChartOnly({
                   className={`swatch ${stylex.props(styles.swatch).className}`}
                   style={{ background: 'rgba(232,232,232,0.3)' }}
                 />
-                盘前/盘后
+                {i18n('chartExtendedSession')}
               </span>
               <span>
                 <span
                   className={`swatch ${stylex.props(styles.swatch).className}`}
                   style={{ background: 'rgba(70,100,180,0.7)' }}
                 />
-                夜盘
+                {i18n('chartOvernight')}
               </span>
             </>
           )}
@@ -256,7 +258,7 @@ export function IntradayChartOnly({
       </div>
       <div
         className={`pane-resizer ${stylex.props(styles.resizer, dragging && styles.resizerDragging).className}`}
-        title="拖动调整 MACD 高度"
+        title={i18n('chartResizeMacd')}
         onPointerDown={onResizeStart}
       />
       <div

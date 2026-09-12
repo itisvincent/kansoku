@@ -1,3 +1,4 @@
+import { chineseTranslator, readLocale, translate, type Translator } from '@web/lib/i18n';
 import type { CommentLevel, MarketEventSeverity, Notice } from '@kansoku/shared/types';
 
 export type NotifyEnvelope =
@@ -28,7 +29,11 @@ function shortNotifySymbol(symbol: string): string {
   return symbol.replace(/\.US$/, '');
 }
 
-export function decideNotification(env: NotifyEnvelope, ctx: NotifyContext): NotifyContent | null {
+export function decideNotification(
+  env: NotifyEnvelope,
+  ctx: NotifyContext,
+  tr: Translator = chineseTranslator,
+): NotifyContent | null {
   if (!env.live) return null;
   if (ctx.permission !== 'granted') return null;
   if (env.type === 'event') {
@@ -42,8 +47,8 @@ export function decideNotification(env: NotifyEnvelope, ctx: NotifyContext): Not
       return null;
     const hint = env.symbols.length
       ? env.symbols.map(shortNotifySymbol).join(' ')
-      : '市场';
-    return { title: `${hint} 重大事件`, body: env.title };
+      : tr('notificationMarket');
+    return { title: tr('notificationMajor', { value1: hint }), body: env.title };
   }
   const symbol = env.type === 'comment' ? env.symbol : env.notice.symbol;
   const activeSymbol = ctx.activeSymbol?.trim().toUpperCase();
@@ -54,7 +59,7 @@ export function decideNotification(env: NotifyEnvelope, ctx: NotifyContext): Not
     return null;
   if (env.type === 'comment') {
     if (env.level !== 'alert') return null;
-    return { title: `${env.symbol} 盘中警报`, body: env.text };
+    return { title: tr('notificationAlert', { value1: env.symbol }), body: env.text };
   }
   return { title: env.notice.title, body: env.notice.body };
 }
@@ -86,6 +91,8 @@ function currentNotifyContext(activeSymbol?: string | null): NotifyContext {
 }
 
 export function maybeNotify(env: NotifyEnvelope, activeSymbol?: string | null): void {
-  const content = decideNotification(env, currentNotifyContext(activeSymbol));
+  const content = decideNotification(env, currentNotifyContext(activeSymbol), (key, params) =>
+    translate(readLocale(), key, params),
+  );
   if (content) notify(content);
 }

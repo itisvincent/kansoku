@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useState } from 'react';
 import type { TrainerCoachCall } from '@kansoku/pro-api';
 import * as stylex from '@stylexjs/stylex';
@@ -97,6 +98,7 @@ export interface TrainerCoachPanelProps {
  * provisional one on screen would tell the trader which way the case goes.
  */
 export function TrainerCoachPanel({ bridge, sessionId }: TrainerCoachPanelProps) {
+  const { t: tr } = useLocale();
   const [calls, setCalls] = useState<TrainerCoachCall[]>([]);
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -144,7 +146,7 @@ export function TrainerCoachPanel({ bridge, sessionId }: TrainerCoachPanelProps)
           >
             <span className={`trainer-coach-stance ${stylex.props(styles.stance).className}`}>
               <b>AI</b>
-              <span>{DIRECTION_LABEL[latest.ai.direction]}</span>
+              <span>{DIRECTION_LABEL(tr)[latest.ai.direction]}</span>
               {plan?.prices && (
                 <span className={`num ${stylex.props(styles.prices).className}`}>
                   {plan.prices}
@@ -152,7 +154,7 @@ export function TrainerCoachPanel({ bridge, sessionId }: TrainerCoachPanelProps)
               )}
               {coachDisagrees(latest) && (
                 <span className={`trainer-coach-split ${stylex.props(styles.split).className}`}>
-                  与你分歧
+                  {tr('trainDisagrees')}
                 </span>
               )}
               <span className={`trainer-coach-caret ${stylex.props(styles.caret).className}`}>
@@ -166,7 +168,7 @@ export function TrainerCoachPanel({ bridge, sessionId }: TrainerCoachPanelProps)
               >
                 {latest.ai.comment}
                 <span className={`trainer-coach-defer ${stylex.props(styles.defer).className}`}>
-                  对错与理由的评判留到收盘后
+                  {tr('trainJudgeLater')}
                 </span>
               </span>
             )}
@@ -175,7 +177,11 @@ export function TrainerCoachPanel({ bridge, sessionId }: TrainerCoachPanelProps)
       </TrainerOverlayPortal>
       <div className={`trainer-coach-slot ${stylex.props(styles.slot).className}`}>
         <Button className="trainer-coach-ask" disabled={asking} onClick={() => void ask()}>
-          {asking ? '问 AI…' : calls.length === 0 ? '问 AI' : `问 AI · ${calls.length}`}
+          {asking
+            ? tr('trainAskingAi')
+            : calls.length === 0
+              ? tr('trainAskAi')
+              : tr('trainAskAiCount', { value1: calls.length })}
         </Button>
       </div>
     </>

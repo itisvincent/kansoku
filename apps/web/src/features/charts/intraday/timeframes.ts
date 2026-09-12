@@ -1,3 +1,4 @@
+import { translate, type Locale, type MessageKey } from '@web/lib/i18n';
 import { useCallback, useEffect, useState } from 'react';
 import type { IntradayBuilt, IntradayTfData, TimeframeKey } from '@kansoku/shared/types';
 
@@ -29,11 +30,35 @@ const TF_ORDER = TF_OPTIONS.map((o) => o.key);
 const TF_KEYS = new Set<string>(TF_ORDER);
 const ANALYSIS_SET = new Set<string>(ANALYSIS_TFS);
 
-export const tfLabel = (tf: ChartTf): string =>
-  TF_OPTIONS.find((o) => o.key === tf)?.label ?? String(tf);
-
-export const tfShortLabel = (tf: ChartTf): string =>
-  TF_OPTIONS.find((o) => o.key === tf)?.short ?? String(tf);
+export const tfLabel = (tf: ChartTf, locale: Locale = 'zh-CN'): string => {
+  const minutes: Partial<Record<ChartTf, number>> = { '1m': 1, 'm5': 5, 'm15': 15, '30m': 30 };
+  if (minutes[tf])
+    return locale === 'en-US'
+      ? minutes[tf] + ' min'
+      : translate(locale, 'tfMinute', { count: minutes[tf]! });
+  if (tf === 'h1' || tf === '4h')
+    return locale === 'en-US'
+      ? tf === 'h1'
+        ? '1 hour'
+        : '4 hours'
+      : translate(locale, 'tfHour', { count: tf === 'h1' ? 1 : 4 });
+  const keys: Partial<Record<ChartTf, MessageKey>> = {
+    day: 'tfDay',
+    week: 'tfWeek',
+    month: 'tfMonth',
+  };
+  return keys[tf] ? translate(locale, keys[tf]!) : String(tf);
+};
+export const tfShortLabel = (tf: ChartTf, locale: Locale = 'zh-CN'): string => {
+  const keys: Partial<Record<ChartTf, MessageKey>> = {
+    day: 'tfDayShort',
+    week: 'tfWeekShort',
+    month: 'tfMonthShort',
+  };
+  return keys[tf]
+    ? translate(locale, keys[tf]!)
+    : (TF_OPTIONS.find((o) => o.key === tf)?.short ?? String(tf));
+};
 
 export const isViewPeriod = (tf: ChartTf): tf is ViewPeriod => !ANALYSIS_SET.has(tf);
 

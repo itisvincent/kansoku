@@ -9,6 +9,7 @@ import type {
   Time,
 } from 'lightweight-charts';
 import type { PriceRectangle } from '@kansoku/shared/types';
+import { chineseTranslator } from '@web/lib/i18n';
 
 type DrawTarget = Parameters<IPrimitivePaneRenderer['draw']>[0];
 
@@ -24,7 +25,10 @@ interface RectPx {
 }
 
 class ZhongshuRenderer implements IPrimitivePaneRenderer {
-  constructor(private readonly rects: RectPx[]) {}
+  constructor(
+    private readonly rects: RectPx[],
+    private readonly label: string,
+  ) {}
 
   draw(target: DrawTarget): void {
     target.useMediaCoordinateSpace((scope) => {
@@ -44,7 +48,7 @@ class ZhongshuRenderer implements IPrimitivePaneRenderer {
           ctx.font = '10px sans-serif';
           ctx.textBaseline = 'middle';
           ctx.fillStyle = STROKE;
-          ctx.fillText('中枢', r.x1 + 4, r.yTop + 9);
+          ctx.fillText(this.label, r.x1 + 4, r.yTop + 9);
         }
       }
       ctx.restore();
@@ -97,7 +101,7 @@ class ZhongshuPaneView implements IPrimitivePaneView {
   }
 
   renderer(): IPrimitivePaneRenderer {
-    return new ZhongshuRenderer(this.rects);
+    return new ZhongshuRenderer(this.rects, this.source.label);
   }
 
   zOrder(): PrimitivePaneViewZOrder {
@@ -106,6 +110,7 @@ class ZhongshuPaneView implements IPrimitivePaneView {
 }
 
 export class ZhongshuPrimitive implements ISeriesPrimitive<Time> {
+  label = chineseTranslator('indicatorCenter');
   private chart: IChartApiBase<Time> | null = null;
   private series: ISeriesApi<'Candlestick'> | null = null;
   private requestUpdate?: () => void;
@@ -124,8 +129,9 @@ export class ZhongshuPrimitive implements ISeriesPrimitive<Time> {
     this.requestUpdate = undefined;
   }
 
-  setData(zones: PriceRectangle[]): void {
+  setData(zones: PriceRectangle[], label = chineseTranslator('indicatorCenter')): void {
     this.zones = zones;
+    this.label = label;
     this.requestUpdate?.();
   }
 

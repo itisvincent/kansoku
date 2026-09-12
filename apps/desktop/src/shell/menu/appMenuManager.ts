@@ -1,4 +1,5 @@
 import { Menu } from 'electron';
+import { subscribeInterfaceLocale } from '@kansoku/core/settings/interfaceLocale';
 import { buildAppSectionWithName } from './sections/appSection.js';
 import { buildDebugSection } from './sections/debugSection.js';
 import { buildEditSection } from './sections/editSection.js';
@@ -43,7 +44,10 @@ export function createAppMenuManager(options: CreateAppMenuManagerOptions): AppM
   };
 
   return {
-    install: apply,
+    install() {
+      apply();
+      subscribeInterfaceLocale(apply);
+    },
     rebuild: apply,
   };
 }

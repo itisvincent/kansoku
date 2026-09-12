@@ -1,3 +1,6 @@
+import { type Translator } from '@web/lib/i18n';
+import { useLocale } from '@web/lib/i18n';
+import { localizeDetectorMarker } from '../analysisLabels';
 import type { RefObject } from 'react';
 import { useEffect, useRef } from 'react';
 import {
@@ -53,13 +56,6 @@ const EMA_COLORS = [
   theme.down,
 ] as const;
 
-const ENTRY_STATUS_SUFFIX: Record<string, string> = {
-  waiting: '（待触发）',
-  triggered: '（已触发）',
-  invalidated: '（已失效）',
-  stopped: '（已打止损）',
-};
-
 interface Handle {
   main: IChartApi;
   macd: IChartApi;
@@ -94,8 +90,9 @@ const PREVIEW_LEVEL_COLOR = 'rgba(154, 154, 154, 0.45)';
 
 const fmtOi = (oi: number) => (oi >= 1000 ? `${(oi / 1000).toFixed(1)}k` : String(oi));
 
-const zoneTitle = (z: IntradayPriceZone, edge?: '上沿' | '下沿') =>
-  `${z.label}${edge ? edge : ''} $${(edge === '上沿' ? z.high : z.low).toFixed(2)}`;
+function zoneTitle(z: IntradayPriceZone, edge: 'upper' | 'lower' | undefined, tr: Translator) {
+  return `${z.label}${edge ? tr(edge === 'upper' ? 'chartUpper' : 'chartLower') : ''} ${(edge === 'upper' ? z.high : z.low).toFixed(2)}`;
+}
 
 const RECENT_SB_COUNT = 2;
 
@@ -111,12 +108,12 @@ function firstTouchTime(
   return null;
 }
 
-const secondBreakoutMarkers = (sbs: SecondBreakout[]): SeriesMarker[] => {
+function secondBreakoutMarkers(sbs: SecondBreakout[], tr: Translator): SeriesMarker[] {
   const markers: SeriesMarker[] = [];
   sbs.forEach((sb, i) => {
     const bullish = sb.kind === 'H2';
     const firstText = bullish ? 'H1' : 'L1';
-    const attemptVerb = bullish ? '突破' : '跌破';
+    const attemptVerb = bullish ? tr('chartBreakAbove') : tr('chartBreakBelow');
     markers.push({
       id: `sb-${i}-first`,
       time: sb.first.time,
@@ -124,7 +121,7 @@ const secondBreakoutMarkers = (sbs: SecondBreakout[]): SeriesMarker[] => {
       color: theme.textSecondary,
       shape: 'circle',
       text: firstText,
-      tooltip: `${firstText}（第一次${attemptVerb}尝试，未成立）`,
+      tooltip: tr('sbFirstAttempt', { value1: firstText, value2: attemptVerb }),
       group: 'sb',
     });
     if (sb.status === 'forming') {
@@ -135,11 +132,11 @@ const secondBreakoutMarkers = (sbs: SecondBreakout[]): SeriesMarker[] => {
         color: theme.textSecondary,
         shape: 'circle',
         text: '',
-        tooltip: `SB 结构酝酿中：等待收盘${attemptVerb} $${sb.signal.price.toFixed(2)}`,
+        tooltip: tr('sbForming', { value1: attemptVerb, value2: sb.signal.price.toFixed(2) }),
         group: 'sb',
       });
     } else if (sb.trigger) {
-      const extremeText = bullish ? '最高' : '最低';
+      const extremeText = bullish ? tr('chartHigh') : tr('chartLow');
       markers.push({
         id: `sb-${i}-trigger`,
         time: sb.trigger.time,
@@ -147,13 +144,18 @@ const secondBreakoutMarkers = (sbs: SecondBreakout[]): SeriesMarker[] => {
         color: theme.accent,
         shape: bullish ? 'arrowUp' : 'arrowDown',
         text: sb.kind,
-        tooltip: `${sb.kind} 结构确认\n${extremeText} $${sb.trigger.price.toFixed(2)} ${attemptVerb}信号棒`,
+        tooltip: tr('sbConfirmed', {
+          value1: sb.kind,
+          value2: extremeText,
+          value3: sb.trigger.price.toFixed(2),
+          value4: attemptVerb,
+        }),
         group: 'sb',
       });
     }
   });
   return markers;
-};
+}
 
 export interface DrawingChartHandle {
   chart: IChartApi;
@@ -172,6 +174,13 @@ export function useIntradayCharts(
   maSeries: MaSeries[],
   onHandle?: (h: DrawingChartHandle | null) => void,
 ): void {
+  const { t: tr, locale } = useLocale();
+  const ENTRY_STATUS_SUFFIX: Record<string, string> = {
+    waiting: tr('chartWaitingSuffix'),
+    triggered: tr('chartTriggeredSuffix'),
+    invalidated: tr('chartInvalidSuffix'),
+    stopped: tr('chartStoppedSuffix'),
+  };
   const handleRef = useRef<Handle | null>(null);
   const builtRef = useRef(built);
   builtRef.current = built;
@@ -352,7 +361,8 @@ export function useIntradayCharts(
     const fvgContext = {
       currentPrice,
       lastBarTime,
-      timeframeLabel: tfShortLabel(activeTf),
+      timeframeLabel: tfShortLabel(activeTf, locale),
+      locale,
     };
     h.vwapSeries.setData(toggles.vwap && d.vwap ? padLineData(d.vwap, timeline) : []);
     h.fvg.setData(fvgZones, fvgContext);
@@ -369,7 +379,7 @@ export function useIntradayCharts(
             group: 'zhongshu',
           }))
         : [];
-    h.zhongshu.setData(zhongshuRects);
+    h.zhongshu.setData(zhongshuRects, tr('indicatorCenter'));
     const anchor = built.sidebar.prediction?.anchor;
     const anchorHere = anchor && anchor.timeframe === activeTf ? anchor : null;
     h.anchorBg.setData(
@@ -379,14 +389,20 @@ export function useIntradayCharts(
       markerRange === 'all'
         ? (d.secondBreakouts ?? [])
         : (d.secondBreakouts ?? []).slice(-RECENT_SB_COUNT);
-    const sbMarkers = toggles.sb ? secondBreakoutMarkers(sbSource) : [];
-    const markers = selectVisibleMarkers([...d.markers, ...sbMarkers], toggles, markerRange);
+    const sbMarkers = toggles.sb ? secondBreakoutMarkers(sbSource, tr) : [];
+    const markers = selectVisibleMarkers(
+      [...d.markers.map((m) => localizeDetectorMarker(m, locale)), ...sbMarkers],
+      toggles,
+      markerRange,
+    );
     h.candleMarkers.setMarkers(toMarkers(markers));
     h.mainTip.setMarkers(markers);
     h.dif.setData(padLineData(d.macdDif, timeline));
     h.dea.setData(padLineData(d.macdDea, timeline));
     h.hist.setData(padHistData(d.macdHist, timeline));
-    const crossMarkers = toggles.crosses ? d.macdCrossMarkers : [];
+    const crossMarkers = toggles.crosses
+      ? d.macdCrossMarkers.map((m) => localizeDetectorMarker(m, locale))
+      : [];
     h.difMarkers.setMarkers(toMarkers(crossMarkers));
     h.macdTip.setMarkers(crossMarkers);
 
@@ -417,7 +433,7 @@ export function useIntradayCharts(
           color: theme.accent,
           lineWidth: 1,
           lineStyle: 2,
-          title: `🎯 锚 $${anchorHere.price.toFixed(2)}`,
+          title: tr('chartAnchorPrice', { value1: anchorHere.price.toFixed(2) }),
         }),
       );
     }
@@ -448,6 +464,7 @@ export function useIntradayCharts(
         target1: ep.target1,
         target2: ep.target2,
         dimmed: ep.entry_status === 'stopped',
+        stoppedLabel: tr('chartStoppedLabel'),
       });
     } else {
       h.positionBox.setData(null);
@@ -463,7 +480,7 @@ export function useIntradayCharts(
             color: planDead ? deadColor : theme.accent,
             lineWidth: 2,
             lineStyle: planDead ? 2 : 0,
-            title: `入场 $${ep.entry.toFixed(2)}${suffix}`,
+            title: tr('chartEntryPrice', { value1: ep.entry.toFixed(2), value2: suffix }),
           }),
         );
         h.planLines.push(
@@ -472,7 +489,7 @@ export function useIntradayCharts(
             color: planDead ? deadColor : theme.down,
             lineWidth: 2,
             lineStyle: 2,
-            title: `止损 $${ep.stop.toFixed(2)}`,
+            title: tr('chartStopPrice', { value1: ep.stop.toFixed(2) }),
           }),
         );
         h.planLines.push(
@@ -505,7 +522,7 @@ export function useIntradayCharts(
                 color,
                 lineWidth: 1,
                 lineStyle: 2,
-                title: zoneTitle(z),
+                title: zoneTitle(z, undefined, tr),
               }),
             );
           } else {
@@ -515,7 +532,7 @@ export function useIntradayCharts(
                 color,
                 lineWidth: 1,
                 lineStyle: 2,
-                title: zoneTitle(z, '下沿'),
+                title: zoneTitle(z, 'lower', tr),
               }),
             );
             h.planLines.push(
@@ -524,7 +541,7 @@ export function useIntradayCharts(
                 color,
                 lineWidth: 1,
                 lineStyle: 2,
-                title: zoneTitle(z, '上沿'),
+                title: zoneTitle(z, 'upper', tr),
               }),
             );
           }
@@ -534,13 +551,13 @@ export function useIntradayCharts(
     const dc = built.sidebar.dayContext;
     if (toggles.daylevel && dc) {
       const dayLevels: { price: number | null | undefined; title: string }[] = [
-        { price: dc.prev_day?.high, title: '昨高' },
-        { price: dc.prev_day?.close, title: '昨收' },
-        { price: dc.prev_day?.low, title: '昨低' },
-        { price: dc.pre_market?.high, title: '盘前高' },
-        { price: dc.pre_market?.low, title: '盘前低' },
-        { price: dc.opening_range?.high, title: '开盘区高' },
-        { price: dc.opening_range?.low, title: '开盘区低' },
+        { price: dc.prev_day?.high, title: tr('chartPrevHigh') },
+        { price: dc.prev_day?.close, title: tr('chartPrevClose') },
+        { price: dc.prev_day?.low, title: tr('chartPrevLow') },
+        { price: dc.pre_market?.high, title: tr('chartPreHigh') },
+        { price: dc.pre_market?.low, title: tr('chartPreLow') },
+        { price: dc.opening_range?.high, title: tr('chartOpenHigh') },
+        { price: dc.opening_range?.low, title: tr('chartOpenLow') },
       ];
       for (const { price, title } of dayLevels) {
         if (price == null) continue;
@@ -566,7 +583,7 @@ export function useIntradayCharts(
             color: call ? CALL_WALL_COLOR : PUT_WALL_COLOR,
             lineWidth: 1,
             lineStyle: 4,
-            title: `${call ? 'C墙' : 'P墙'} $${w.strike} (${fmtOi(call ? w.call_oi : w.put_oi)})`,
+            title: `${call ? tr('chartCallWall') : tr('chartPutWall')} $${w.strike} (${fmtOi(call ? w.call_oi : w.put_oi)})`,
           }),
         );
       }
@@ -579,7 +596,7 @@ export function useIntradayCharts(
           color: PREVIEW_LEVEL_COLOR,
           lineWidth: 1,
           lineStyle: 2,
-          title: `预读 · ${lv.label}`,
+          title: tr('chartPreviewLevel', { value1: lv.label }),
         }),
       );
     }
@@ -611,5 +628,5 @@ export function useIntradayCharts(
     lastBuiltRef.current = built;
     barCountRef.current = d.candles.length;
     firstTimeRef.current = timeline[0] ?? null;
-  }, [built, activeTf, toggles, markerRange, maSeries]);
+  }, [built, activeTf, toggles, markerRange, maSeries, locale, tr]);
 }

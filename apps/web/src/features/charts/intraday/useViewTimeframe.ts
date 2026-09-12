@@ -1,6 +1,8 @@
+import { useLocale } from '@web/lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import type { IntradayTfData } from '@kansoku/shared/types';
 import { client } from '@web/lib/client';
+import type { ChartViewTimeframeResult } from '@kansoku/core/contract/charts';
 import { isViewPeriod, type ChartTf } from './timeframes';
 
 const REFETCH_MS = 15_000;
@@ -9,6 +11,9 @@ export interface ViewTimeframeState {
   tf: IntradayTfData | null;
   error: string | null;
   loading: boolean;
+  fallbackError?: boolean;
+  historyStatus?: ChartViewTimeframeResult['historyStatus'];
+  notice?: string;
 }
 
 export function useViewTimeframe(
@@ -16,6 +21,7 @@ export function useViewTimeframe(
   activeTf: ChartTf,
   options: { asOf?: string; live?: boolean } = {},
 ): ViewTimeframeState {
+  const { t } = useLocale();
   const { asOf, live = false } = options;
   const [state, setState] = useState<ViewTimeframeState>({ tf: null, error: null, loading: false });
   const wanted = isViewPeriod(activeTf) ? activeTf : null;
@@ -38,12 +44,22 @@ export function useViewTimeframe(
         .viewTimeframe({ symbol, period: wanted, ...(asOf ? { as_of: asOf } : {}) })
         .then((result) => {
           if (cancelled || tokenRef.current !== token) return;
-          setState({ tf: result.tf as IntradayTfData, error: null, loading: false });
+          setState({
+            tf: result.tf as IntradayTfData,
+            error: null,
+            loading: false,
+            historyStatus: result.historyStatus,
+          });
         })
         .catch((err: unknown) => {
           if (cancelled || tokenRef.current !== token) return;
-          const message = err instanceof Error ? err.message : '该周期加载失败';
-          setState({ tf: null, error: message, loading: false });
+          const message = err instanceof Error ? err.message : null;
+          setState({
+            tf: null,
+            error: message,
+            loading: false,
+            fallbackError: !(err instanceof Error),
+          });
         });
     };
 
@@ -59,5 +75,15 @@ export function useViewTimeframe(
     };
   }, [symbol, wanted, asOf, live]);
 
-  return state;
+  const notice =
+    state.historyStatus === 'denied'
+      ? t('chartHistoryDenied')
+      : state.historyStatus === 'limited' || state.historyStatus === 'unavailable'
+        ? t('chartHistoryLimited')
+        : undefined;
+  return {
+    ...state,
+    ...(notice ? { notice } : {}),
+    error: state.fallbackError ? t('chartTimeframeFailed') : state.error,
+  };
 }

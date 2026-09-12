@@ -4,6 +4,21 @@ import { jsonResponse } from '../../httpResponse.js';
 
 @Controller('settings')
 export class SettingsController {
+  @Get('/interface-locale')
+  async getInterfaceLocale() {
+    return { ok: true, data: await settingsService.getInterfaceLocale() };
+  }
+
+  @Put('/interface-locale')
+  async putInterfaceLocale(@Body() body: { locale?: unknown } | null) {
+    return {
+      ok: true,
+      data: await settingsService.putInterfaceLocale({
+        locale: body?.locale as Parameters<typeof settingsService.putInterfaceLocale>[0]['locale'],
+      }),
+    };
+  }
+
   @Post('/ai/xai/login')
   async startXaiLogin() {
     return { ok: true, data: await settingsService.startXaiLogin() };

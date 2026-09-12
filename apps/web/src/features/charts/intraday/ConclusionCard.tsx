@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import type { ReactNode } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import { marketDate } from '@kansoku/shared/time';
@@ -142,6 +143,7 @@ export function ReassessCta({
   reassess: ConclusionReassess;
   tone?: ContextStance;
 }) {
+  const { t: i18n } = useLocale();
   const toneStyle = tone ? stanceStyles(tone).refresh : undefined;
   return (
     <>
@@ -149,11 +151,11 @@ export function ReassessCta({
         <div className={`conclusion-refresh-row ${stylex.props(styles.refreshRow).className}`}>
           <span className={`conclusion-refresh-note ${stylex.props(styles.refreshNote).className}`}>
             <TriangleAlert className={`icon ${stylex.props(styles.icon).className}`} size={13} />{' '}
-            这条结论已过时，走势可能早已变化
+            {i18n('chartConclusionStale')}
           </span>
           <Button onClick={reassess.start} disabled={reassess.busy}>
             {reassess.busy && <Spinner />}
-            {reassess.busy ? '重估进行中…' : '重新分析'}
+            {reassess.busy ? i18n('chartReassessing') : i18n('chartReassess')}
           </Button>
           {reassess.hint && (
             <span className={`ai-hint ${stylex.props(styles.hint).className}`}>
@@ -180,6 +182,7 @@ interface ConclusionCardProps {
 }
 
 export function ConclusionCard({ context, predictionStale, reassess }: ConclusionCardProps) {
+  const { t: i18n } = useLocale();
   if (!context) return null;
   const { stance, summary, action } = context.conclusion;
   const outdated = conclusionOutdated(context.generated_at, predictionStale, Date.now());
@@ -188,21 +191,22 @@ export function ConclusionCard({ context, predictionStale, reassess }: Conclusio
   return (
     <div className={`verdict conclusion-card ${stylex.props(styles.card, tone.card).className}`}>
       <div className={`verdict-label ${stylex.props(styles.verdictLabel).className}`}>
-        综合结论
+        {i18n('chartConclusion')}
         {predictionStale ? (
           <span className={`stale-badge ${stylex.props(styles.staleBadge).className}`}>
             <TriangleAlert className={`icon ${stylex.props(styles.icon).className}`} size={13} />{' '}
-            盘中已过期
+            {i18n('chartExpired')}
           </span>
         ) : (
           <span className={`prediction-age ${stylex.props(styles.predictionAge).className}`}>
-            更新于 <MarketTime value={context.generated_at} format="clock" includeZone />（
+            {i18n('chartUpdated')}
+            <MarketTime value={context.generated_at} format="clock" includeZone />（
             <TimeAgo since={context.generated_at} />）
           </span>
         )}
       </div>
       <div className={`verdict-text ${stylex.props(styles.verdictText, tone.text).className}`}>
-        {DIRECTION_LABEL[stance] ?? '🤔 观望'}
+        {i18n(DIRECTION_LABEL[stance] ?? 'chartNeutral')}
       </div>
       <div className={`verdict-reason ${stylex.props(styles.verdictReason).className}`}>
         {summary}

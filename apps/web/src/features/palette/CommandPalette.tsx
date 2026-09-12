@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useEffect, useState } from 'react';
 import type { OverviewBoard, PortfolioSummary } from '@kansoku/shared/types';
 import * as stylex from '@stylexjs/stylex';
@@ -118,6 +119,7 @@ function PalettePanel({
   onClose: () => void;
   onOpenRoute: (route: string) => void;
 }) {
+  const { t: tr } = useLocale();
   const { data: board } = useQuery<OverviewBoard>('overview.board', () => client.overview.board());
   const { data: portfolio } = useQuery<PortfolioSummary>('positions.list', () =>
     client.positions.list(),
@@ -132,7 +134,7 @@ function PalettePanel({
     ...(portfolio?.positions.map((p) => p.symbol) ?? []),
     ...listRecentSymbols().map((s) => s.symbol),
   ];
-  const commands = buildPaletteCommands(query, symbols, trainerBridge !== null);
+  const commands = buildPaletteCommands(query, symbols, trainerBridge !== null, tr);
   const active = Math.max(0, Math.min(index, commands.length - 1));
   const activeId = commands[active]?.id;
 
@@ -175,13 +177,13 @@ function PalettePanel({
         {...stylex.props(styles.panel)}
         role="dialog"
         aria-modal="true"
-        aria-label="命令面板"
+        aria-label={tr('paletteTitle')}
         onClick={(e) => e.stopPropagation()}
       >
         <Input
           autoFocus
           {...stylex.props(styles.input)}
-          placeholder="输入代码或命令，如 MRVL"
+          placeholder={tr('palettePlaceholder')}
           role="combobox"
           aria-expanded={commands.length > 0}
           aria-controls="palette-listbox"
@@ -198,7 +200,7 @@ function PalettePanel({
           {...stylex.props(styles.list)}
           id="palette-listbox"
           role="listbox"
-          aria-label="候选命令"
+          aria-label={tr('paletteCandidates')}
         >
           {commands.map((cmd, i) => (
             <button
@@ -215,7 +217,9 @@ function PalettePanel({
               {cmd.hint && <span {...stylex.props(styles.hint)}>{cmd.hint}</span>}
             </button>
           ))}
-          {commands.length === 0 && <div {...stylex.props(styles.empty)}>没有匹配项</div>}
+          {commands.length === 0 && (
+            <div {...stylex.props(styles.empty)}>{tr('paletteNoMatch')}</div>
+          )}
         </div>
       </div>
     </div>

@@ -1,3 +1,5 @@
+import { chineseTranslator, type Translator } from '@web/lib/i18n';
+import { useLocale } from '@web/lib/i18n';
 import { CalendarClock } from 'lucide-react';
 import { localTimeZone } from '@kansoku/shared/time';
 import type { IntradayEventRisk, MacroEventItem } from '@kansoku/shared/types';
@@ -117,23 +119,27 @@ function macroEventDateKey(
   }).label.split(' ')[0];
 }
 
-function macroEventTitle(event: MacroEventItem): string {
+function macroEventTitle(event: MacroEventItem, tr: Translator = chineseTranslator): string {
   const detail = event.estimate
-    ? `（预期 ${event.estimate}）`
+    ? tr('chartExpectedValue', { value: event.estimate })
     : event.previous
-      ? `（前值 ${event.previous}）`
+      ? tr('chartPreviousValue', { value: event.previous })
       : '';
   return `${event.title}${detail}`;
 }
 
-function groupEvents(eventRisk: IntradayEventRisk, preference: TimeDisplayPreference) {
+function groupEvents(
+  eventRisk: IntradayEventRisk,
+  preference: TimeDisplayPreference,
+  tr: Translator = chineseTranslator,
+) {
   const timeZone = localTimeZone();
   const rows: EventRow[] = eventRisk.macro.map((event) => ({
     dateKey: macroEventDateKey(event.ts, preference, timeZone),
     event,
     key: `${event.ts}-${event.title}`,
     kind: 'macro',
-    title: macroEventTitle(event),
+    title: macroEventTitle(event, tr),
   }));
 
   if (eventRisk.next_earnings) {
@@ -158,17 +164,19 @@ function groupEvents(eventRisk: IntradayEventRisk, preference: TimeDisplayPrefer
 }
 
 export function EventRiskCard({ eventRisk }: EventRiskCardProps) {
+  const { t: tr } = useLocale();
+  const { t: i18n } = useLocale();
   const preference = useTimeDisplayPreference();
   if (!eventRisk) return null;
   const { next_earnings, macro } = eventRisk;
   if (!next_earnings && !macro.length) return null;
-  const groups = groupEvents(eventRisk, preference);
+  const groups = groupEvents(eventRisk, preference, tr);
 
   return (
     <div className={`event-card ${stylex.props(styles.card).className}`}>
       <div className={`event-card-label ${stylex.props(styles.label).className}`}>
         <CalendarClock className={`icon ${stylex.props(styles.icon).className}`} size={13} />{' '}
-        事件风险
+        {i18n('chartEventRisk')}
       </div>
       <div className={`event-card-list ${stylex.props(styles.list).className}`}>
         {groups.map((group, groupIndex) => (
@@ -194,7 +202,7 @@ export function EventRiskCard({ eventRisk }: EventRiskCardProps) {
                     {row.kind === 'macro' ? (
                       <MarketTime value={row.event.ts} format="clock" />
                     ) : (
-                      '财报'
+                      i18n('chartEarnings')
                     )}
                   </span>
                   <span className={`event-card-title ${stylex.props(styles.title).className}`}>

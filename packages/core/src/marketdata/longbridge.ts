@@ -147,6 +147,9 @@ export function createLongbridgeProvider(
   let quotaCooldownUntil = 0;
   let cliFallbackCooldownUntil = 0;
   let cliFallbackInFlight = false;
+  let historyCooldownUntil = 0;
+  let historyFailure: unknown;
+  let historyQueue: Promise<unknown> = Promise.resolve();
 
   function quotaError(label: string): ClientError {
     return new ClientError(
@@ -257,6 +260,50 @@ export function createLongbridgeProvider(
           }));
         },
       );
+    },
+
+    getKlineHistory(symbol, period, start, end, session) {
+      const request = historyQueue
+        .catch(() => {})
+        .then(async () => {
+          if (Date.now() < historyCooldownUntil) throw historyFailure;
+          if (Date.now() < quotaCooldownUntil) throw quotaError('history');
+          const args = [
+            'kline',
+            'history',
+            symbol,
+            '--period',
+            normalizePeriod(period),
+            '--start',
+            start,
+            '--end',
+            end,
+          ];
+          if (session === 'all') args.push('--session', 'all');
+          try {
+            const rows = await callCli<CliBar[]>('history', run, args);
+            return rows.map((row) => ({
+              time: row.time,
+              open: number(row.open),
+              high: number(row.high),
+              low: number(row.low),
+              close: number(row.close),
+              volume: row.volume,
+            }));
+          } catch (error) {
+            historyFailure = error;
+            const message = error instanceof Error ? error.message : String(error);
+            historyCooldownUntil =
+              Date.now() +
+              (/301607|history candlestick symbol count out of limit/.test(message)
+                ? 30 * 60_000
+                : 60_000);
+            if (isQuotaError(message)) quotaCooldownUntil = Date.now() + QUOTA_COOLDOWN_MS;
+            throw error;
+          }
+        });
+      historyQueue = request;
+      return request;
     },
 
     getQuotes(symbols: string[]): Promise<RawQuote[]> {

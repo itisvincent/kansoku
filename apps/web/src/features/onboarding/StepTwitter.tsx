@@ -83,6 +83,7 @@ function fetchOpencliStatus(): Promise<OpencliStatus> {
 }
 
 export function StepTwitter({ onComplete }: { onComplete: () => Promise<void> }) {
+  const { t: tr } = useLocale();
   const { t } = useLocale();
   const { data, loading, reload } = useQuery<OpencliStatus>(
     'onboarding.opencli',
@@ -134,7 +135,7 @@ export function StepTwitter({ onComplete }: { onComplete: () => Promise<void> })
             <Button
               onClick={() => window.open(OPENCLI_GITHUB_URL, '_blank', 'noopener,noreferrer')}
             >
-              GitHub 链接
+              {tr('setupGithub')}
             </Button>
           </div>
         </div>
@@ -143,9 +144,9 @@ export function StepTwitter({ onComplete }: { onComplete: () => Promise<void> })
       {data.state === 'extension_missing' ? (
         <div className={`onboarding-install ${stylex.props(styles.install).className}`}>
           <ol className={`onboarding-explainer ${stylex.props(styles.explainer).className}`}>
-            <li>从 GitHub Releases 下载 opencli-extension 压缩包并解压</li>
-            <li>在 Chrome 打开 chrome://extensions 并开启开发者模式</li>
-            <li>点击「加载已解压的扩展程序」，选择解压后的目录</li>
+            <li>{tr('setupExtensionDownload')}</li>
+            <li>{tr('setupExtensionDeveloper')}</li>
+            <li>{tr('setupExtensionLoad')}</li>
           </ol>
           <div
             className={`settings-cred-actions ${stylex.props(styles.credentialActions).className}`}
@@ -161,47 +162,43 @@ export function StepTwitter({ onComplete }: { onComplete: () => Promise<void> })
 
       {data.state === 'no_session' ? (
         <p className={`onboarding-explainer ${stylex.props(styles.explainer).className}`}>
-          在 Chrome 里登录 x.com 后点「重新检测」（若已登录，刷新一下 x.com 页面再试）。
+          {tr('setupTwitterLogin')}
         </p>
       ) : null}
 
       {data.state === 'ready' ? (
         <p className={`onboarding-explainer ${stylex.props(styles.explainer).className}`}>
-          ✓ X/Twitter 已连接，AI 分析可引用推特消息面
+          {tr('setupTwitterReady')}
         </p>
       ) : null}
 
       {data.state !== 'ready' && data.lastError ? (
         <div
-          className={`settings-test-result settings-test-result--fail ${stylex.props(
-            styles.testResult,
-            styles.testResultFail,
-          ).className}`}
+          className={`settings-test-result settings-test-result--fail ${
+            stylex.props(styles.testResult, styles.testResultFail).className
+          }`}
         >
           {data.lastError}
         </div>
       ) : null}
       {error ? (
         <div
-          className={`settings-test-result settings-test-result--fail ${stylex.props(
-            styles.testResult,
-            styles.testResultFail,
-          ).className}`}
+          className={`settings-test-result settings-test-result--fail ${
+            stylex.props(styles.testResult, styles.testResultFail).className
+          }`}
         >
           {error}
         </div>
       ) : null}
 
-      <div
-        className={`settings-cred-actions ${stylex.props(styles.credentialActions).className}`}
-      >
+      <div className={`settings-cred-actions ${stylex.props(styles.credentialActions).className}`}>
         {data.state === 'ready' ? (
           <Button accent disabled={busy} onClick={finish}>
             {t('finish')}
           </Button>
         ) : (
           <Button disabled={busy} onClick={reload}>
-            重新检测
+            {tr('setupRecheck')}
           </Button>
         )}
       </div>

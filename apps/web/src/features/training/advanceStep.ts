@@ -1,3 +1,4 @@
+import { chineseTranslator, type Translator } from '@web/lib/i18n';
 import type { TrainerBasePeriod, TrainerEvent, TrainerStepEvent } from '@kansoku/pro-api';
 
 export const PLAYBACK_SPEEDS = [0.5, 1, 2, 4, 8] as const;
@@ -12,29 +13,39 @@ export function playbackIntervalMs(speed: PlaybackSpeed): number {
 // Exhaustive on purpose, mirroring session.ts's NOTABLE_EVENT: the wire only ever puts the
 // notable half of TrainerEvent into events[], but a Record over the full union means a future
 // event type forces a decision here instead of silently rendering "undefined".
-const STEP_EVENT_LABEL: Record<TrainerEvent, string> = {
-  observed: '观察',
-  abstained: '弃权',
-  waiting_fill: '等待成交',
-  holding: '持有中',
-  filled: '触发挂单成交',
-  cancelled: '挂单被取消',
-  no_fill: '挂单超时作废',
-  stop_hit: '打到止损',
-  target_hit: '触及目标',
-  manual_exit: '手动平仓',
-  horizon_exit: '到期强制平仓',
-};
 
-export function describeStepEvent(event: TrainerStepEvent, basePeriod: TrainerBasePeriod): string {
-  return `第 ${event.barOffset} 根 ${basePeriod} ${STEP_EVENT_LABEL[event.event]}`;
+export function describeStepEvent(
+  event: TrainerStepEvent,
+  basePeriod: TrainerBasePeriod,
+  tr: Translator = chineseTranslator,
+): string {
+  const STEP_EVENT_LABEL: Record<TrainerEvent, string> = {
+    observed: tr('trainObserved'),
+    abstained: tr('trainAbstained'),
+    waiting_fill: tr('trainWaitingFill'),
+    holding: tr('trainHolding'),
+    filled: tr('trainFilled'),
+    cancelled: tr('trainTerminationCancelled'),
+    no_fill: tr('trainOrderTimeout'),
+    stop_hit: tr('trainStopHit'),
+    target_hit: tr('trainTargetHit'),
+    manual_exit: tr('trainManualExit'),
+    horizon_exit: tr('trainTimeExit'),
+  };
+
+  return tr('trainStepEvent', {
+    value1: event.barOffset,
+    value2: basePeriod,
+    value3: STEP_EVENT_LABEL[event.event],
+  });
 }
 
 export function describeStepEvents(
   events: readonly TrainerStepEvent[],
   basePeriod: TrainerBasePeriod,
+  tr: Translator = chineseTranslator,
 ): string {
-  return events.map((event) => describeStepEvent(event, basePeriod)).join('，');
+  return events.map((event) => describeStepEvent(event, basePeriod, tr)).join('，');
 }
 
 // The bar that fills a market order is also checked against the bracket, and the engine reports
@@ -44,14 +55,15 @@ export function describeStepEvents(
 export function describeEntryOutcome(
   events: readonly TrainerStepEvent[],
   basePeriod: TrainerBasePeriod,
+  tr: Translator = chineseTranslator,
 ): string {
   const exit = events.find((e) => e.event === 'stop_hit' || e.event === 'target_hit');
   if (exit) {
-    const what = exit.event === 'stop_hit' ? '打到止损' : '触及目标';
-    return `按下一根 ${basePeriod} 开盘成交，同一根就${what}，这笔已经结束`;
+    const what = exit.event === 'stop_hit' ? tr('trainStopHit') : tr('trainTargetHit');
+    return tr('trainFilledAndExited', { value1: basePeriod, value2: what });
   }
   if (events.some((e) => e.event === 'horizon_exit')) {
-    return `按下一根 ${basePeriod} 开盘成交，同一根就到期强制平仓`;
+    return tr('trainFilledAtTimeLimit', { value1: basePeriod });
   }
-  return `已按下一根 ${basePeriod} 的开盘价成交`;
+  return tr('trainFilledNextOpen', { value1: basePeriod });
 }

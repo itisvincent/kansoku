@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { errorMessage } from '../../lib/api';
@@ -40,6 +41,7 @@ const styles = stylex.create({
 });
 
 export function StepPro({ onComplete }: { onComplete: () => Promise<void> }) {
+  const { t: tr } = useLocale();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -66,7 +68,7 @@ export function StepPro({ onComplete }: { onComplete: () => Promise<void> }) {
       ) : null}
       <div {...stylex.props(styles.skipRow)}>
         <button {...stylex.props(styles.skipLink)} disabled={busy} onClick={() => void finish()}>
-          跳过，先免费使用
+          {tr('setupSkipFree')}
         </button>
       </div>
     </Card>

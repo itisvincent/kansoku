@@ -20,6 +20,7 @@ export interface ChartViewTimeframeResult {
   period: string;
   bars: number;
   tf: unknown;
+  historyStatus?: 'available' | 'limited' | 'denied' | 'unavailable';
 }
 
 export interface ChartsApi {

@@ -1,3 +1,4 @@
+import { chineseTranslator, type Translator } from '@web/lib/i18n';
 import type {
   TrainerClosedTrade,
   TrainerDirection,
@@ -60,12 +61,16 @@ const EXIT_MARK: Record<TrainerClosedTrade['exitReason'], string> = {
   horizon: 'E',
 };
 
-const EXIT_MARK_LABEL: Record<TrainerClosedTrade['exitReason'], string> = {
-  stop: '止损',
-  target: '止盈',
-  manual: '手动平',
-  horizon: '到期平',
-};
+function EXIT_MARK_LABEL(
+  tr: Translator = chineseTranslator,
+): Record<TrainerClosedTrade['exitReason'], string> {
+  return {
+    stop: tr('trainStop'),
+    target: tr('trainTakeProfit'),
+    manual: tr('trainManualShort'),
+    horizon: tr('trainTimeShort'),
+  };
+}
 
 const EXIT_MARK_COLOR: Record<TrainerClosedTrade['exitReason'], string> = {
   stop: theme.down,
@@ -119,10 +124,17 @@ type PlacedMarker = { index: number; marker: SeriesMarker };
 // The position the trader is still holding gets the same arrows as a finished one — without them
 // the chart says nothing about where they actually got in, which is the one thing they need while
 // deciding what to do next. No label carries an outcome, because there is not one yet.
-function positionMarkers(position: TrainerPosition, timesTs: number[]): PlacedMarker[] {
+function positionMarkers(
+  position: TrainerPosition,
+  timesTs: number[],
+  tr: Translator = chineseTranslator,
+): PlacedMarker[] {
   const placed: PlacedMarker[] = [];
   const long = position.direction === 'long';
-  const label = `第 ${position.tradeId} 笔 · ${long ? '多' : '空'} · 持仓中`;
+  const label = tr('trainOpenTradeLabel', {
+    value1: position.tradeId,
+    value2: long ? tr('trainLongShort') : tr('trainShortShort'),
+  });
   position.lots.forEach((fill, index) => {
     const at = snapToBar(timesTs, toTs(fill.time));
     if (at === null) return;
@@ -135,7 +147,14 @@ function positionMarkers(position: TrainerPosition, timesTs: number[]): PlacedMa
         color: theme.accent,
         shape: long ? 'arrowUp' : 'arrowDown',
         text: ENTRY_MARK[position.direction],
-        tooltip: `${label}\n${index === 0 ? '进场' : '加仓'} $${fmt(fill.price)} · ${formatPositionSize(fill.size)}\n止损 $${fmt(position.stop)} · 目标 $${fmt(position.target)}`,
+        tooltip: tr('trainEntryFillTooltip', {
+          value1: label,
+          value2: index === 0 ? tr('trainEnter') : tr('trainAdd'),
+          value3: fmt(fill.price),
+          value4: formatPositionSize(fill.size),
+          value5: fmt(position.stop),
+          value6: fmt(position.target),
+        }),
       },
     });
   });
@@ -151,7 +170,12 @@ function positionMarkers(position: TrainerPosition, timesTs: number[]): PlacedMa
         color: EXIT_MARK_COLOR[fill.reason],
         shape: long ? 'arrowDown' : 'arrowUp',
         text: EXIT_MARK[fill.reason],
-        tooltip: `${label}\n减仓 $${fmt(fill.price)} · ${formatPositionSize(fill.size)}（${EXIT_MARK_LABEL[fill.reason]}）`,
+        tooltip: tr('trainReduceFillTooltip', {
+          value1: label,
+          value2: fmt(fill.price),
+          value3: formatPositionSize(fill.size),
+          value4: EXIT_MARK_LABEL(tr)[fill.reason],
+        }),
       },
     });
   });
@@ -162,11 +186,18 @@ function positionMarkers(position: TrainerPosition, timesTs: number[]): PlacedMa
 // size-weighted averages: on a scaled trade they name a price that was never traded, and drawing
 // them would put the whole add and the whole partial take-profit off the chart while the settlement
 // table below lists them.
-function tradeMarkers(trades: readonly TrainerClosedTrade[], timesTs: number[]): PlacedMarker[] {
+function tradeMarkers(
+  trades: readonly TrainerClosedTrade[],
+  timesTs: number[],
+  tr: Translator = chineseTranslator,
+): PlacedMarker[] {
   const placed: PlacedMarker[] = [];
   for (const trade of trades) {
     const long = trade.direction === 'long';
-    const label = `第 ${trade.tradeId} 笔 · ${long ? '多' : '空'}`;
+    const label = tr('trainTradeLabel', {
+      value1: trade.tradeId,
+      value2: long ? tr('trainLongShort') : tr('trainShortShort'),
+    });
     const entries = tradeEntryFills(trade);
     const exits = tradeExitFills(trade);
     entries.forEach((fill, index) => {
@@ -181,7 +212,15 @@ function tradeMarkers(trades: readonly TrainerClosedTrade[], timesTs: number[]):
           color: theme.accent,
           shape: long ? 'arrowUp' : 'arrowDown',
           text: ENTRY_MARK[trade.direction],
-          tooltip: `${label}\n${index === 0 ? '进场' : '加仓'} $${fmt(fill.price)} · ${formatPositionSize(fill.size)}\n止损 $${fmt(trade.initialStop)} · 目标 $${fmt(trade.target)}${trade.entryReason ? `\n${trade.entryReason.summary}` : ''}`,
+          tooltip: tr('trainClosedEntryTooltip', {
+            value1: label,
+            value2: index === 0 ? tr('trainEnter') : tr('trainAdd'),
+            value3: fmt(fill.price),
+            value4: formatPositionSize(fill.size),
+            value5: fmt(trade.initialStop),
+            value6: fmt(trade.target),
+            value7: trade.entryReason ? `\n${trade.entryReason.summary}` : '',
+          }),
         },
       });
     });
@@ -189,7 +228,9 @@ function tradeMarkers(trades: readonly TrainerClosedTrade[], timesTs: number[]):
       const at = snapToBar(timesTs, toTs(fill.time));
       if (at === null) return;
       const last = index === exits.length - 1;
-      const net = last ? `\n净 ${fmt(trade.netR)} R · 持有 ${trade.holdingBars} 根` : '';
+      const net = last
+        ? tr('trainTradeNet', { value1: fmt(trade.netR), value2: trade.holdingBars })
+        : '';
       placed.push({
         index: at,
         marker: {
@@ -199,7 +240,13 @@ function tradeMarkers(trades: readonly TrainerClosedTrade[], timesTs: number[]):
           color: EXIT_MARK_COLOR[fill.reason],
           shape: long ? 'arrowDown' : 'arrowUp',
           text: EXIT_MARK[fill.reason],
-          tooltip: `${label}\n离场 $${fmt(fill.price)} · ${formatPositionSize(fill.size)}（${EXIT_MARK_LABEL[fill.reason]}）${net}`,
+          tooltip: tr('trainExitFillTooltip', {
+            value1: label,
+            value2: fmt(fill.price),
+            value3: formatPositionSize(fill.size),
+            value4: EXIT_MARK_LABEL(tr)[fill.reason],
+            value5: net,
+          }),
         },
       });
     });
@@ -211,10 +258,11 @@ function episodeMarkers(
   trades: readonly TrainerClosedTrade[],
   position: TrainerPosition | null,
   timesTs: number[],
+  tr: Translator = chineseTranslator,
 ): SeriesMarker[] {
   const placed = [
-    ...tradeMarkers(trades, timesTs),
-    ...(position ? positionMarkers(position, timesTs) : []),
+    ...tradeMarkers(trades, timesTs, tr),
+    ...(position ? positionMarkers(position, timesTs, tr) : []),
   ];
   placed.sort((a, b) => a.index - b.index);
   thinLabels(placed);
@@ -225,6 +273,7 @@ export function rawBarsToTfData(
   bars: RawBar[],
   trades: readonly TrainerClosedTrade[],
   position: TrainerPosition | null,
+  tr: Translator = chineseTranslator,
 ): IntradayTfData {
   const timesTs = bars.map((b) => toTs(b.time));
   const closes = bars.map((b) => Number(b.close));
@@ -261,7 +310,7 @@ export function rawBarsToTfData(
     macdDea: lineData(timesTs, dea),
     macdHist,
     macdCrossMarkers: [],
-    markers: episodeMarkers(trades, position, timesTs),
+    markers: episodeMarkers(trades, position, timesTs, tr),
     priceConnectors: [],
     macdConnectors: [],
     autoDivergence: [],
@@ -305,6 +354,7 @@ function buildSidebar(view: TrainerView): IntradaySidebar {
 export function buildTrainerIntradayBuilt(
   view: TrainerView,
   epilogueBars?: RawBar[] | null,
+  tr: Translator = chineseTranslator,
 ): IntradayBuilt {
   // The epilogue is stored at the case's base period: the base tier takes it as-is, the two
   // aggregated tiers have to roll it into their own buckets first.
@@ -322,7 +372,12 @@ export function buildTrainerIntradayBuilt(
   const position = view.terminal ? null : view.position;
   const timeframes: Record<string, IntradayTfData> = {};
   view.ladder.forEach((period, i) => {
-    timeframes[TRAINER_PERIOD_TO_CHART_TF[period]] = rawBarsToTfData(tierBars[i], trades, position);
+    timeframes[TRAINER_PERIOD_TO_CHART_TF[period]] = rawBarsToTfData(
+      tierBars[i],
+      trades,
+      position,
+      tr,
+    );
   });
   return {
     kind: 'intraday',

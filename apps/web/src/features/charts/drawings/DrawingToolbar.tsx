@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import {
   AlignJustify,
   Eraser,
@@ -15,16 +16,6 @@ import { colors, radii } from '../../../theme/tokens.stylex';
 import { StylePanel } from './StylePanel';
 import type { DrawingsApi } from './useDrawings';
 import type { DrawingTool } from './drawingsMachine';
-
-const TOOLS: { tool: DrawingTool; icon: typeof MousePointer2; label: string }[] = [
-  { tool: 'cursor', icon: MousePointer2, label: '选择' },
-  { tool: 'measure', icon: Ruler, label: '测量' },
-  { tool: 'trendline', icon: TrendingUp, label: '趋势线' },
-  { tool: 'polyline', icon: Spline, label: '多段线' },
-  { tool: 'hline', icon: Minus, label: '水平线' },
-  { tool: 'rect', icon: Square, label: '矩形' },
-  { tool: 'fib', icon: AlignJustify, label: '斐波那契' },
-];
 
 const CLEAR_ARM_MS = 3000;
 
@@ -113,6 +104,18 @@ function useArmedConfirm(ms: number): [boolean, (onConfirm: () => void) => void]
 }
 
 export function DrawingToolbar({ api }: { api: DrawingsApi }) {
+  const { t: tr } = useLocale();
+  const TOOLS: { tool: DrawingTool; icon: typeof MousePointer2; label: string }[] = [
+    { tool: 'cursor', icon: MousePointer2, label: tr('drawSelect') },
+    { tool: 'measure', icon: Ruler, label: tr('drawMeasure') },
+    { tool: 'trendline', icon: TrendingUp, label: tr('drawTrend') },
+    { tool: 'polyline', icon: Spline, label: tr('drawPolyline') },
+    { tool: 'hline', icon: Minus, label: tr('drawHorizontal') },
+    { tool: 'rect', icon: Square, label: tr('drawRectangle') },
+    { tool: 'fib', icon: AlignJustify, label: tr('drawFib') },
+  ];
+
+  const { t: i18n } = useLocale();
   const [armedAll, triggerAll] = useArmedConfirm(CLEAR_ARM_MS);
   const [armedAi, triggerAi] = useArmedConfirm(CLEAR_ARM_MS);
 
@@ -120,7 +123,7 @@ export function DrawingToolbar({ api }: { api: DrawingsApi }) {
     <>
       <div
         className={`drawing-toolbar ${stylex.props(styles.toolbar).className}`}
-        aria-label="标注工具"
+        aria-label={i18n('chartDrawingTools')}
       >
         {TOOLS.map(({ tool, icon: Icon, label }) => (
           <button
@@ -138,7 +141,7 @@ export function DrawingToolbar({ api }: { api: DrawingsApi }) {
           className={toolbarButtonClassName(armedAll)}
           disabled={api.count === 0}
           onClick={() => triggerAll(api.clearAll)}
-          title={armedAll ? '再次点击确认清除全部' : '清除全部'}
+          title={armedAll ? i18n('chartClearConfirm') : i18n('chartClear')}
         >
           <Trash2 size={16} />
         </button>
@@ -146,7 +149,7 @@ export function DrawingToolbar({ api }: { api: DrawingsApi }) {
           <button
             className={toolbarButtonClassName(armedAi)}
             onClick={() => triggerAi(api.clearAi)}
-            title={armedAi ? '再次点击确认清除 AI 画线' : '清 AI'}
+            title={armedAi ? i18n('chartClearAiConfirm') : i18n('chartClearAi')}
           >
             <Eraser size={16} />
           </button>

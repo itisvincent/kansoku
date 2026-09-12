@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useState } from 'react';
 import { Popover } from '@base-ui/react/popover';
 import { ChevronDown, Eye, EyeOff, Plus, X } from 'lucide-react';
@@ -145,6 +146,7 @@ interface MaRowProps {
 }
 
 function MaRow({ line, last, takenPeriods, onChange, onRemove }: MaRowProps) {
+  const { t: i18n } = useLocale();
   const [draft, setDraft] = useState(String(line.period));
   const [syncedPeriod, setSyncedPeriod] = useState(line.period);
 
@@ -174,7 +176,11 @@ function MaRow({ line, last, takenPeriods, onChange, onRemove }: MaRowProps) {
       <button
         type="button"
         className={`ma-row-eye ${stylex.props(styles.rowControl).className}`}
-        aria-label={line.visible ? `隐藏 EMA${line.period}` : `显示 EMA${line.period}`}
+        aria-label={
+          line.visible
+            ? i18n('chartHideEma', { period: line.period })
+            : i18n('chartShowEma', { period: line.period })
+        }
         onClick={() => onChange({ visible: !line.visible })}
       >
         {line.visible ? <Eye size={12} /> : <EyeOff size={12} />}
@@ -182,14 +188,14 @@ function MaRow({ line, last, takenPeriods, onChange, onRemove }: MaRowProps) {
       <input
         type="color"
         className={`ma-row-color ${stylex.props(styles.rowColor).className}`}
-        aria-label={`EMA${line.period} 颜色`}
+        aria-label={i18n('chartEmaColor', { period: line.period })}
         value={line.color}
         onChange={(e) => onChange({ color: e.target.value })}
       />
       <input
         type="number"
         className={`ma-row-period ${stylex.props(styles.rowPeriod).className}`}
-        aria-label={`EMA${line.period} 周期`}
+        aria-label={i18n('chartEmaPeriod', { period: line.period })}
         min={MIN_MA_PERIOD}
         max={MAX_MA_PERIOD}
         value={draft}
@@ -209,7 +215,7 @@ function MaRow({ line, last, takenPeriods, onChange, onRemove }: MaRowProps) {
       <button
         type="button"
         className={`ma-row-del ${stylex.props(styles.rowControl, styles.rowDelete).className}`}
-        aria-label={`删除 EMA${line.period}`}
+        aria-label={i18n('chartDeleteEma', { period: line.period })}
         onClick={onRemove}
       >
         <X size={11} />
@@ -229,6 +235,7 @@ export function MaLinesMenu({
   symbol: string;
   live?: boolean;
 }) {
+  const { t: i18n } = useLocale();
   const candles = tfDataOf(useLiveBuilt(built, activeTf, symbol, live), activeTf)?.candles ?? [];
   const { maLines, addMaLine, removeMaLine, updateMaLine } = useIntradayControls();
   const [open, setOpen] = useState(false);
@@ -239,10 +246,11 @@ export function MaLinesMenu({
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger
-        aria-label="均线设置"
+        aria-label={i18n('chartMaSettings')}
         className={`ma-menu-trigger ${stylex.props(styles.trigger).className}`}
       >
-        均线 {visibleCount}
+        {i18n('chartMa')}
+        {visibleCount}
         <ChevronDown className={`icon ${stylex.props(styles.icon).className}`} size={11} />
       </Popover.Trigger>
       <Popover.Portal>
@@ -253,11 +261,11 @@ export function MaLinesMenu({
           sideOffset={4}
         >
           <Popover.Popup
-            aria-label="均线设置"
+            aria-label={i18n('chartMaSettings')}
             className={`ma-menu-popup ${stylex.props(styles.popup).className}`}
           >
             <div className={`ma-menu-title ${stylex.props(styles.title).className}`}>
-              均线（EMA）
+              {i18n('chartMaTitle')}
             </div>
             {maLines.map((line) => (
               <MaRow
@@ -275,10 +283,11 @@ export function MaLinesMenu({
               disabled={maLines.length >= MAX_MA_LINES}
               onClick={addMaLine}
             >
-              <Plus size={11} /> 添加均线
+              <Plus size={11} />
+              {i18n('chartAddMa')}
             </button>
             <div className={`ma-menu-foot ${stylex.props(styles.foot).className}`}>
-              最多 {MAX_MA_LINES} 条；只影响画线，不影响 AI 判断。
+              {i18n('chartMaHelp', { count: MAX_MA_LINES })}
             </div>
           </Popover.Popup>
         </Popover.Positioner>

@@ -1,4 +1,8 @@
 import type { SecretBox } from '@kansoku/pro-api';
+import {
+  createInterfaceLocaleStore,
+  setActiveInterfaceLocaleStore,
+} from '@kansoku/core/settings/interfaceLocale';
 import { getAiRuntime, initAiSettings } from '@kansoku/core/ai/settings/initAiSettings';
 import { getDb } from '@kansoku/core/db/index';
 import { startEventCollector } from '@kansoku/core/events/collector';
@@ -51,6 +55,7 @@ export async function initServerHostRuntime(opts?: ServerRuntimeOptions): Promis
   initAuthUrlOpener(opts?.openAuthUrl);
   setActiveWatchedMarketsStore(createWatchedMarketsStore(getDb()));
   setActiveLongbridgeRegionStore(createLongbridgeRegionStore(getDb()));
+  setActiveInterfaceLocaleStore(createInterfaceLocaleStore(getDb()));
   initAiSettings(getDb(), { secretBox: opts?.secretBox });
 
   const productionHost = opts?.productionHost ?? process.env.NODE_ENV === 'production';

@@ -1,3 +1,4 @@
+import { chineseTranslator, type Translator } from '@web/lib/i18n';
 import type { TrainerClosedTrade, TrainerReviewPayload } from '@kansoku/pro-api';
 import type { IntradayBuilt, IntradayTfData, RawBar } from '@kansoku/shared/types';
 import type { ChartTf } from '../charts/intraday/timeframes';
@@ -46,10 +47,7 @@ export function reviewSeries(
  * leaving the marks on would show them an entry they had not taken, which is the one thing this
  * page exists to reconstruct honestly.
  */
-export function reviewTrades(
-  payload: TrainerReviewPayload,
-  brush: number,
-): TrainerClosedTrade[] {
+export function reviewTrades(payload: TrainerReviewPayload, brush: number): TrainerClosedTrade[] {
   const cutoff = payload.replay[Math.max(0, brush)];
   if (!cutoff) return [];
   const cutoffMs = Date.parse(cutoff.time);
@@ -101,11 +99,12 @@ export function buildReviewBuilt(
   payload: TrainerReviewPayload,
   brush: number,
   showEpilogue: boolean,
+  tr: Translator = chineseTranslator,
 ): IntradayBuilt {
   const tf = reviewChartTf(payload);
   const bars = reviewSeries(payload, brush, showEpilogue);
   const timeframes: Record<string, IntradayTfData> = {
-    [tf]: rawBarsToTfData(bars, reviewTrades(payload, brush), null),
+    [tf]: rawBarsToTfData(bars, reviewTrades(payload, brush), null, tr),
   };
   return {
     kind: 'intraday',

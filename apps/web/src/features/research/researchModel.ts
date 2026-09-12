@@ -1,3 +1,4 @@
+import { chineseTranslator, type Translator } from '@web/lib/i18n';
 import type {
   ResearchDocumentMeta,
   ResearchDocumentType,
@@ -5,18 +6,6 @@ import type {
 } from '@kansoku/core/contract/index';
 
 export type ResearchView = 'stocks' | 'journal' | 'canvases';
-
-const TYPE_LABELS: Record<ResearchDocumentType, string> = {
-  stock: '股票档案',
-  intraday: '日内分析',
-  recap: '复盘',
-  flow: '资金流',
-  lessons: '交易教训',
-  decision: '决策记录',
-  archive: '归档',
-  journal: '研究日志',
-  canvas: '画布',
-};
 
 export function parseResearchView(value: string | null): ResearchView {
   if (value === 'stocks') return 'stocks';
@@ -36,7 +25,22 @@ export function viewForKind(kind: ResearchKind): ResearchView {
   return 'journal';
 }
 
-export function researchTypeLabel(type: ResearchDocumentType): string {
+export function researchTypeLabel(
+  type: ResearchDocumentType,
+  tr: Translator = chineseTranslator,
+): string {
+  const TYPE_LABELS: Record<ResearchDocumentType, string> = {
+    stock: tr('researchStocks'),
+    intraday: tr('researchIntraday'),
+    recap: tr('researchRecap'),
+    flow: tr('researchFlow'),
+    lessons: tr('researchLessons'),
+    decision: tr('researchDecisions'),
+    archive: tr('researchArchive'),
+    journal: tr('researchJournal'),
+    canvas: tr('researchCanvas'),
+  };
+
   return TYPE_LABELS[type];
 }
 
@@ -54,8 +58,11 @@ export function researchListTitle(meta: ResearchDocumentMeta): string {
   return compactTime.trim() || meta.title;
 }
 
-export function researchListSecondary(meta: ResearchDocumentMeta): string {
-  return [researchTypeLabel(meta.type), meta.symbols.join(' · ')].filter(Boolean).join(' · ');
+export function researchListSecondary(
+  meta: ResearchDocumentMeta,
+  tr: Translator = chineseTranslator,
+): string {
+  return [researchTypeLabel(meta.type, tr), meta.symbols.join(' · ')].filter(Boolean).join(' · ');
 }
 
 export function researchRoute(view: ResearchView, path?: string): string {

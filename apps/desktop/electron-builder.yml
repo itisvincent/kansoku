@@ -124,6 +124,10 @@ mac:
         CFBundleURLSchemes:
           - kansoku
 win:
+  # Windows 的 Chromium 语言包使用地区代码，不能复用 macOS 的目录名。
+  electronLanguages:
+    - en-US
+    - zh-CN
   target:
     - target: nsis
       arch: [x64]

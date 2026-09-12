@@ -1,3 +1,5 @@
+import { chineseTranslator, type Translator } from '@web/lib/i18n';
+import { useLocale } from '@web/lib/i18n';
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { isRouteErrorResponse, useNavigate, useRouteError } from 'react-router';
@@ -103,24 +105,28 @@ interface Described {
   stack: string | null;
 }
 
-function describe(error: unknown): Described {
+function describe(error: unknown, tr: Translator = chineseTranslator): Described {
   if (isRouteErrorResponse(error))
     return {
-      title: error.status === 404 ? '这个页面不存在' : `这个页面打不开（${error.status}）`,
+      title:
+        error.status === 404
+          ? tr('uiPageMissing')
+          : tr('uiPageFailedStatus', { value1: error.status }),
       message: error.statusText || String(error.data ?? ''),
       stack: null,
     };
   if (error instanceof Error)
-    return { title: '这个页面崩了', message: error.message, stack: error.stack ?? null };
-  return { title: '这个页面崩了', message: String(error), stack: null };
+    return { title: tr('uiPageCrashed'), message: error.message, stack: error.stack ?? null };
+  return { title: tr('uiPageCrashed'), message: String(error), stack: null };
 }
 
 export function RouteErrorBoundary() {
+  const { t: tr } = useLocale();
   const error = useRouteError();
   // react-router's own hook, not lib/router's navigate: this module is pulled in while the route
   // table is still being built, and reaching back into lib/router closes an import cycle.
   const navigate = useNavigate();
-  const { title, message, stack } = describe(error);
+  const { title, message, stack } = describe(error, tr);
   const [copied, setCopied] = useState(false);
   const [clearing, setClearing] = useState(false);
 
@@ -155,21 +161,21 @@ export function RouteErrorBoundary() {
         <div {...stylex.props(styles.message)}>{message}</div>
         <div {...stylex.props(styles.actions)}>
           <Button accent onClick={() => void navigate('/')}>
-            回首页
+            {tr('uiHome')}
           </Button>
-          <Button onClick={() => window.location.reload()}>重新加载</Button>
+          <Button onClick={() => window.location.reload()}>{tr('uiReload')}</Button>
           <Button state={copied ? 'done' : undefined} onClick={copy}>
-            {copied ? '已复制' : '复制详情'}
+            {copied ? tr('uiCopied') : tr('uiCopyDetails')}
           </Button>
         </div>
         {stack && (
           <details {...stylex.props(styles.stack)}>
-            <summary {...stylex.props(styles.stackSummary)}>技术细节</summary>
+            <summary {...stylex.props(styles.stackSummary)}>{tr('uiTechnicalDetails')}</summary>
             <pre {...stylex.props(styles.stackBody)}>{stack}</pre>
           </details>
         )}
         <button {...stylex.props(styles.reset)} disabled={clearing} onClick={clearCache}>
-          还是打不开？清掉本地缓存再重开 —— 只丢掉缓存的行情和列表，你的数据不动
+          {tr('uiCacheHelp')}
         </button>
       </div>
     </div>

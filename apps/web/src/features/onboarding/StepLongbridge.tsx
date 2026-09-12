@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import { Button, Card } from '../../ui';
 import type { CredentialsGetResult } from '../settings/desktopCredentials';
@@ -61,29 +62,28 @@ export function StepLongbridge({
   status: CredentialsGetResult | null;
   onRecheck: () => void;
 }) {
+  const { t: tr } = useLocale();
   const state = status?.state ?? 'cli_missing';
   const title =
     state === 'cli_missing'
-      ? '安装 Longbridge CLI'
+      ? tr('setupLongbridgeInstall')
       : state === 'login_required'
-        ? '登录长桥账号'
-        : '修复登录状态';
+        ? tr('setupLongbridgeLogin')
+        : tr('setupLongbridgeRepair');
   const command =
     state === 'cli_missing'
       ? 'curl -fsSL https://open.longbridge.com/longbridge/longbridge-terminal/install | sh'
       : 'longbridge auth login';
   const explanation =
     state === 'cli_missing'
-      ? 'Kansoku 使用本机 Longbridge CLI 获取行情和账户数据。安装完成后请返回这里重新检测。'
+      ? tr('setupLongbridgeInstallHelp')
       : state === 'login_required'
-        ? 'CLI 已安装，但尚未登录。请在终端执行登录命令，并在浏览器中完成授权。'
-        : 'CLI 的登录文件无法读取或已经失效。请重新登录；如果问题持续，请升级 Longbridge CLI。';
+        ? tr('setupLongbridgeLoginHelp')
+        : tr('setupLongbridgeRepairHelp');
 
   return (
     <Card className={`onboarding-card ${stylex.props(styles.card).className}`}>
-      <p {...stylex.props(styles.welcome)}>
-        欢迎使用 Kansoku —— 先连上行情数据，再配一下 AI，就能开始了。
-      </p>
+      <p {...stylex.props(styles.welcome)}>{tr('setupWelcome')}</p>
       <h1 className={stylex.props(styles.heading).className}>{title}</h1>
       <p className={`onboarding-explainer ${stylex.props(styles.explainer).className}`}>
         {explanation}
@@ -93,7 +93,8 @@ export function StepLongbridge({
       </pre>
       {status?.cliPath && (
         <p className={`onboarding-explainer ${stylex.props(styles.explainer).className}`}>
-          已找到：{status.cliPath}
+          {tr('setupFound')}
+          {status.cliPath}
         </p>
       )}
       {status?.lastError && (
@@ -105,10 +106,10 @@ export function StepLongbridge({
       )}
       <div className={`settings-cred-actions ${stylex.props(styles.actions).className}`}>
         <Button onClick={() => window.open(INSTALL_URL, '_blank', 'noopener,noreferrer')}>
-          查看安装说明
+          {tr('setupInstallGuide')}
         </Button>
         <Button accent onClick={onRecheck}>
-          重新检测
+          {tr('setupRecheck')}
         </Button>
       </div>
     </Card>

@@ -1,3 +1,4 @@
+import { LocalizedText, useLocale  } from '@web/lib/i18n';
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { ResearchCreateResult, ResearchKind } from '@kansoku/core/contract/index';
@@ -35,11 +36,6 @@ const styles = stylex.create({
   },
 });
 
-const KIND_OPTIONS: { label: string; value: ResearchKind }[] = [
-  { label: '股票档案', value: 'stock' },
-  { label: '研究日志', value: 'journal' },
-];
-
 export function CreateResearchDialog({
   initialKind,
   close,
@@ -49,6 +45,12 @@ export function CreateResearchDialog({
   close: () => void;
   onCreated: (result: ResearchCreateResult) => void;
 }) {
+  const { t: tr } = useLocale();
+  const KIND_OPTIONS: { label: string; value: ResearchKind }[] = [
+    { label: tr('researchStocks'), value: 'stock' },
+    { label: tr('researchJournal'), value: 'journal' },
+  ];
+
   const [kind, setKind] = useState<ResearchKind>(initialKind);
   const [symbol, setSymbol] = useState('');
   const [title, setTitle] = useState('');
@@ -88,18 +90,18 @@ export function CreateResearchDialog({
   return (
     <div className={`create-research-dialog ${stylex.props(styles.dialog).className}`}>
       <SegmentedControl
-        ariaLabel="新建研究类型"
+        ariaLabel={tr('researchCreateType')}
         value={kind}
         onChange={changeKind}
         options={KIND_OPTIONS}
       />
       {kind === 'stock' ? (
         <label className={`create-research-field ${stylex.props(styles.field).className}`}>
-          <span>股票代码</span>
+          <span>{tr('researchSymbol')}</span>
           <Input
             autoFocus
             className={`create-research-symbol-input ${stylex.props(styles.symbolInput).className}`}
-            placeholder="如 MRVL、700.HK"
+            placeholder={tr('researchSymbolExample')}
             value={symbol}
             disabled={busy}
             onChange={(event) => setSymbol(event.target.value.toUpperCase())}
@@ -108,17 +110,17 @@ export function CreateResearchDialog({
       ) : (
         <>
           <label className={`create-research-field ${stylex.props(styles.field).className}`}>
-            <span>标题</span>
+            <span>{tr('researchTitle')}</span>
             <Input
               autoFocus
-              placeholder="研究日志标题"
+              placeholder={tr('researchJournalTitle')}
               value={title}
               disabled={busy}
               onChange={(event) => setTitle(event.target.value)}
             />
           </label>
           <label className={`create-research-field ${stylex.props(styles.field).className}`}>
-            <span>日期</span>
+            <span>{tr('researchDate')}</span>
             <Input
               type="date"
               value={date}
@@ -135,11 +137,11 @@ export function CreateResearchDialog({
       )}
       <div className={`create-research-actions ${stylex.props(styles.actions).className}`}>
         <Button disabled={busy} onClick={close}>
-          取消
+          {tr('uiCancel')}
         </Button>
         <Button accent disabled={!canSubmit || busy} onClick={() => void submit()}>
           {busy && <Spinner />}
-          {busy && kind === 'stock' ? '正在建立档案并生成 SEPA 仪表盘…' : '建立'}
+          {busy && kind === 'stock' ? tr('researchCreating') : tr('researchCreate')}
         </Button>
       </div>
     </div>
@@ -151,7 +153,7 @@ export function openCreateResearchDialog(
   onCreated: (result: ResearchCreateResult) => void,
 ): void {
   openModal({
-    title: '新建研究',
+    title: <LocalizedText message="researchNew" />,
     size: 'sm',
     body: (close) => (
       <CreateResearchDialog initialKind={initialKind} close={close} onCreated={onCreated} />

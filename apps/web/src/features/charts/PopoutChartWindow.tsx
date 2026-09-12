@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import { IntradayChartOnly, IntradayTimeframeSwitch } from './intraday/IntradayDashboard';
 import { ChartLayerMenu } from './intraday/ChartLayerMenu';
@@ -54,6 +55,7 @@ const styles = stylex.create({
 });
 
 export function PopoutChartWindow({ sym }: { sym: string }) {
+  const { t: i18n } = useLocale();
   const symLabel = sym.toUpperCase().replace(/\.US$/, '');
   const { built, error, degraded, intradayTf, setIntradayTf } = useIntradayPreview(sym);
   const isDesktop = getShellRpc() !== null;
@@ -75,8 +77,13 @@ export function PopoutChartWindow({ sym }: { sym: string }) {
           <span className={`popout-symbol ${stylex.props(styles.symbol).className}`}>
             {symLabel}
           </span>
-          {degraded && <Dot tone="accent" pulse title="数据延迟：行情拉取失败，正在重试" />}
+          {degraded && <Dot tone="accent" pulse title={i18n('chartStale')} />}
           {activeTf && <IntradayTimeframeSwitch activeTf={activeTf} onChange={setIntradayTf} />}
+          {viewTimeframe.notice && (
+            <span role="status" title={viewTimeframe.notice}>
+              {i18n('chartHistoryShort')}
+            </span>
+          )}
           <span className={`topbar-chart-tail ${stylex.props(styles.chartTail).className}`}>
             {chartBuilt && activeTf && (
               <>
@@ -91,7 +98,7 @@ export function PopoutChartWindow({ sym }: { sym: string }) {
           {error ? (
             <ErrorBox>{error}</ErrorBox>
           ) : !chartBuilt || !activeTf ? (
-            <Empty>加载中…</Empty>
+            <Empty>{i18n('chartLoading')}</Empty>
           ) : (
             <IntradayChartOnly symbol={sym} built={chartBuilt} activeTf={activeTf} popout live />
           )}

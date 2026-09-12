@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useRef } from 'react';
 import type { SepaBuilt } from '@kansoku/shared/types';
 import * as stylex from '@stylexjs/stylex';
@@ -86,6 +87,7 @@ const styles = stylex.create({
 });
 
 export function SepaDashboard({ built }: { built: SepaBuilt }) {
+  const { t: i18n } = useLocale();
   const mainRef = useRef<HTMLDivElement>(null);
   const rsRef = useRef<HTMLDivElement>(null);
   const vrRef = useRef<HTMLDivElement>(null);
@@ -100,7 +102,7 @@ export function SepaDashboard({ built }: { built: SepaBuilt }) {
           className={`chart-block main ${stylex.props(styles.chartBlock, styles.mainChartBlock).className}`}
         >
           <div className={`chart-label ${stylex.props(styles.chartLabel).className}`}>
-            主图 · 日 K + 均线
+            {i18n('sepaMainChart')}
           </div>
           <div className={`chart-legend ${stylex.props(styles.chartLegend).className}`}>
             <span>
@@ -136,7 +138,7 @@ export function SepaDashboard({ built }: { built: SepaBuilt }) {
           className={`chart-block rs ${stylex.props(styles.chartBlock, styles.rsChartBlock).className}`}
         >
           <div className={`chart-label ${stylex.props(styles.chartLabel).className}`}>
-            RS vs SPY (跑赢百分点)
+            {i18n('sepaRsChart')}
           </div>
           <div className={`chart-legend ${stylex.props(styles.chartLegend).className}`}>
             <span>
@@ -167,7 +169,7 @@ export function SepaDashboard({ built }: { built: SepaBuilt }) {
           className={`chart-block vol ${stylex.props(styles.chartBlock, styles.volChartBlock).className}`}
         >
           <div className={`chart-label ${stylex.props(styles.chartLabel).className}`}>
-            量能比 (vs 20MA)
+            {i18n('sepaVolumeChart')}
           </div>
           <div ref={vrRef} className={`chart-host ${stylex.props(styles.chartHost).className}`} />
         </div>

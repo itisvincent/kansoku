@@ -1,3 +1,5 @@
+import { chineseTranslator, type Translator } from '@web/lib/i18n';
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import { ChevronDown, Ellipsis, Wrench } from 'lucide-react';
 import {
@@ -106,16 +108,21 @@ function WidgetSlot({ item }: { item: DevDockReadoutItem }) {
 }
 
 function PinnedToggle({ item }: { item: DevDockToggleItem }) {
+  const { t: tr } = useLocale();
   const checked = useDevDock(item.getChecked);
   return (
     <label {...stylex.props(styles.toggle)}>
-      <Switch checked={checked} onCheckedChange={item.onToggle} ariaLabel={item.label} />
-      <span>{item.label}</span>
+      <Switch
+        checked={checked}
+        onCheckedChange={item.onToggle}
+        ariaLabel={item.labelKey ? tr(item.labelKey) : item.label}
+      />
+      <span>{item.labelKey ? tr(item.labelKey) : item.label}</span>
     </label>
   );
 }
 
-function overflowMenuItems(): ContextMenuItem[] {
+function overflowMenuItems(tr: Translator = chineseTranslator): ContextMenuItem[] {
   const state = getDevDockState();
   const toggles = DEV_DOCK_ITEMS.filter(
     (item): item is DevDockToggleItem => item.type === 'toggle',
@@ -123,17 +130,17 @@ function overflowMenuItems(): ContextMenuItem[] {
   return [
     ...toggles.map((item) => ({
       key: item.id,
-      label: item.label,
+      label: item.labelKey ? tr(item.labelKey) : item.label,
       checked: item.getChecked(state),
       onClick: () => item.onToggle(!item.getChecked(getDevDockState())),
     })),
     { type: 'divider' },
     {
       key: 'pin',
-      label: '钉到底栏',
+      label: tr('devPin'),
       submenu: DEV_DOCK_ITEMS.map((item: DevDockItem) => ({
         key: `pin:${item.id}`,
-        label: item.label,
+        label: item.labelKey ? tr(item.labelKey) : item.label,
         checked: isItemPinned(item, state.pinOverrides),
         onClick: () => setDevDockPinned(item.id, !isItemPinned(item)),
       })),
@@ -142,6 +149,7 @@ function overflowMenuItems(): ContextMenuItem[] {
 }
 
 export function DevDockBar() {
+  const { t: tr } = useLocale();
   const expanded = useDevDock((s) => s.expanded);
   const pinOverrides = useDevDock((s) => s.pinOverrides);
 
@@ -150,7 +158,7 @@ export function DevDockBar() {
       <button
         type="button"
         {...stylex.props(styles.pill)}
-        title="打开 DevDock"
+        title={tr('devOpen')}
         onClick={() => updateDevDock({ expanded: true })}
       >
         <Wrench size={10} />
@@ -166,7 +174,7 @@ export function DevDockBar() {
       <button
         type="button"
         {...stylex.props(styles.iconButton)}
-        title="收起 DevDock"
+        title={tr('devClose')}
         onClick={() => updateDevDock({ expanded: false })}
       >
         <ChevronDown size={12} />
@@ -192,10 +200,10 @@ export function DevDockBar() {
       <button
         type="button"
         {...stylex.props(styles.iconButton)}
-        title="更多工具"
+        title={tr('devMore')}
         onClick={(event) => {
           const rect = event.currentTarget.getBoundingClientRect();
-          showContextMenu(overflowMenuItems(), { x: rect.right, y: rect.top });
+          showContextMenu(overflowMenuItems(tr), { x: rect.right, y: rect.top });
         }}
       >
         <Ellipsis size={13} />

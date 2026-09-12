@@ -1,3 +1,5 @@
+import { desktopText } from '../i18n.js';
+
 type ContextMenuParams = {
   isEditable: boolean;
   selectionText: string;
@@ -25,20 +27,22 @@ export async function installDefaultContextMenu(): Promise<() => void> {
     showCopyLink: true,
     showInspectElement: isDev,
     shouldShowMenu: shouldShowDefaultMenu,
-    labels: {
-      cut: '剪切',
-      copy: '复制',
-      paste: '粘贴',
-      selectAll: '全选',
-      copyLink: '复制链接',
-      copyImage: '复制图片',
-      copyImageAddress: '复制图片地址',
-      saveImage: '保存图片',
-      saveImageAs: '图片存储为…',
-      lookUpSelection: '查询“{selection}”',
-      learnSpelling: '学习拼写“{selection}”',
-      inspect: '检查元素',
-      services: '服务',
+    get labels() {
+      return {
+        cut: desktopText('剪切', 'Cut'),
+        copy: desktopText('复制', 'Copy'),
+        paste: desktopText('粘贴', 'Paste'),
+        selectAll: desktopText('全选', 'Select all'),
+        copyLink: desktopText('复制链接', 'Copy link'),
+        copyImage: desktopText('复制图片', 'Copy image'),
+        copyImageAddress: desktopText('复制图片地址', 'Copy image address'),
+        saveImage: desktopText('保存图片', 'Save image'),
+        saveImageAs: desktopText('图片存储为…', 'Save image as…'),
+        lookUpSelection: desktopText('查询“{selection}”', 'Look up “{selection}”'),
+        learnSpelling: desktopText('学习拼写“{selection}”', 'Learn spelling “{selection}”'),
+        inspect: desktopText('检查元素', 'Inspect element'),
+        services: desktopText('服务', 'Services'),
+      };
     },
   });
 }

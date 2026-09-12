@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import type { ResearchDocument, ResearchDocumentMeta } from '@kansoku/core/contract/index';
 import { useFeature } from '@web/features/edition/useFeature';
@@ -35,6 +36,7 @@ export function ResearchAssistant({
   onSelect,
   onDocumentChanged,
 }: ResearchAssistantProps) {
+  const { t: tr } = useLocale();
   const { state } = useFeature('research-ai');
   const { status, composition } = useProComposition();
 
@@ -52,7 +54,7 @@ export function ResearchAssistant({
         <RelatedMaterialsCard selected={selected} related={related} onSelect={onSelect} />
         <LockedAiNotice
           className={stylex.props(styles.lockedNotice).className}
-          message="研究库 AI（刷新文档 / 编辑审阅 / 研究对话）需要有效授权"
+          message={tr('researchLicenseRequired')}
         />
       </div>
     );

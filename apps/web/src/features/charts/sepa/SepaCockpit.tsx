@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import { ArrowLeft } from 'lucide-react';
 import type { SepaBuilt } from '@kansoku/shared/types';
@@ -78,6 +79,7 @@ export function SepaCockpit({
   doc: SepaDocView;
   reload: () => void;
 }) {
+  const { t: i18n } = useLocale();
   const sepaRefresh = useSepaRefresh(doc, reload);
   const isResearchSepa = doc.input.origin === 'research';
   const sepaDataDate = doc.built.sidebar.asOf.slice(0, 10);
@@ -89,26 +91,28 @@ export function SepaCockpit({
     >
       <div className={`detail-topbar ${stylex.props(styles.detailTopbar).className}`}>
         <a className={`back-link ${stylex.props(styles.backLink).className}`} href="/">
-          <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} /> 列表
+          <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} />
+          {i18n('sepaList')}
         </a>
         <span className={`title ${stylex.props(styles.title).className}`}>{doc.title}</span>
         <span className={`meta ${stylex.props(styles.meta).className}`}>{sym}</span>
         {isResearchSepa &&
           (sepaRefresh.refreshing ? (
             <span className={`ai-hint ${stylex.props(styles.aiHint).className}`}>
-              <Spinner /> 正在更新到最新数据…
+              <Spinner />
+              {i18n('sepaUpdating')}
             </span>
           ) : (
             sepaRefresh.error && (
               <span className={`ai-hint ${stylex.props(styles.aiHint).className}`}>
-                更新失败，展示的是 {sepaDataDate} 的数据
+                {i18n('sepaRefreshErrorDate', { date: sepaDataDate })}
               </span>
             )
           ))}
         <span className={`topbar-actions ${stylex.props(styles.topbarActions).className}`}>
           {isResearchSepa && (
             <Button onClick={() => void sepaRefresh.refresh()} disabled={sepaRefresh.refreshing}>
-              更新数据
+              {i18n('sepaUpdate')}
             </Button>
           )}
           {doc.symbol && <TopbarQuote sym={sym} />}

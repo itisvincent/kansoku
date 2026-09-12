@@ -234,7 +234,7 @@ const noSelfDefaultImport = {
       if (typeof value !== 'string' || !value.startsWith('.')) return;
       const { stem } = splitSpecifierExtension(value);
       const absoluteStem = path.resolve(path.dirname(filename), stem);
-      if (absoluteStem === ownStem) {
+      if (absoluteStem === path.resolve(ownStem)) {
         context.report({ data: { source: value }, messageId: 'selfDefault', node: sourceNode });
       }
     });

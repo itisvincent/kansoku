@@ -1,4 +1,8 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { setActiveInterfaceLocaleStore } from '@kansoku/core/settings/interfaceLocale';
+
+beforeEach(() => setActiveInterfaceLocaleStore({ get: () => 'zh-CN', set: () => {} }));
+afterEach(() => setActiveInterfaceLocaleStore(null));
 
 const electron = vi.hoisted(() => ({
   app: { relaunch: vi.fn(), quit: vi.fn() },

@@ -51,15 +51,14 @@ function isMacPack(context) {
 }
 
 function verifyNoPlaintextPro(context) {
-  const appResourcesDir =
-    isMacPack(context)
-      ? join(
-          context.appOutDir,
-          `${context.packager.appInfo.productFilename}.app`,
-          'Contents',
-          'Resources',
-        )
-      : join(context.appOutDir, 'resources');
+  const appResourcesDir = isMacPack(context)
+    ? join(
+        context.appOutDir,
+        `${context.packager.appInfo.productFilename}.app`,
+        'Contents',
+        'Resources',
+      )
+    : join(context.appOutDir, 'resources');
   const asarPath = join(appResourcesDir, 'app.asar');
   const webDistDir = join(appResourcesDir, 'web-dist');
 
@@ -117,6 +116,14 @@ function restoreFrameworkSymlinks(frameworkDir) {
 
 module.exports = async function afterPack(context) {
   verifyNoPlaintextPro(context);
+  if (context.electronPlatformName === 'win32') {
+    for (const locale of ['en-US', 'zh-CN']) {
+      const localePath = join(context.appOutDir, 'locales', `${locale}.pak`);
+      if (!existsSync(localePath) || lstatSync(localePath).size === 0) {
+        throw new Error(`Missing Windows Electron locale: ${locale}.pak`);
+      }
+    }
+  }
   // The remaining hook is macOS-specific (Sparkle framework restoration,
   // iCloud entitlements, and ad-hoc code signing). Windows artifacts are
   // already complete after electron-builder's normal packaging step.

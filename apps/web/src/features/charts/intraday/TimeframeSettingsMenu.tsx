@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Popover } from '@base-ui/react/popover';
@@ -5,7 +6,7 @@ import { Settings2 } from 'lucide-react';
 import { Checkbox } from '@web/ui';
 import { colors, fontSizes, radii } from '../../../theme/tokens.stylex';
 import { useIntradayControls } from './controlsContext';
-import { TF_OPTIONS } from './timeframes';
+import { TF_OPTIONS, tfLabel } from './timeframes';
 
 const styles = stylex.create({
   trigger: {
@@ -75,6 +76,7 @@ const styles = stylex.create({
 });
 
 export function TimeframeSettingsMenu() {
+  const { t: i18n, locale } = useLocale();
   const { visibleTfs, toggleTf } = useIntradayControls();
   const [open, setOpen] = useState(false);
   const shown = new Set(visibleTfs);
@@ -83,8 +85,8 @@ export function TimeframeSettingsMenu() {
     <Popover.Root open={open} onOpenChange={setOpen}>
       <Popover.Trigger
         className={`tf-settings-trigger ${stylex.props(styles.trigger).className}`}
-        aria-label="周期设置"
-        title="周期设置"
+        aria-label={i18n('chartTfSettings')}
+        title={i18n('chartTfSettings')}
       >
         <Settings2 size={12} />
       </Popover.Trigger>
@@ -97,10 +99,10 @@ export function TimeframeSettingsMenu() {
         >
           <Popover.Popup
             className={`tf-settings-popup ${stylex.props(styles.popup).className}`}
-            aria-label="周期设置"
+            aria-label={i18n('chartTfSettings')}
           >
             <div className={`tf-settings-title ${stylex.props(styles.title).className}`}>
-              显示哪些周期
+              {i18n('chartTfVisible')}
             </div>
             {TF_OPTIONS.map((option) => (
               <label
@@ -113,16 +115,16 @@ export function TimeframeSettingsMenu() {
                   disabled={option.analysis}
                   onCheckedChange={() => toggleTf(option.key)}
                 />
-                {option.label}
+                {tfLabel(option.key, locale)}
                 {option.analysis && (
                   <span className={`tf-settings-tag ${stylex.props(styles.tag).className}`}>
-                    分析档
+                    {i18n('chartTfAnalysis')}
                   </span>
                 )}
               </label>
             ))}
             <div className={`tf-settings-foot ${stylex.props(styles.foot).className}`}>
-              分析档固定三个；其余现拉现算，不写进存档。
+              {i18n('chartTfHelp')}
             </div>
           </Popover.Popup>
         </Popover.Positioner>

@@ -153,6 +153,7 @@ export interface TrainerReviewProps {
 }
 
 export function TrainerReview({ bridge, sessionId }: TrainerReviewProps) {
+  const { t: tr } = useLocale();
   const [payload, setPayload] = useState<TrainerReviewPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -175,7 +176,7 @@ export function TrainerReview({ bridge, sessionId }: TrainerReviewProps) {
   if (!payload)
     return (
       <div className={`trainer-order-panel--status ${stylex.props(styles.status).className}`}>
-        正在整理这一局…
+        {tr('trainPreparingReview')}
       </div>
     );
   return (
@@ -197,6 +198,7 @@ interface ReviewBodyProps {
 }
 
 function ReviewBody({ payload, bridge, sessionId, onPayloadChange }: ReviewBodyProps) {
+  const { t: tr } = useLocale();
   const { t, locale } = useLocale();
   const max = reviewMaxBrush(payload);
   // Parked at the end so the whole case is on screen at once — the played run, the stretch never
@@ -206,8 +208,8 @@ function ReviewBody({ payload, bridge, sessionId, onPayloadChange }: ReviewBodyP
   const [handle, setHandle] = useState<DrawingChartHandle | null>(null);
 
   const built = useMemo(
-    () => buildReviewBuilt(payload, brush, showEpilogue),
-    [payload, brush, showEpilogue],
+    () => buildReviewBuilt(payload, brush, showEpilogue, tr),
+    [payload, brush, showEpilogue, tr],
   );
   const bands = useMemo(
     () => reviewBands(payload, brush, showEpilogue),
@@ -239,7 +241,7 @@ function ReviewBody({ payload, bridge, sessionId, onPayloadChange }: ReviewBodyP
     >
       <section className={`trainer-review-reveal ${stylex.props(styles.reveal).className}`}>
         <span className={`trainer-reveal-key ${stylex.props(styles.revealKey).className}`}>
-          真身
+          {tr('trainIdentity')}
         </span>
         <span className={`num trainer-reveal-sym ${stylex.props(styles.revealSymbol).className}`}>
           {payload.provenance.sourceSymbol}
@@ -286,9 +288,9 @@ function ReviewBody({ payload, bridge, sessionId, onPayloadChange }: ReviewBodyP
               disabled={brush < max || payload.epilogue.length === 0}
               onChange={(e) => setShowEpilogue(e.target.checked)}
             />
-            显示收盘后走势
+            {tr('trainShowEpilogue')}
             <span className={`trainer-settle-hint ${stylex.props(styles.settleHint).className}`}>
-              （尾声段，不计入成绩，只用于看结构）
+              {tr('trainEpilogueHelp')}
             </span>
           </label>
         </div>
@@ -315,37 +317,39 @@ function ReviewBody({ payload, bridge, sessionId, onPayloadChange }: ReviewBodyP
 }
 
 function ReviewLegend() {
+  const { t: tr } = useLocale();
   return (
     <div className={`trainer-band-legend ${stylex.props(styles.bandLegend).className}`}>
       <span>
         <i
           className={`trainer-band-swatch trainer-band-swatch--given ${stylex.props(styles.bandSwatch, styles.bandSwatchGiven).className}`}
         />
-        开局给的历史
+        {tr('trainInitialHistory')}
       </span>
       <span>
         <i
           className={`trainer-band-swatch trainer-band-swatch--played ${stylex.props(styles.bandSwatch, styles.bandSwatchPlayed).className}`}
         />
-        你打过的段
+        {tr('trainPlayed')}
       </span>
       <span>
         <i
           className={`trainer-band-swatch trainer-band-swatch--fog ${stylex.props(styles.bandSwatch, styles.bandSwatchFog).className}`}
         />
-        被雾遮住的段
+        {tr('trainHidden')}
       </span>
       <span>
         <i
           className={`trainer-band-swatch trainer-band-swatch--epilogue ${stylex.props(styles.bandSwatch, styles.bandSwatchEpilogue).className}`}
         />
-        尾声段
+        {tr('trainEpilogue')}
       </span>
     </div>
   );
 }
 
 function OpenRealChartButton({ symbol }: { symbol: string }) {
+  const { t: tr } = useLocale();
   const bridge = getPopoutBridge();
   if (!bridge) return null;
   return (
@@ -353,7 +357,7 @@ function OpenRealChartButton({ symbol }: { symbol: string }) {
       className={`trainer-reveal-jump ${stylex.props(styles.revealJump).className}`}
       onClick={() => void bridge.openPopout(symbol)}
     >
-      在行情页打开真图 →
+      {tr('trainOpenRealChart')}
     </Button>
   );
 }

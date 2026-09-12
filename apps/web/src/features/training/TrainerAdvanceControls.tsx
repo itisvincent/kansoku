@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import { useEffect, useRef, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type {
@@ -140,6 +141,7 @@ export function TrainerAdvanceControls({
   sessionId,
   onViewChange,
 }: TrainerAdvanceControlsProps) {
+  const { t: tr } = useLocale();
   const [speed, setSpeed] = useState<PlaybackSpeed>(1);
   const [playing, setPlaying] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -234,7 +236,8 @@ export function TrainerAdvanceControls({
     };
   }, [playing]);
 
-  const narrative = lastEvents.length > 0 ? describeStepEvents(lastEvents, view.basePeriod) : null;
+  const narrative =
+    lastEvents.length > 0 ? describeStepEvents(lastEvents, view.basePeriod, tr) : null;
   const returns = episodeReturns(view);
 
   return (
@@ -257,7 +260,8 @@ export function TrainerAdvanceControls({
       </TrainerOverlayPortal>
       <div className={`trainer-lane ${stylex.props(styles.lane).className}`}>
         <Button disabled={disabled} onClick={handleStep}>
-          步进 · {period}
+          {tr('trainStep')}
+          {period}
         </Button>
         <Button
           accent={playing}
@@ -265,7 +269,7 @@ export function TrainerAdvanceControls({
           disabled={playing ? false : disabled}
           onClick={togglePlay}
         >
-          {playing ? '暂停' : '播放'}
+          {playing ? tr('trainPause') : tr('trainPlay')}
         </Button>
         <div className={`trainer-lane-sep ${stylex.props(styles.separator).className}`} />
         <div className={`trainer-lane-group ${stylex.props(styles.group).className}`}>
@@ -284,10 +288,10 @@ export function TrainerAdvanceControls({
         {returns.tradeR !== null && (
           <span
             className={`trainer-lane-num ${stylex.props(styles.num).className}`}
-            title="本笔：已落袋加上还没平的部分，按 R 计。R 是一份风险，等于首次成交价到初始止损的距离"
+            title={tr('trainTradeReturnHelp')}
           >
             <span className={`trainer-lane-label ${stylex.props(styles.label).className}`}>
-              本笔
+              {tr('trainTrade')}
             </span>{' '}
             <b
               className={`${swing(returns.tradeR)} ${stylex.props(swingStyle(returns.tradeR)).className}`}
@@ -304,9 +308,11 @@ export function TrainerAdvanceControls({
         )}
         <span
           className={`trainer-lane-num ${stylex.props(styles.num).className}`}
-          title="本局：已平仓的每一笔加上现在这笔的浮动盈亏"
+          title={tr('trainSessionReturnHelp')}
         >
-          <span className={`trainer-lane-label ${stylex.props(styles.label).className}`}>本局</span>{' '}
+          <span className={`trainer-lane-label ${stylex.props(styles.label).className}`}>
+            {tr('trainSession')}
+          </span>{' '}
           <b
             className={`${swing(returns.sessionR)} ${stylex.props(swingStyle(returns.sessionR)).className}`}
           >
@@ -316,15 +322,15 @@ export function TrainerAdvanceControls({
         <div className={`trainer-lane-sep ${stylex.props(styles.separator).className}`} />
         {reasonReused && (
           <span className={`trainer-lane-hint ${stylex.props(styles.hint).className}`}>
-            沿用上一次理由
+            {tr('trainReuseReason')}
           </span>
         )}
         {needsReason && (
           <TrainerNote
-            label="持有备注"
+            label={tr('trainHoldingNote')}
             value={holdReason}
             onChange={setHoldReason}
-            hint="继续持有的理由，可以留空"
+            hint={tr('trainHoldingPlaceholder')}
           />
         )}
       </div>

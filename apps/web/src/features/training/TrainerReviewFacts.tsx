@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import type { TrainerReviewFacts as Facts } from '@kansoku/pro-api';
 import * as stylex from '@stylexjs/stylex';
 import { fmt, signed } from '@web/lib/format';
@@ -62,6 +63,7 @@ const styles = stylex.create({
  * the caption says so rather than leaving the number to be read as a lesson.
  */
 export function TrainerReviewFacts({ facts }: { facts: Facts }) {
+  const { t: tr } = useLocale();
   const autopsy = facts.stopAutopsy;
   return (
     <div
@@ -69,12 +71,12 @@ export function TrainerReviewFacts({ facts }: { facts: Facts }) {
       data-testid="trainer-review-facts"
     >
       <div className={`trainer-label ${stylex.props(styles.label).className}`}>
-        实盘做不到的三个数
+        {tr('trainHindsight')}
       </div>
       <div className={`trainer-review-figs ${stylex.props(styles.figures).className}`}>
         <figure className={`trainer-fig ${stylex.props(styles.figure).className}`}>
           <figcaption className={stylex.props(styles.figureCaption).className}>
-            被止损那笔超出多少
+            {tr('trainStopOvershoot')}
           </figcaption>
           <div
             className={`num trainer-fig-val ${stylex.props(styles.figureValue, autopsy && styles.figureValueDown).className}`}
@@ -83,13 +85,16 @@ export function TrainerReviewFacts({ facts }: { facts: Facts }) {
           </div>
           <div className={`trainer-fig-sub ${stylex.props(styles.figureSub).className}`}>
             {autopsy
-              ? `占止损价 ${fmt(autopsy.overshootPct)}%，之后${autopsy.reachedTargetAfter ? '到过' : '没到过'}目标`
-              : '本局没有被止损'}
+              ? tr('trainStopAfterward', {
+                  value1: fmt(autopsy.overshootPct),
+                  value2: autopsy.reachedTargetAfter ? tr('trainReached') : tr('trainNeverReached'),
+                })
+              : tr('trainNoStop')}
           </div>
         </figure>
         <figure className={`trainer-fig ${stylex.props(styles.figure).className}`}>
           <figcaption className={stylex.props(styles.figureCaption).className}>
-            不平仓拿到尾声段末
+            {tr('trainHoldEpilogue')}
           </figcaption>
           <div className={`num trainer-fig-val ${stylex.props(styles.figureValue).className}`}>
             {facts.holdToEpilogueEndR === null ? '—' : signed(facts.holdToEpilogueEndR)}
@@ -99,12 +104,12 @@ export function TrainerReviewFacts({ facts }: { facts: Facts }) {
             </span>
           </div>
           <div className={`trainer-fig-sub ${stylex.props(styles.figureSub).className}`}>
-            仅供观察，不计成绩
+            {tr('trainObservationOnly')}
           </div>
         </figure>
         <figure className={`trainer-fig ${stylex.props(styles.figure).className}`}>
           <figcaption className={stylex.props(styles.figureCaption).className}>
-            离场后最高 / 最低
+            {tr('trainPostExitExtremes')}
           </figcaption>
           <div className={`num trainer-fig-val ${stylex.props(styles.figureValue).className}`}>
             {facts.afterExitHighR === null ? '—' : signed(facts.afterExitHighR)}
@@ -116,7 +121,7 @@ export function TrainerReviewFacts({ facts }: { facts: Facts }) {
             </span>
           </div>
           <div className={`trainer-fig-sub ${stylex.props(styles.figureSub).className}`}>
-            你走之后市场还给过什么
+            {tr('trainPostExitHelp')}
           </div>
         </figure>
       </div>

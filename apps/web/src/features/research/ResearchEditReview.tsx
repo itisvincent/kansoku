@@ -1,3 +1,5 @@
+import { LocalizedText, chineseTranslator, type Translator } from '@web/lib/i18n';
+import { useLocale } from '@web/lib/i18n';
 import { useState } from 'react';
 import { Check, Undo2, X } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
@@ -162,18 +164,25 @@ const styles = stylex.create({
   },
 });
 
-export const STATUS_LABEL: Record<ResearchEditProposal['status'], string> = {
-  pending: '待审阅',
-  applied: '已应用',
-  rejected: '已拒绝',
-  undone: '已撤销',
-  stale: '已失效',
-};
+export function STATUS_LABEL(
+  tr: Translator = chineseTranslator,
+): Record<ResearchEditProposal['status'], string> {
+  return {
+    pending: tr('researchPending'),
+    applied: tr('researchApplied'),
+    rejected: tr('researchRejected'),
+    undone: tr('researchReverted'),
+    stale: tr('researchInvalid'),
+  };
+}
 
-function operationLabel(operation: ResearchEditOperation): string {
-  if (operation.type === 'replace') return '替换原文';
-  if (operation.type === 'insert_after') return '插入段落';
-  return '追加章节';
+function operationLabel(
+  operation: ResearchEditOperation,
+  tr: Translator = chineseTranslator,
+): string {
+  if (operation.type === 'replace') return tr('researchReplace');
+  if (operation.type === 'insert_after') return tr('researchInsert');
+  return tr('researchAppend');
 }
 
 function OperationPreview({
@@ -189,6 +198,7 @@ function OperationPreview({
   disabled: boolean;
   onToggle: () => void;
 }) {
+  const { t: tr } = useLocale();
   return (
     <section
       className={`research-edit-operation${selected ? ' selected' : ''} ${stylex.props(styles.operation, selected && styles.operationSelected).className}`}
@@ -197,7 +207,8 @@ function OperationPreview({
         <label className={stylex.props(styles.operationLabel).className}>
           <Checkbox checked={selected} disabled={disabled} onCheckedChange={onToggle} />
           <span className={stylex.props(styles.operationTitle).className}>
-            修改 {index + 1} · {operationLabel(operation)}
+            {tr('researchChange')}
+            {index + 1} · {operationLabel(operation, tr)}
           </span>
         </label>
       </header>
@@ -206,15 +217,17 @@ function OperationPreview({
           <div
             className={`research-edit-code research-edit-code--removed ${stylex.props(styles.code, styles.codeRemoved).className}`}
           >
-            <span className={stylex.props(styles.codeLabel).className}>原文</span>
+            <span className={stylex.props(styles.codeLabel).className}>
+              {tr('researchOriginal')}
+            </span>
             <pre className={stylex.props(styles.codeText).className}>{operation.oldText}</pre>
           </div>
           <div
             className={`research-edit-code research-edit-code--added ${stylex.props(styles.code, styles.codeAdded).className}`}
           >
-            <span className={stylex.props(styles.codeLabel).className}>修改后</span>
+            <span className={stylex.props(styles.codeLabel).className}>{tr('researchAfter')}</span>
             <pre className={stylex.props(styles.codeText).className}>
-              {operation.newText || '（删除）'}
+              {operation.newText || tr('researchDeleted')}
             </pre>
           </div>
         </div>
@@ -223,13 +236,15 @@ function OperationPreview({
           <div
             className={`research-edit-code research-edit-code--context ${stylex.props(styles.code).className}`}
           >
-            <span className={stylex.props(styles.codeLabel).className}>定位原文</span>
+            <span className={stylex.props(styles.codeLabel).className}>{tr('researchLocate')}</span>
             <pre className={stylex.props(styles.codeText).className}>{operation.anchor}</pre>
           </div>
           <div
             className={`research-edit-code research-edit-code--added ${stylex.props(styles.code, styles.codeAdded).className}`}
           >
-            <span className={stylex.props(styles.codeLabel).className}>在其后插入</span>
+            <span className={stylex.props(styles.codeLabel).className}>
+              {tr('researchInsertAfter')}
+            </span>
             <pre className={stylex.props(styles.codeText).className}>{operation.content}</pre>
           </div>
         </div>
@@ -237,7 +252,9 @@ function OperationPreview({
         <div
           className={`research-edit-code research-edit-code--added ${stylex.props(styles.code, styles.codeAdded).className}`}
         >
-          <span className={stylex.props(styles.codeLabel).className}>文档末尾追加</span>
+          <span className={stylex.props(styles.codeLabel).className}>
+            {tr('researchAppendEnd')}
+          </span>
           <pre className={stylex.props(styles.codeText).className}>{operation.content}</pre>
         </div>
       )}
@@ -254,6 +271,7 @@ function ResearchEditReview({
   close: () => void;
   onChanged: (document?: ResearchDocument) => void;
 }) {
+  const { t: tr } = useLocale();
   const editable = proposal.status === 'pending';
   const [selected, setSelected] = useState<number[]>(
     () => proposal.appliedOperationIndexes ?? proposal.operations.map((_, index) => index),
@@ -324,7 +342,7 @@ function ResearchEditReview({
         <span
           className={`research-edit-status research-edit-status--${proposal.status} ${stylex.props(styles.status, proposal.status === 'pending' ? styles.statusPending : proposal.status === 'applied' ? styles.statusApplied : proposal.status === 'rejected' || proposal.status === 'stale' ? styles.statusRejected : null).className}`}
         >
-          {STATUS_LABEL[proposal.status]}
+          {STATUS_LABEL(tr)[proposal.status]}
         </span>
         <p className={stylex.props(styles.summaryText).className}>{proposal.summary}</p>
         <code className={stylex.props(styles.summaryPath).className}>{proposal.path}</code>
@@ -357,7 +375,8 @@ function ResearchEditReview({
               disabled={busy}
               onClick={() => void reject()}
             >
-              <X size={14} /> 拒绝全部
+              <X size={14} />
+              {tr('researchRejectAll')}
             </Button>
             <Button
               accent
@@ -366,7 +385,9 @@ function ResearchEditReview({
               onClick={() => void apply()}
             >
               {busy ? <Spinner /> : <Check size={14} />}
-              应用 {selected.length} 处修改
+              {tr('researchApply')}
+              {selected.length}
+              {tr('researchChangesSuffix')}
             </Button>
           </>
         ) : proposal.status === 'applied' ? (
@@ -376,11 +397,11 @@ function ResearchEditReview({
             onClick={() => void undo()}
           >
             {busy ? <Spinner /> : <Undo2 size={14} />}
-            {confirmUndo ? '再次点击确认撤销' : '撤销本次修改'}
+            {confirmUndo ? tr('researchRevertConfirm') : tr('researchRevert')}
           </Button>
         ) : (
           <Button className={stylex.props(styles.action).className} onClick={close}>
-            关闭
+            {tr('uiClose')}
           </Button>
         )}
       </footer>
@@ -393,7 +414,7 @@ export function openEditReview(
   onChanged: (document?: ResearchDocument) => void,
 ): void {
   openModal({
-    title: '审阅文档修改',
+    title: <LocalizedText message="researchReviewEdits" />,
     body: (close) => <ResearchEditReview proposal={proposal} close={close} onChanged={onChanged} />,
   });
 }

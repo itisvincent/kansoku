@@ -1,18 +1,23 @@
+import { chineseTranslator, type Translator } from '@web/lib/i18n';
 import type { TrainerCoachCall, TrainerDirection } from '@kansoku/pro-api';
 
-export const DIRECTION_LABEL: Record<TrainerDirection | 'neutral', string> = {
-  long: '做多',
-  short: '做空',
-  neutral: '观望',
-};
+export function DIRECTION_LABEL(
+  tr: Translator = chineseTranslator,
+): Record<TrainerDirection | 'neutral', string> {
+  return {
+    long: tr('trainLong'),
+    short: tr('trainShort'),
+    neutral: tr('trainWait'),
+  };
+}
 
 /**
  * The engine's cursor is -1 until the first bar is stepped into, and the AI is reachable from the
  * open, so a call can legitimately carry a bar index that no bar has. The review timeline runs
  * B0..Bn, so rendering it raw would point at a candle that does not exist.
  */
-export function coachBarLabel(cursor: number): string {
-  return cursor < 0 ? '开局' : `B${cursor}`;
+export function coachBarLabel(cursor: number, tr: Translator = chineseTranslator): string {
+  return cursor < 0 ? tr('trainOpening') : `B${cursor}`;
 }
 
 export interface CoachPlanLine {

@@ -408,6 +408,11 @@ export function SymbolCockpit({ sym }: { sym: string }) {
                   <span>{forwardBusy ? i18n('cockpitLoading') : i18n('cockpitLaterCandles')}</span>
                 </button>
               )}
+              {viewTimeframe.notice && (
+                <span role="status" title={viewTimeframe.notice}>
+                  {i18n('chartHistoryShort')}
+                </span>
+              )}
               {viewTimeframe.error && (
                 <span
                   className={`tf-load-error ${stylex.props(styles.timeframeError).className}`}

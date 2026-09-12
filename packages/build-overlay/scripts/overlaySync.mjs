@@ -54,7 +54,7 @@ export function runOverlaySync(options) {
   const { publicRoot, overlayRoot, manifestPath, statePath, checkOnly = false } = options;
   const errors = [];
   const proRoot = join(publicRoot, 'apps', 'pro');
-  const manifestRelative = relative(publicRoot, manifestPath);
+  const manifestRelative = relative(publicRoot, manifestPath).replaceAll('\\', '/');
 
   function readState() {
     if (!existsSync(statePath)) return [];
@@ -96,7 +96,7 @@ export function runOverlaySync(options) {
       const destinationRelative = sourceRelative.replace(/(\.(?:[cm]?ts|tsx))$/, '.pro$1');
       const destination = resolve(publicRoot, destinationRelative);
       if (!within(publicRoot, destination) || within(proRoot, destination)) {
-        errors.push(`unsafe overlay destination: ${sourceRelative}`);
+        errors.push(`unsafe overlay destination: ${sourceRelative.replaceAll('\\', '/')}`);
         return null;
       }
       const base = resolve(publicRoot, sourceRelative);

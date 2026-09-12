@@ -1,3 +1,4 @@
+import { desktopText } from '../shell/i18n.js';
 import { app, dialog, shell } from 'electron';
 import { dataRoot, databasePath, prepareDesktopStorage, userDataPath } from '../boot/env.js';
 import { StorageMigrationError, type StorageMigrationResult } from './migration.js';
@@ -35,16 +36,29 @@ async function chooseRecoveryAction(
   if (error instanceof StorageMigrationError && error.code === 'source-unavailable') {
     const choice = await dialog.showMessageBox({
       type: 'warning',
-      buttons: ['重新选择旧目录…', '本次使用空 Workspace', '退出'],
+      buttons: [
+        desktopText('重新选择旧目录…', 'Locate previous folder…'),
+        desktopText('本次使用空 Workspace', 'Use an empty workspace this time'),
+        desktopText('退出', 'Quit'),
+      ],
       defaultId: 0,
       cancelId: 2,
-      title: '需要迁移旧数据',
-      message: 'Kansoku 找不到升级前的数据目录。',
-      detail: `${error.sourceRoot}\n\n在找到旧数据或明确选择空 Workspace 前，App 不会静默打开一套空数据。`,
+      title: desktopText('需要迁移旧数据', 'Previous data needs migration'),
+      message: desktopText(
+        'Kansoku 找不到升级前的数据目录。',
+        'Kansoku could not find the data folder used before the upgrade.',
+      ),
+      detail: desktopText(
+        `${error.sourceRoot}\n\n在找到旧数据或明确选择空 Workspace 前，App 不会静默打开一套空数据。`,
+        `${error.sourceRoot}\n\nLocate your previous data or choose to use an empty workspace before continuing.`,
+      ),
     });
     if (choice.response === 0) {
       const picked = await dialog.showOpenDialog({
-        title: '选择升级前的 Kansoku 数据目录',
+        title: desktopText(
+          '选择升级前的 Kansoku 数据目录',
+          'Choose the previous Kansoku data folder',
+        ),
         properties: ['openDirectory'],
       });
       return picked.canceled || picked.filePaths.length === 0
@@ -54,12 +68,21 @@ async function chooseRecoveryAction(
     if (choice.response === 1) {
       const confirm = await dialog.showMessageBox({
         type: 'warning',
-        buttons: ['取消', '确认本次使用空 Workspace'],
+        buttons: [
+          desktopText('取消', 'Cancel'),
+          desktopText('确认本次使用空 Workspace', 'Use an empty workspace this time'),
+        ],
         defaultId: 0,
         cancelId: 0,
-        title: '确认使用空 Workspace',
-        message: '旧目录记录会保留，下次启动仍会提示迁移。',
-        detail: `本次新数据会写入：\n${dataRoot}`,
+        title: desktopText('确认使用空 Workspace', 'Confirm empty workspace'),
+        message: desktopText(
+          '旧目录记录会保留，下次启动仍会提示迁移。',
+          'The previous folder location will be kept. Migration will be offered again at the next launch.',
+        ),
+        detail: desktopText(
+          `本次新数据会写入：\n${dataRoot}`,
+          `New data for this session will be written to:\n${dataRoot}`,
+        ),
       });
       return confirm.response === 1 ? { kind: 'start-empty' } : { kind: 'retry' };
     }
@@ -69,12 +92,15 @@ async function chooseRecoveryAction(
   const message = error instanceof Error ? error.message : String(error);
   const choice = await dialog.showMessageBox({
     type: 'error',
-    buttons: ['重试', '退出'],
+    buttons: [desktopText('重试', 'Retry'), desktopText('退出', 'Quit')],
     defaultId: 0,
     cancelId: 1,
-    title: 'Kansoku 数据迁移失败',
+    title: desktopText('Kansoku 数据迁移失败', 'Kansoku data migration failed'),
     message,
-    detail: `Workspace：${dataRoot}\n数据库：${databasePath}`,
+    detail: desktopText(
+      `Workspace：${dataRoot}\n数据库：${databasePath}`,
+      `Workspace: ${dataRoot}\nDatabase: ${databasePath}`,
+    ),
   });
   return choice.response === 0 ? { kind: 'retry' } : { kind: 'quit' };
 }
@@ -84,17 +110,38 @@ async function showMigrationSummary(result: StorageMigrationResult | null): Prom
   const { files } = result.state;
   const choice = await dialog.showMessageBox({
     type: files.conflicts.length > 0 || files.skippedSymlinks.length > 0 ? 'warning' : 'info',
-    buttons: ['打开旧目录', '打开 Agent Workspace', '完成'],
+    buttons: [
+      desktopText('打开旧目录', 'Open previous folder'),
+      desktopText('打开 Agent Workspace', 'Open Agent Workspace'),
+      desktopText('完成', 'Done'),
+    ],
     defaultId: 2,
     cancelId: 2,
-    title: '数据迁移完成',
-    message: `已复制到新的 Agent Workspace：\n${dataRoot}`,
+    title: desktopText('数据迁移完成', 'Data migration complete'),
+    message: desktopText(
+      `已复制到新的 Agent Workspace：\n${dataRoot}`,
+      `Copied to the new Agent Workspace:\n${dataRoot}`,
+    ),
     detail: [
-      `旧目录仍保留：${result.state.sourceRoot}`,
-      `复制 ${files.copied} 个，内容相同 ${files.identical} 个。`,
-      files.conflicts.length > 0 ? `保留 ${files.conflicts.length} 个冲突副本。` : '',
+      desktopText(
+        `旧目录仍保留：${result.state.sourceRoot}`,
+        `Previous folder preserved: ${result.state.sourceRoot}`,
+      ),
+      desktopText(
+        `复制 ${files.copied} 个，内容相同 ${files.identical} 个。`,
+        `${files.copied} files copied; ${files.identical} already identical.`,
+      ),
+      files.conflicts.length > 0
+        ? desktopText(
+            `保留 ${files.conflicts.length} 个冲突副本。`,
+            `${files.conflicts.length} conflicting copies preserved.`,
+          )
+        : '',
       files.skippedSymlinks.length > 0
-        ? `跳过 ${files.skippedSymlinks.length} 个符号链接，原文件仍在旧目录。`
+        ? desktopText(
+            `跳过 ${files.skippedSymlinks.length} 个符号链接，原文件仍在旧目录。`,
+            `${files.skippedSymlinks.length} symbolic links skipped; original files remain in the previous folder.`,
+          )
         : '',
     ]
       .filter(Boolean)
