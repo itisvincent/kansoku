@@ -6,6 +6,7 @@ import { useTitle } from '@web/lib/useTitle';
 import { Button, ErrorBox } from '@web/ui';
 import { colors, fonts, fontSizes, radii } from '../../theme/tokens.stylex';
 import { getDesktopLogsBridge } from './desktopLogs';
+import { useLocale } from '../../lib/i18n';
 
 const POLL_MS = 2000;
 const TAIL_BYTES = 256 * 1024;
@@ -90,18 +91,20 @@ const actionButtonClassName = stylex.props(styles.actionButton).className;
 const errorClassName = stylex.props(styles.error).className;
 
 export function LogsPage() {
-  useTitle('日志');
+  const { t } = useLocale();
+  useTitle(t('logs'));
 
   return (
     <div className={pageClassName}>
       <LogsBackLink />
-      <h1 {...stylex.props(styles.title)}>日志</h1>
+      <h1 {...stylex.props(styles.title)}>{t('logs')}</h1>
       <LogsViewer />
     </div>
   );
 }
 
 export function LogsViewer() {
+  const { t } = useLocale();
   const [bridge] = useState(() => getDesktopLogsBridge());
   const [path, setPath] = useState<string | null>(null);
   const [text, setText] = useState('');
@@ -169,24 +172,24 @@ export function LogsViewer() {
   };
 
   if (!bridge) {
-    return <div className="note-block">日志查看仅在桌面 App 中可用。</div>;
+    return <div className="note-block">{t('logsDesktopOnly')}</div>;
   }
 
   return (
     <div {...stylex.props(styles.page)}>
       <div {...stylex.props(styles.header)}>
         <div {...stylex.props(styles.path)} title={path ?? undefined}>
-          {path ?? '加载中…'}
+          {path ?? t('loading')}
         </div>
         <div {...stylex.props(styles.actions)}>
           <Button className={actionButtonClassName} type="button" onClick={() => void reload()}>
-            <RefreshCw size={14} /> 刷新
+            <RefreshCw size={14} /> {t('refresh')}
           </Button>
           <Button className={actionButtonClassName} type="button" onClick={() => void copyAll()}>
-            <Copy size={14} /> {copied ? '已复制' : '复制'}
+            <Copy size={14} /> {copied ? t('copied') : t('copy')}
           </Button>
           <Button className={actionButtonClassName} type="button" onClick={() => void reveal()}>
-            <FolderOpen size={14} /> 在访达中显示
+            <FolderOpen size={14} /> {t('showInExplorer')}
           </Button>
         </div>
       </div>
@@ -194,18 +197,19 @@ export function LogsViewer() {
       {error ? <ErrorBox className={errorClassName}>{error}</ErrorBox> : null}
 
       <div {...stylex.props(styles.meta)}>
-        显示最近约 {Math.round(TAIL_BYTES / 1024)} KB · 每 {POLL_MS / 1000} 秒自动刷新
-        {autoScroll ? ' · 跟随最新' : ' · 已暂停跟随（滚到底部恢复）'}
+        {t('logsMeta', { size: Math.round(TAIL_BYTES / 1024), seconds: POLL_MS / 1000 })}
+        {autoScroll ? ` · ${t('followingLatest')}` : ` · ${t('followingPaused')}`}
       </div>
 
       <pre ref={preRef} {...stylex.props(styles.viewer)} onScroll={onScroll}>
-        {text || '（暂无日志）'}
+        {text || t('noLogs')}
       </pre>
     </div>
   );
 }
 
 function LogsBackLink() {
+  const { t } = useLocale();
   return (
     <a
       className={`settings-back-link ${stylex.props(styles.backLink).className}`}
@@ -224,7 +228,7 @@ function LogsBackLink() {
         else navigate('/');
       }}
     >
-      <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} /> 返回
+      <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} /> {t('back')}
     </a>
   );
 }
