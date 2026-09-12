@@ -8,6 +8,7 @@ import { useTitle } from '@web/lib/useTitle';
 import { SETTINGS_SECTIONS, findSettingsSection } from './sections';
 import type { SettingsSectionId } from './types';
 import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   page: {
@@ -175,6 +176,7 @@ const styles = stylex.create({
 });
 
 function SettingsBackLink() {
+  const { t } = useLocale();
   return (
     <a
       className={`settings-back-link ${stylex.props(styles.backLink).className}`}
@@ -193,17 +195,19 @@ function SettingsBackLink() {
         else navigate('/');
       }}
     >
-      <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} /> 返回
+      <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} /> {t('back')}
     </a>
   );
 }
 
 function SettingsRail({ active }: { active: SettingsSectionId }) {
+  const { t } = useLocale();
+  const labels = { ai: 'aiModels', display: 'display', connections: 'connections', license: 'license', advanced: 'advanced' } as const;
   return (
-    <nav className={`settings-rail ${stylex.props(styles.rail).className}`} aria-label="设置分类">
+    <nav className={`settings-rail ${stylex.props(styles.rail).className}`} aria-label={t('settings')}>
       <div className={`settings-rail-inner ${stylex.props(styles.railInner).className}`}>
         <SettingsBackLink />
-        {SETTINGS_SECTIONS.map(({ id, label, Icon }) => {
+        {SETTINGS_SECTIONS.map(({ id, Icon }) => {
           const current = id === active;
           return (
             <a
@@ -216,7 +220,7 @@ function SettingsRail({ active }: { active: SettingsSectionId }) {
                 size={14}
                 {...stylex.props(styles.railIcon, current && styles.railIconActive)}
               />
-              {label}
+              {t(labels[id])}
             </a>
           );
         })}
@@ -239,8 +243,9 @@ function SettingsPageScrollArea({ children }: { children: ReactNode }) {
 }
 
 export function SettingsPage({ section }: { section: SettingsSectionId }) {
+  const { t } = useLocale();
   const active = findSettingsSection(section) ?? SETTINGS_SECTIONS[0];
-  useTitle('设置');
+  useTitle(t('settings'));
   const { Pane } = active;
 
   return (
@@ -249,15 +254,15 @@ export function SettingsPage({ section }: { section: SettingsSectionId }) {
         <SettingsRail active={active.id} />
         <div className={`settings-pane ${stylex.props(styles.pane).className}`}>
           <div {...stylex.props(styles.paneBody)}>
-            <h1 {...stylex.props(styles.heading)}>{active.label}</h1>
+            <h1 {...stylex.props(styles.heading)}>{t(({ ai: 'aiModels', display: 'display', connections: 'connections', license: 'license', advanced: 'advanced' } as const)[active.id])}</h1>
             <div className={`settings-pane-subtitle ${stylex.props(styles.subtitle).className}`}>
-              {active.description}
+              {t(({ ai: 'aiModelsDescription', display: 'displayDescription', connections: 'connectionsDescription', license: 'licenseDescription', advanced: 'advancedDescription' } as const)[active.id])}
             </div>
             <Pane />
           </div>
           <div className={`settings-about-link ${stylex.props(styles.aboutLink).className}`}>
             <a {...stylex.props(styles.aboutLinkAnchor)} href="/about">
-              关于 Kansoku · 版本 {__APP_VERSION__}
+              {t('about')} · {__APP_VERSION__}
             </a>
           </div>
         </div>

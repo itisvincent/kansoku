@@ -12,6 +12,7 @@ import { WebSearchSection } from './WebSearchSection';
 import { WorkspaceSection } from './WorkspaceSection';
 import type { SettingsSectionId } from './types';
 import { useProComposition } from '../edition/useProComposition';
+import { useLocale } from '../../lib/i18n';
 
 function ProSections({ section }: { section: SettingsSectionId }) {
   const pro = useProComposition();
@@ -22,8 +23,17 @@ function ProSections({ section }: { section: SettingsSectionId }) {
 }
 
 export function DisplayPane() {
+  const { locale, setLocale, t } = useLocale();
   return (
     <>
+      <section className="settings-group">
+        <h2>{t('language')}</h2>
+        <p>{t('languageDescription')}</p>
+        <select value={locale} onChange={(event) => setLocale(event.target.value as 'zh-CN' | 'en-US')}>
+          <option value="en-US">{t('english')}</option>
+          <option value="zh-CN">{t('chinese')}</option>
+        </select>
+      </section>
       <TimeDisplaySettingsCard />
       <WatchedMarketsCard />
       <ProSections section="display" />
