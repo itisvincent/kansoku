@@ -163,16 +163,16 @@ export function TrainingStatsPage() {
       </p>
 
       <Card className="training-stats-overview">
-        <Guard block={stats.overview} unit="完成的局">
+        <Guard block={stats.overview} unit={t('completedUnit')}>
           <div className={`trainer-review-figs ${stylex.props(styles.figures).className}`}>
-            <Figure label="累计净 R" value={signed(stats.overview.netR)} />
-            <Figure label="胜率" value={pct(stats.overview.winRate)} />
+            <Figure label={t('netR')} value={signed(stats.overview.netR)} />
+            <Figure label={t('winRate')} value={pct(stats.overview.winRate)} />
             <Figure
-              label="计划盈亏比 → 实际拿到"
+              label={t('plannedVsRealized')}
               value={`${fmt(stats.overview.plannedRewardRisk ?? 0)} → ${fmt(stats.overview.realizedRewardRisk ?? 0)}`}
-              hint="这一栏最该先看：它分开「位置选得差」和「拿不住」"
+              hint={t('plannedVsRealizedHint')}
             />
-            <Figure label="最大浮盈回吐比例" value={pct(stats.overview.mfeGivebackRate)} />
+            <Figure label={t('mfeGiveback')} value={pct(stats.overview.mfeGivebackRate)} />
           </div>
         </Guard>
       </Card>
@@ -190,7 +190,7 @@ export function TrainingStatsPage() {
               className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}
               key={row.tag ?? 'untagged'}
             >
-              <span>{row.tag ? TRAINER_CASE_TAG_LABEL[row.tag] : '未标注'}</span>
+              <span>{row.tag ? TRAINER_CASE_TAG_LABEL[row.tag] : t('untagged')}</span>
               <b className={stylex.props(styles.keyValueValue).className}>
                 {row.locked
                   ? `${row.samples} 局，样本不足`
@@ -202,15 +202,15 @@ export function TrainingStatsPage() {
 
         <Card>
           <h4>{t('stopHealth')}</h4>
-          <Guard block={stats.stopHealth} unit="被止损的局">
+          <Guard block={stats.stopHealth} unit={t('stoppedOutUnit')}>
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
-              <span>被止损后仍到过目标</span>
+              <span>{t('reachedTargetAfterStop')}</span>
               <b className={stylex.props(styles.keyValueValue).className}>
                 {pct(stats.stopHealth.reachedTargetAfterStopRate)}
               </b>
             </div>
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
-              <span>止损被打的平均超出</span>
+              <span>{t('averageStopOvershoot')}</span>
               <b className={stylex.props(styles.keyValueValue).className}>
                 {fmt(stats.stopHealth.averageOvershootPct ?? 0)}%
               </b>
@@ -223,16 +223,16 @@ export function TrainingStatsPage() {
 
         <Card>
           <h4>{t('coachInfluence')}</h4>
-          <Guard block={stats.coachInfluence} unit="有分歧的召唤">
+          <Guard block={stats.coachInfluence} unit={t('disagreementCalls')}>
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
-              <span>被说服改主意</span>
+              <span>{t('persuaded')}</span>
               <b className={stylex.props(styles.keyValueValue).className}>
                 {pct(stats.coachInfluence.persuadedWinRate)}（{stats.coachInfluence.persuadedCount}
                 次）
               </b>
             </div>
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
-              <span>坚持自己判断</span>
+              <span>{t('heldOwnView')}</span>
               <b className={stylex.props(styles.keyValueValue).className}>
                 {pct(stats.coachInfluence.heldWinRate)}（{stats.coachInfluence.heldCount} 次）
               </b>
@@ -245,15 +245,15 @@ export function TrainingStatsPage() {
 
         <Card>
           <h4>{t('advanceInfluence')}</h4>
-          <Guard block={stats.advanceStyle} unit="成交的笔">
+          <Guard block={stats.advanceStyle} unit={t('filledTrades')}>
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
-              <span>逐根推进期间持仓</span>
+              <span>{t('barByBarHolding')}</span>
               <b className={stylex.props(styles.keyValueValue).className}>
                 {pct(stats.advanceStyle.barByBarWinRate)}
               </b>
             </div>
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
-              <span>大周期快进期间持仓</span>
+              <span>{t('fastForwardHolding')}</span>
               <b className={stylex.props(styles.keyValueValue).className}>
                 {pct(stats.advanceStyle.fastForwardWinRate)}
               </b>
@@ -266,22 +266,22 @@ export function TrainingStatsPage() {
 
         <Card>
           <h4>{t('coachScorecard')}</h4>
-          <Guard block={stats.coachScorecard} unit="召唤">
+          <Guard block={stats.coachScorecard} unit={t('calls')}>
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
-              <span>方向准确率</span>
+              <span>{t('directionAccuracy')}</span>
               <b className={stylex.props(styles.keyValueValue).className}>
                 {pct(stats.coachScorecard.directionAccuracy)}（{stats.coachScorecard.settled}
                 次有结果）
               </b>
             </div>
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
-              <span>其中理由站得住</span>
+              <span>{t('soundReasonRate')}</span>
               <b className={stylex.props(styles.keyValueValue).className}>
                 {pct(stats.coachScorecard.soundReasonRate)}
               </b>
             </div>
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
-              <span>结论对但理由错</span>
+              <span>{t('rightCallWrongReason')}</span>
               <b className={stylex.props(styles.keyValueValue).className}>
                 {pct(stats.coachScorecard.rightCallWrongReasonRate)}
               </b>
