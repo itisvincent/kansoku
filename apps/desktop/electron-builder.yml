@@ -136,3 +136,4 @@ nsis:
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
   shortcutName: Kansoku
+  include: build/installer.nsh
