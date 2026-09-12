@@ -56,15 +56,15 @@ export function WorkspaceSection() {
 
   const confirmRestoreLocal = () =>
     openSettingsConfirm({
-      title: '恢复到本机',
-      message: '这会把 iCloud Workspace 复制回本机，iCloud 原文件不会删除。',
-      confirmLabel: '确认恢复',
+      title: t('restoreLocal'),
+      message: t('restoreConfirmMessage'),
+      confirmLabel: t('confirmRestore'),
       onConfirm: () => void restoreLocal(),
     });
 
   return (
     <SettingsGroup
-      name="Agent Workspace"
+      name={t('agentWorkspace')}
       badge={
         status ? (
           <Badge tone={status.mode === 'iCloud' ? 'accent' : undefined}>
@@ -82,15 +82,9 @@ export function WorkspaceSection() {
           {t('showInExplorer')}
         </Button>
       </SettingsRow>
-      <SettingsRow
-        label={t('contents')}
-        description={t('workspaceDescription')}
-      />
+      <SettingsRow label={t('contents')} description={t('workspaceDescription')} />
       {status?.mode === 'iCloud' ? (
-        <SettingsRow
-          label={t('restoreLocal')}
-          description={t('restoreDescription')}
-        >
+        <SettingsRow label={t('restoreLocal')} description={t('restoreDescription')}>
           <Button disabled={busy} onClick={confirmRestoreLocal}>
             {t('restore')}
           </Button>

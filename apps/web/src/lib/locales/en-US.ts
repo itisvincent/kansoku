@@ -249,6 +249,14 @@ const enUS = {
   keepCurrent: 'Keep current',
   applyTemplate: 'Use the new template (back up current as .bak.<old template hash>)',
   settingsCategories: 'Settings categories',
+  restoreConfirmMessage:
+    'This copies the iCloud Workspace back to this computer; the iCloud originals are kept.',
+  confirmRestore: 'Confirm restore',
+  agentWorkspace: 'Agent Workspace',
+  settingsOverview: 'Settings overview',
+  usageReadFailed: 'Could not read today’s usage',
+  usageUnavailable: 'Today’s usage unavailable',
+  todayUsage: 'Today {value}',
   webSearch: 'Web search',
   webSearchBackend: 'Network search backend for AI',
   webSearchFallbackOrder:

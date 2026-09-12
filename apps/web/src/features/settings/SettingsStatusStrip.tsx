@@ -1,6 +1,7 @@
 import type { SettingsViewModel } from './settingsViewModel';
 import * as stylex from '@stylexjs/stylex';
 import { colors, fonts, fontSizes } from '../../theme/tokens.stylex';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   numeric: {
@@ -52,8 +53,9 @@ export function SettingsStatusStrip({
   usageError: string | null;
   onRetryUsage: () => void;
 }) {
+  const { t } = useLocale();
   return (
-    <div {...stylex.props(styles.root)} aria-label="设置状态总览">
+    <div {...stylex.props(styles.root)} aria-label={t('settingsOverview')}>
       <span
         {...stylex.props(
           styles.state,
@@ -71,15 +73,15 @@ export function SettingsStatusStrip({
       <span className={`num ${stylex.props(styles.numeric, styles.usage).className}`}>
         {usageError ? (
           <>
-            今日用量读取失败
+            {t('usageReadFailed')}
             <button {...stylex.props(styles.retry)} type="button" onClick={onRetryUsage}>
-              重试
+              {t('retry')}
             </button>
           </>
         ) : summary.usageLabel === '暂不可用' ? (
-          '今日用量暂不可用'
+          t('usageUnavailable')
         ) : (
-          '今日 ' + summary.usageLabel
+          t('todayUsage', { value: summary.usageLabel })
         )}
       </span>
     </div>
