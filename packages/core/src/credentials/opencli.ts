@@ -54,7 +54,22 @@ function pathCandidates(env: NodeJS.ProcessEnv, deps: OpencliDeps): string[] {
   const homeEntries = homeBins.map((dir) => join(dir, 'opencli'));
   return [env.OPENCLI_PATH, ...pathEntries, ...standardPaths, ...homeEntries].filter(
     (value): value is string => typeof value === 'string' && value.length > 0,
-  );
+  ).flatMap((value) => executableCandidates(value));
+}
+
+function executableCandidates(path: string): string[] {
+  if (process.platform !== 'win32' || /\.[^\\/.]+$/i.test(path)) return [path];
+  // pnpm/npm create an extensionless POSIX wrapper alongside the Windows
+  // launcher. The former cannot be spawned by a native Windows process.
+  return [
+    `${path}.CMD`,
+    `${path}.cmd`,
+    `${path}.EXE`,
+    `${path}.exe`,
+    `${path}.BAT`,
+    `${path}.bat`,
+    path,
+  ];
 }
 
 async function shellCommandCandidate(
@@ -127,6 +142,22 @@ function runEnvForCli(cliPath: string, deps: OpencliDeps): NodeJS.ProcessEnv {
   };
 }
 
+function runOptions(
+  cliPath: string,
+  deps: OpencliDeps,
+  timeout: number,
+): Parameters<typeof execFileAsync>[2] {
+  const options: Parameters<typeof execFileAsync>[2] = {
+    timeout,
+    maxBuffer: 1024 * 1024,
+    env: runEnvForCli(cliPath, deps),
+  };
+  // Windows batch launchers require a shell. Keep this scoped to the
+  // discovered .cmd/.bat wrapper; native executables remain direct spawns.
+  if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(cliPath)) options.shell = true;
+  return options;
+}
+
 export async function probeOpencli(deps: OpencliDeps = {}): Promise<OpencliStatus> {
   const cliPath = await locateOpencli(deps);
   if (!cliPath) {
@@ -134,16 +165,11 @@ export async function probeOpencli(deps: OpencliDeps = {}): Promise<OpencliStatu
   }
 
   const exec = deps.exec ?? execFileAsync;
-  const runEnv = runEnvForCli(cliPath, deps);
   let doctorStdout: string;
   let doctorError: unknown = null;
   try {
-    const { stdout } = await exec(cliPath, ['doctor'], {
-      timeout: DOCTOR_TIMEOUT_MS,
-      maxBuffer: 1024 * 1024,
-      env: runEnv,
-    });
-    doctorStdout = stdout;
+    const { stdout } = await exec(cliPath, ['doctor'], runOptions(cliPath, deps, DOCTOR_TIMEOUT_MS));
+    doctorStdout = stdout.toString();
   } catch (error) {
     const { stdout, killed, signal } = error as {
       stdout?: string;
@@ -170,11 +196,7 @@ export async function probeOpencli(deps: OpencliDeps = {}): Promise<OpencliStatu
   }
 
   try {
-    await exec(cliPath, ['twitter', 'profile'], {
-      timeout: PROFILE_TIMEOUT_MS,
-      maxBuffer: 1024 * 1024,
-      env: runEnv,
-    });
+    await exec(cliPath, ['twitter', 'profile'], runOptions(cliPath, deps, PROFILE_TIMEOUT_MS));
     return { state: 'ready', cliPath, lastError: null };
   } catch (error) {
     return { state: 'no_session', cliPath, lastError: truncate(errorMessage(error)) };
