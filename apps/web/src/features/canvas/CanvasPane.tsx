@@ -7,6 +7,7 @@ import { client } from '@web/lib/client';
 import { Spinner } from '@web/ui';
 import { colors, fonts, fontSizes, radii, sizes } from '../../theme/tokens.stylex';
 import { CanvasFrame, type CanvasLiveStatus } from './CanvasFrame';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   pane: {
@@ -123,6 +124,7 @@ export function CanvasPane({
   onClose: () => void;
   reloadKey?: string;
 }) {
+  const { t } = useLocale();
   const [doc, setDoc] = useState<CanvasDoc | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [live, setLive] = useState<CanvasLiveStatus | null>(null);
@@ -170,7 +172,7 @@ export function CanvasPane({
           type="button"
           className={`canvas-pane-close ${stylex.props(styles.close).className}`}
           onClick={onClose}
-          aria-label="关闭"
+          aria-label={t('close')}
         >
           <X size={14} />
         </button>
@@ -182,7 +184,7 @@ export function CanvasPane({
           </div>
         ) : !doc ? (
           <div className={`canvas-pane-loading ${stylex.props(styles.status).className}`}>
-            <Spinner /> 正在打开画布…
+            <Spinner /> {t('openingCanvas')}
           </div>
         ) : (
           <CanvasFrame source={doc.source} slug={doc.slug} data={doc.data} onLiveStatus={setLive} />

@@ -249,6 +249,9 @@ const enUS = {
   keepCurrent: 'Keep current',
   applyTemplate: 'Use the new template (back up current as .bak.<old template hash>)',
   settingsCategories: 'Settings categories',
+  close: 'Close',
+  openingCanvas: 'Opening canvas…',
+  resizeCanvas: 'Resize canvas',
   restoreConfirmMessage:
     'This copies the iCloud Workspace back to this computer; the iCloud originals are kept.',
   confirmRestore: 'Confirm restore',

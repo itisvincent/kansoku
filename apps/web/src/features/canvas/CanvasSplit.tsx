@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { ResizablePanel } from '@web/ui';
 import { CanvasPane } from './CanvasPane';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   root: {
@@ -44,6 +45,7 @@ export function CanvasSplit({
   children: ReactNode;
   storageKey?: string;
 }) {
+  const { t } = useLocale();
   const rootProps = stylex.props(styles.root, !openSlug && styles.rootClosed);
   return (
     <div
@@ -58,7 +60,7 @@ export function CanvasSplit({
           minSize={320}
           maxSize={920}
           storageKey={storageKey}
-          handleLabel="调整画布宽度"
+          handleLabel={t('resizeCanvas')}
           className={stylex.props(styles.pane).className}
         >
           <CanvasPane slug={openSlug} onClose={onClose} reloadKey={reloadKey} />
