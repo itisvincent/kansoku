@@ -6,6 +6,7 @@ import { client } from '../../lib/client';
 import type { OpencliStatus } from '../settings/desktopCredentials';
 import { Button, Card } from '../../ui';
 import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
+import { useLocale } from '../../lib/i18n';
 
 const OPENCLI_INSTALL_COMMAND = 'npm install -g @jackwener/opencli';
 const OPENCLI_GITHUB_URL = 'https://github.com/jackwener/opencli';
@@ -82,6 +83,7 @@ function fetchOpencliStatus(): Promise<OpencliStatus> {
 }
 
 export function StepTwitter({ onComplete }: { onComplete: () => Promise<void> }) {
+  const { t } = useLocale();
   const { data, loading, reload } = useQuery<OpencliStatus>(
     'onboarding.opencli',
     fetchOpencliStatus,
@@ -92,9 +94,9 @@ export function StepTwitter({ onComplete }: { onComplete: () => Promise<void> })
   if (loading || !data) {
     return (
       <Card className={`onboarding-card ${stylex.props(styles.card).className}`}>
-        <h1 className={stylex.props(styles.heading).className}>连接 X/Twitter</h1>
+        <h1 className={stylex.props(styles.heading).className}>{t('connectX')}/Twitter</h1>
         <p className={`onboarding-explainer ${stylex.props(styles.explainer).className}`}>
-          正在检测 opencli 环境…
+          {t('checkingOpencli')}
         </p>
       </Card>
     );
@@ -113,9 +115,9 @@ export function StepTwitter({ onComplete }: { onComplete: () => Promise<void> })
 
   return (
     <Card className={`onboarding-card ${stylex.props(styles.card).className}`}>
-      <h1 className={stylex.props(styles.heading).className}>连接 X/Twitter</h1>
+      <h1 className={stylex.props(styles.heading).className}>{t('connectX')}/Twitter</h1>
       <p className={`onboarding-explainer ${stylex.props(styles.explainer).className}`}>
-        AI 分析时会抓取推特上的市场消息；可以先跳过，之后随时在设置里配置。
+        {t('twitterExplainer')}
       </p>
 
       {data.state === 'not_installed' ? (
@@ -127,7 +129,7 @@ export function StepTwitter({ onComplete }: { onComplete: () => Promise<void> })
             className={`settings-cred-actions ${stylex.props(styles.credentialActions).className}`}
           >
             <Button onClick={() => void navigator.clipboard.writeText(OPENCLI_INSTALL_COMMAND)}>
-              复制命令
+              {t('copyCommand')}
             </Button>
             <Button
               onClick={() => window.open(OPENCLI_GITHUB_URL, '_blank', 'noopener,noreferrer')}
@@ -151,7 +153,7 @@ export function StepTwitter({ onComplete }: { onComplete: () => Promise<void> })
             <Button
               onClick={() => window.open(OPENCLI_RELEASES_URL, '_blank', 'noopener,noreferrer')}
             >
-              下载扩展
+              {t('downloadExtension')}
             </Button>
           </div>
         </div>
@@ -195,7 +197,7 @@ export function StepTwitter({ onComplete }: { onComplete: () => Promise<void> })
       >
         {data.state === 'ready' ? (
           <Button accent disabled={busy} onClick={finish}>
-            完成
+            {t('finish')}
           </Button>
         ) : (
           <Button disabled={busy} onClick={reload}>
@@ -210,7 +212,7 @@ export function StepTwitter({ onComplete }: { onComplete: () => Promise<void> })
           disabled={busy}
           onClick={finish}
         >
-          跳过，稍后在设置里配置
+          {t('skipConfigureLater')}
         </button>
       </div>
     </Card>
