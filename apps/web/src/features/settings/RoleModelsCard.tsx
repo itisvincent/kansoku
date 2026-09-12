@@ -12,6 +12,7 @@ import {
   type Role,
   type RoleSetting,
 } from './types';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   hint: {
@@ -40,10 +41,11 @@ export function RoleModelsCard({
   view: SettingsViewModel;
   onDraftChange: (role: Role | 'primary', next: RoleSetting) => void;
 }) {
+  const { t } = useLocale();
   return (
     <SettingsGroup
-      name="模型分配"
-      badge={<span {...stylex.props(styles.hint)}>即时生效，进行中的分析沿用旧配置</span>}
+      name={t('modelAssignments')}
+      badge={<span {...stylex.props(styles.hint)}>{t('modelAssignmentsHint')}</span>}
     >
       <PrimaryRow
         initial={initialRoles.primary}

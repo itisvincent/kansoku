@@ -1,12 +1,7 @@
 import * as stylex from '@stylexjs/stylex';
 import { SegmentedControl, type SegmentedControlOption } from '@web/ui';
 import { ROLE_LABEL, type Role, type RoleMode } from './types';
-
-const MODE_OPTIONS = [
-  { value: 'inherit', label: '跟随主模型' },
-  { value: 'custom', label: '自定义' },
-  { value: 'disabled', label: '停用' },
-] satisfies readonly SegmentedControlOption<RoleMode>[];
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   root: {
@@ -25,12 +20,18 @@ export function RoleModeControl({
   value: RoleMode;
   onChange: (mode: RoleMode) => void;
 }) {
+  const { t } = useLocale();
+  const modeOptions = [
+    { value: 'inherit', label: t('followPrimary') },
+    { value: 'custom', label: t('custom') },
+    { value: 'disabled', label: t('disabled') },
+  ] satisfies readonly SegmentedControlOption<RoleMode>[];
   return (
     <SegmentedControl
-      ariaLabel={ROLE_LABEL[role] + '分配方式'}
+      ariaLabel={`${t('roleAssignment')} ${ROLE_LABEL[role]}`}
       className={stylex.props(styles.root).className}
       value={value}
-      options={MODE_OPTIONS}
+      options={modeOptions}
       onChange={onChange}
     />
   );

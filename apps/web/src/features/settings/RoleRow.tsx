@@ -1,4 +1,4 @@
-import { useState } from 'react';
+﻿import { useState } from 'react';
 import { Check, TriangleAlert } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
 import { errorMessage } from '@web/lib/api';
@@ -26,6 +26,7 @@ import {
   type RoleSetting,
 } from './types';
 import { useSaveQueue } from './useSaveQueue';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   row: {
@@ -211,6 +212,7 @@ export function RoleRow({
   view: RoleView;
   onDraftChange: (next: RoleSetting) => void;
 }) {
+  const { t } = useLocale();
   const [failure, setFailure] = useState<{ message: string; retrySnapshot: RoleSetting } | null>(
     null,
   );
@@ -334,7 +336,7 @@ export function RoleRow({
             {view.effectiveLabel}
             {draft.mode === 'custom' && !editing ? (
               <button {...stylex.props(styles.edit)} type="button" onClick={() => setEditing(true)}>
-                修改
+                {t('edit')}
               </button>
             ) : null}
           </div>
@@ -351,20 +353,20 @@ export function RoleRow({
             aria-live="polite"
           >
             {queue.flushing() ? (
-              <Spinner aria-label="保存中" />
+              <Spinner aria-label={t('savingShort')} />
             ) : failure ? (
               <>
                 <TriangleAlert
                   size={12}
                   className={`icon ${stylex.props(styles.icon).className}`}
                 />{' '}
-                未保存
+                {t('unsaved')}
               </>
             ) : (
               <Check
                 size={12}
                 className={`icon ${stylex.props(styles.icon).className}`}
-                aria-label="已保存"
+                aria-label={t('saved')}
               />
             )}
           </span>
@@ -395,7 +397,7 @@ export function RoleRow({
               onChange={setThinkingLevel}
             />
             <Button disabled={!complete || testState.status === 'busy'} onClick={runTest}>
-              测试模型
+              {t('testModel')}
             </Button>
             <button
               {...stylex.props(styles.edit, styles.editDone)}
@@ -403,11 +405,11 @@ export function RoleRow({
               disabled={!complete}
               onClick={() => setEditing(false)}
             >
-              完成
+              {t('done')}
             </button>
           </div>
           <div {...stylex.props(styles.editorStatus)} aria-live="polite">
-            {testState.status === 'busy' ? <Spinner aria-label="测试中" /> : null}
+            {testState.status === 'busy' ? <Spinner aria-label={t('testing')} /> : null}
             {testState.status === 'ok' ? (
               <span
                 className={`settings-test-result settings-test-result--ok ${stylex.props(styles.testResult, styles.testResultOk).className}`}
@@ -426,14 +428,14 @@ export function RoleRow({
               <span
                 className={`settings-role-warning ${stylex.props(styles.roleWarning).className}`}
               >
-                模型已不在目录，请改选
+                {t('modelUnavailable')}
               </span>
             ) : null}
             {keyMissing ? (
               <span
                 className={`settings-role-warning ${stylex.props(styles.roleWarning).className}`}
               >
-                该 Provider 未配置认证
+                {t('providerAuthMissing')}
               </span>
             ) : null}
           </div>
@@ -446,7 +448,7 @@ export function RoleRow({
           role="alert"
         >
           <span>{failure.message}</span>
-          <Button onClick={() => push(failure.retrySnapshot)}>重试</Button>
+          <Button onClick={() => push(failure.retrySnapshot)}>{t('retry')}</Button>
         </div>
       ) : null}
     </div>
