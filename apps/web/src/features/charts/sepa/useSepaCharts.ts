@@ -25,6 +25,7 @@ import {
   toVolumeData,
 } from '../lw';
 import { seriesPalette, theme } from '@web/lib/theme';
+import { useLocale } from '../../../lib/i18n';
 
 const VP_WIDTH = 90;
 
@@ -35,6 +36,7 @@ export function useSepaCharts(
   vrRef: RefObject<HTMLDivElement | null>,
   vpCanvasRef: RefObject<HTMLCanvasElement | null>,
 ): LayerGroup[] {
+  const { t } = useLocale();
   const [groups, setGroups] = useState<LayerGroup[]>([]);
 
   useEffect(() => {
@@ -68,14 +70,14 @@ export function useSepaCharts(
       color: seriesPalette[4],
       lineWidth: 1,
       lineStyle: 2,
-      title: '52w 高',
+      title: t('high52w'),
     });
     const lineL52w = makeTogglableLine(candle, {
       price: chart.low52w,
       color: theme.up,
       lineWidth: 1,
       lineStyle: 2,
-      title: '52w 低',
+      title: t('low52w'),
     });
     const lineExt = chart.extendedLine
       ? makeTogglableLine(candle, {
@@ -128,21 +130,21 @@ export function useSepaCharts(
           color: theme.up,
           lineWidth: 2,
           lineStyle: 0,
-          title: `买入 pivot $${ep.pivot.toFixed(2)}`,
+          title: `${t('buy')} pivot $${ep.pivot.toFixed(2)}`,
         }),
         makeTogglableLine(candle, {
           price: ep.buy_zone_high,
           color: theme.up,
           lineWidth: 1,
           lineStyle: 2,
-          title: '买入区上限 +5%',
+          title: `${t('buyZoneHigh')} +5%`,
         }),
         makeTogglableLine(candle, {
           price: ep.stop,
           color: theme.down,
           lineWidth: 2,
           lineStyle: 2,
-          title: `止损 $${ep.stop.toFixed(2)}`,
+          title: `${t('stopLoss')} $${ep.stop.toFixed(2)}`,
         }),
         makeTogglableLine(candle, {
           price: ep.target1,
@@ -298,7 +300,7 @@ export function useSepaCharts(
 
     const nextGroups: LayerGroup[] = [
       {
-        title: '均线',
+        title: t('movingAverages'),
         items: [
           {
             key: 'ma50',
@@ -321,7 +323,7 @@ export function useSepaCharts(
         ],
       },
       {
-        title: '价位线',
+        title: t('priceLevels'),
         items: [
           { key: 'h52w', label: '52w 高', color: seriesPalette[4], toggle: (v) => lineH52w.set(v) },
           { key: 'l52w', label: '52w 低', color: theme.up, toggle: (v) => lineL52w.set(v) },
@@ -340,7 +342,7 @@ export function useSepaCharts(
     ];
     if (zoneLayers.length) {
       nextGroups.push({
-        title: '支撑区',
+        title: t('supportZones'),
         items: zoneLayers.map((zl, i) => ({
           key: `zone${i}`,
           label: zl.info.label,
@@ -356,11 +358,11 @@ export function useSepaCharts(
       const zones = epZones;
       const lines = epLines;
       nextGroups.push({
-        title: '入场计划',
+        title: t('entryPlan'),
         items: [
           {
             key: 'ep-zone',
-            label: '盈亏区域',
+            label: t('profitLossZone'),
             color: theme.up,
             toggle: (v) => {
               zones.green.applyOptions({ visible: v });
@@ -377,23 +379,23 @@ export function useSepaCharts(
       });
     }
     nextGroups.push({
-      title: '其他',
+      title: t('other'),
       items: [
         {
           key: 'vol',
-          label: '成交量',
+          label: t('volume'),
           color: theme.up,
           toggle: (v) => volSeries.applyOptions({ visible: v }),
         },
         {
           key: 'markers',
-          label: '事件标记',
+          label: t('eventMarkers'),
           color: theme.down,
           toggle: (v) => candleMarkers.setMarkers(v ? toMarkers(chart.markers) : []),
         },
         {
           key: 'vp',
-          label: '成交分布 (VP)',
+          label: t('volumeProfile'),
           color: theme.accent,
           toggle: (v) => {
             vpEnabled = v;
@@ -416,7 +418,7 @@ export function useSepaCharts(
       vrChart.remove();
       setGroups([]);
     };
-  }, [chart, mainRef, rsRef, vrRef, vpCanvasRef]);
+  }, [chart, mainRef, rsRef, vrRef, vpCanvasRef, t]);
 
   return groups;
 }
