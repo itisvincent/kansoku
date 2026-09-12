@@ -3,6 +3,7 @@ import { clsx } from 'clsx';
 import * as stylex from '@stylexjs/stylex';
 import { isDesktopRealtime } from '@web/lib/portTransport';
 import { colors, fontSizes, sizes } from '../../theme/tokens.stylex';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   fullpage: {
@@ -161,21 +162,18 @@ const styles = stylex.create({
 });
 
 function Bone({ style }: { style: stylex.StyleXStyles }) {
-  return (
-    <div
-      className={clsx(stylex.props(styles.bone, style).className, 'app-skeleton-bone')}
-    />
-  );
+  return <div className={clsx(stylex.props(styles.bone, style).className, 'app-skeleton-bone')} />;
 }
 
 export function CockpitSkeleton() {
+  const { t } = useLocale();
   const desktopShell = isDesktopRealtime();
 
   return (
     <div
       className={`fullpage ${stylex.props(styles.fullpage, desktopShell && styles.fullpageDesktop).className}`}
       aria-busy="true"
-      aria-label="加载中"
+      aria-label={t('loading')}
     >
       <div
         className={`detail-topbar detail-topbar--split ${stylex.props(styles.detailTopbar, styles.detailTopbarSplit).className}`}
@@ -184,7 +182,8 @@ export function CockpitSkeleton() {
           className={`topbar-chart ${stylex.props(styles.topbarColumn, styles.topbarChart).className}`}
         >
           <a {...stylex.props(styles.backLink)} href="/">
-            <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} /> 列表
+            <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} />{' '}
+            {t('list')}
           </a>
           <Bone style={styles.meta} />
           <span {...stylex.props(styles.controls)} aria-hidden="true">

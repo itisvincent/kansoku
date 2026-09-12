@@ -5,6 +5,7 @@ import { SectionTitle } from '@web/ui';
 import { colors, radii } from '../../theme/tokens.stylex';
 import { AnalystRunFeed } from './AnalystRunFeed';
 import { useAnalystRunStatus } from './analystRunsStore';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   root: {
@@ -46,6 +47,7 @@ const styles = stylex.create({
 });
 
 export function ReanalyzeStrip({ sym }: { sym: string }) {
+  const { t } = useLocale();
   const status = useAnalystRunStatus(sym);
   const [expanded, setExpanded] = useState(false);
 
@@ -61,7 +63,7 @@ export function ReanalyzeStrip({ sym }: { sym: string }) {
         className={`reanalyze-strip-toggle ${stylex.props(styles.toggle).className}`}
         onClick={() => setExpanded((v) => !v)}
       >
-        <span {...stylex.props(styles.label)}>AI 重新分析中…</span>
+        <span {...stylex.props(styles.label)}>{t('reanalyzing')}</span>
         <span {...stylex.props(styles.activity)}>{status.activity}</span>
         {expanded ? (
           <ChevronDown className={stylex.props(styles.icon).className} size={13} />

@@ -4,6 +4,7 @@ import { useFeature } from '@web/features/edition/useFeature';
 import { useSymbolFollow } from '@web/features/quotes/useSymbolFollow';
 import { colors, fontSizes } from '../../theme/tokens.stylex';
 import { useFollowTick } from './useFollowTick';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   root: {
@@ -15,6 +16,7 @@ const styles = stylex.create({
 });
 
 export function AliveLine({ symbol, revision }: { symbol: string; revision?: string }) {
+  const { t } = useLocale();
   const { active } = useFeature('symbol-follow');
   const { following } = useSymbolFollow({ symbol, revision });
   const enabled = active && following === true;
@@ -24,7 +26,7 @@ export function AliveLine({ symbol, revision }: { symbol: string; revision?: str
 
   return (
     <div className={`ai-alive-line ${stylex.props(styles.root).className}`}>
-      跟进中 · 上次检测 {formatClockInZone(tick.at, localTimeZone())}
+      {t('followingSince')} · {t('lastChecked')} {formatClockInZone(tick.at, localTimeZone())}
     </div>
   );
 }
