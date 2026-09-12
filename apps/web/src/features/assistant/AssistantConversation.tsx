@@ -28,6 +28,7 @@ import { MessageQueueList } from './MessageQueueList';
 import { decideSubmitAction } from './messageQueue.js';
 import { useMessageQueue } from './useMessageQueue.js';
 import { colors, fontSizes, radii, shadows, sizes } from '../../theme/tokens.stylex';
+import { useLocale } from '@web/lib/i18n';
 
 const HEAD_FADE_SCROLL_PX = 32;
 const COMPOSER_FIELD_MIN_HEIGHT = '60px';
@@ -408,6 +409,7 @@ export function AssistantConversation({
   focusRequest?: number;
   headLeading?: ReactNode;
 }) {
+  const { t } = useLocale();
   const {
     session,
     rows,
@@ -471,7 +473,7 @@ export function AssistantConversation({
 
   const doSend = async (value: string) => {
     const trimmed = value.trim();
-    if (!trimmed) return { ok: false, error: '内容不能为空' };
+    if (!trimmed) return { ok: false, error: t('contentRequired') };
     const linkedMention = linkedCanvas ? `@${linkedCanvas.path}` : null;
     const message =
       linkedMention && !trimmed.includes(linkedMention) ? `${linkedMention}\n${trimmed}` : trimmed;
@@ -664,7 +666,7 @@ export function AssistantConversation({
           <div {...stylex.props(styles.headBackdrop)} aria-hidden="true" />
           {headLeading ? <div {...stylex.props(styles.headLeading)}>{headLeading}</div> : null}
           <span className={`assistant-conversation-title ${stylex.props(styles.title).className}`}>
-            {sessionTitle ?? session?.title ?? '新的会话'}
+            {sessionTitle ?? session?.title ?? t('newSession')}
           </span>
         </div>
         <ConversationTranscript
@@ -680,7 +682,7 @@ export function AssistantConversation({
           liveTools={liveTools}
           liveBeats={liveBeats}
           suggestions={[]}
-          emptyText="输入问题、判断或交易计划，开始一段研究对话"
+          emptyText={t('researchChatEmpty')}
           onPickSuggestion={() => {}}
           modelLabels={modelLabels}
           onOpenCanvas={(slug) => {
@@ -739,7 +741,7 @@ export function AssistantConversation({
                   disabled={modelSaving || editing}
                   multiline
                   textareaRef={textareaRef}
-                  placeholder="写下问题、判断或行动要求，@ 引用研究资料…"
+                  placeholder={t('researchChatPlaceholder')}
                   onSubmit={submit}
                   onAbort={() => void abort()}
                   hint={hint}
@@ -825,8 +827,8 @@ export function AssistantConversation({
                         padding: 0,
                       }}
                       disabled={modelSaving || modelChoices.length === 0}
-                      ariaLabel="选择对话模型"
-                      placeholder={modelChoices.length === 0 ? '未配置模型' : '选择模型'}
+                      ariaLabel={t('chooseChatModel')}
+                      placeholder={modelChoices.length === 0 ? t('noModelConfigured') : t('chooseModel')}
                       onOpenChange={setModelPickerOpen}
                     />
                   ) : null}
@@ -853,7 +855,7 @@ export function AssistantConversation({
                       onMouseDown={(event) => event.preventDefault()}
                       onClick={openMentionPicker}
                     >
-                      <AtSign size={13} aria-hidden="true" /> 引用资料
+                      <AtSign size={13} aria-hidden="true" /> {t('referenceMaterials')}
                     </button>
                   </div>
                   {modelError ? (

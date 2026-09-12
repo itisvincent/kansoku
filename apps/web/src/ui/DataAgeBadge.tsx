@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Badge } from './Badge';
+import { translate, useLocale, type Locale } from '@web/lib/i18n';
 
 const styles = stylex.create({
   root: {
@@ -11,15 +12,15 @@ const styles = stylex.create({
   },
 });
 
-export function formatDataAge(ageMs: number): string {
+export function formatDataAge(ageMs: number, locale: Locale = 'zh-CN'): string {
   const seconds = Math.max(0, Math.floor(ageMs / 1000));
-  if (seconds < 60) return '数据为刚刚';
+  if (seconds < 60) return translate(locale, 'dataAgeJustNow');
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `数据为 ${minutes} 分钟前`;
+  if (minutes < 60) return translate(locale, 'dataAgeMinutes', { count: minutes });
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `数据为 ${hours} 小时前`;
+  if (hours < 24) return translate(locale, 'dataAgeHours', { count: hours });
   const days = Math.floor(hours / 24);
-  return `数据为 ${days} 天前`;
+  return translate(locale, 'dataAgeDays', { count: days });
 }
 
 export function DataAgeBadge({
@@ -29,6 +30,7 @@ export function DataAgeBadge({
   at: number | null | undefined;
   className?: string;
 }) {
+  const { locale } = useLocale();
   const [now, setNow] = useState(() => Date.now());
   const [inSectionTitle, setInSectionTitle] = useState(false);
 
@@ -49,7 +51,7 @@ export function DataAgeBadge({
       }}
       className={`${stylex.props(inSectionTitle ? styles.sectionTitle : styles.root).className}${className ? ` ${className}` : ''}`}
     >
-      {formatDataAge(now - at)}
+      {formatDataAge(now - at, locale)}
     </Badge>
   );
 }

@@ -3,6 +3,7 @@ import { clsx } from 'clsx';
 import * as stylex from '@stylexjs/stylex';
 import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
 import { openLicenseModal } from '../edition/licenseModalStore';
+import { useLocale } from '@web/lib/i18n';
 
 const styles = stylex.create({
   root: {
@@ -38,24 +39,25 @@ const styles = stylex.create({
 });
 
 export function LockedAiNotice({
-  message = 'AI 功能需要有效授权才能使用',
+  message,
   className,
 }: {
   message?: string;
   className?: string;
 }) {
+  const { t } = useLocale();
   const noticeClassName = clsx('locked-ai-notice', stylex.props(styles.root).className, className);
 
   return (
     <div className={noticeClassName}>
       <Lock className={`icon ${stylex.props(styles.icon).className}`} size={14} />
-      <span>{message}</span>
+      <span>{message ?? t('aiLicenseRequired')}</span>
       <button
         type="button"
         className={`locked-ai-notice-cta ${stylex.props(styles.cta).className}`}
         onClick={() => openLicenseModal('guard')}
       >
-        订阅解锁
+        {t('subscribeToUnlock')}
       </button>
     </div>
   );

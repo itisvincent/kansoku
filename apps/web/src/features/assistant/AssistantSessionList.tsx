@@ -6,6 +6,7 @@ import { Button, Empty, Tooltip, openModal, type ContextMenuItem } from '@web/ui
 import { colors, fontSizes, radii, sizes } from '../../theme/tokens.stylex';
 import { SessionRow } from './SessionRow';
 import { groupSessionsByRecency } from './sessionGroups';
+import { useLocale, type MessageKey } from '@web/lib/i18n';
 
 const styles = stylex.create({
   sidebar: {
@@ -166,23 +167,23 @@ export function filterSessions(
 export function buildSessionMenuItems(handlers: {
   onRename: () => void;
   onDelete: () => void;
-}): ContextMenuItem[] {
+}, labels: { rename: string; delete: string } = { rename: '重命名', delete: '删除' }): ContextMenuItem[] {
   return [
-    { key: 'rename', label: '重命名', onClick: handlers.onRename },
+    { key: 'rename', label: labels.rename, onClick: handlers.onRename },
     { type: 'divider' },
-    { key: 'delete', label: '删除', danger: true, onClick: handlers.onDelete },
+    { key: 'delete', label: labels.delete, danger: true, onClick: handlers.onDelete },
   ];
 }
 
-function confirmDelete(session: AssistantSessionMeta, onDelete: (id: string) => void): void {
+function confirmDelete(session: AssistantSessionMeta, onDelete: (id: string) => void, t: (key: MessageKey, params?: Readonly<Record<string, string | number>>) => string): void {
   openModal({
-    title: '删除会话',
+    title: t('deleteSession'),
     size: 'sm',
     body: (close) => (
       <div>
-        <p {...stylex.props(styles.confirmText)}>删除「{session.title}」后无法恢复，确定继续吗？</p>
+        <p {...stylex.props(styles.confirmText)}>{t('deleteSessionConfirm', { title: session.title })}</p>
         <div {...stylex.props(styles.confirmActions)}>
-          <Button onClick={close}>取消</Button>
+          <Button onClick={close}>{t('cancel')}</Button>
           <Button
             accent
             onClick={() => {
@@ -190,7 +191,7 @@ function confirmDelete(session: AssistantSessionMeta, onDelete: (id: string) => 
               close();
             }}
           >
-            确认删除
+            {t('confirmDelete')}
           </Button>
         </div>
       </div>
@@ -199,7 +200,8 @@ function confirmDelete(session: AssistantSessionMeta, onDelete: (id: string) => 
 }
 
 export function SidebarToggle({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
-  const label = collapsed ? '展开侧栏' : '收起侧栏';
+  const { t } = useLocale();
+  const label = collapsed ? t('expandSidebar') : t('collapseSidebar');
   return (
     <Tooltip content={`${label} ⌘B`}>
       <button
@@ -229,6 +231,7 @@ export function AssistantSessionList({
   onDelete,
   onCollapse,
 }: AssistantSessionListProps) {
+  const { t } = useLocale();
   const [query, setQuery] = useState('');
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const searchRef = useRef<HTMLInputElement>(null);
@@ -255,7 +258,7 @@ export function AssistantSessionList({
   let body;
   if (loading && sessions.length === 0) {
     body = (
-      <div className={stylex.props(styles.skeleton).className} aria-label="正在读取会话" role="status">
+      <div className={stylex.props(styles.skeleton).className} aria-label={t('loadingSessions')} role="status">
         {['72%', '54%', '64%'].map((width) => (
           <div key={width} className={stylex.props(styles.skeletonRow).className} style={{ width }} />
         ))}
@@ -264,13 +267,13 @@ export function AssistantSessionList({
   } else if (error) {
     body = <div className={stylex.props(styles.state).className}>{error}</div>;
   } else if (sessions.length === 0) {
-    body = <Empty className={stylex.props(styles.empty).className}>还没有会话</Empty>;
+    body = <Empty className={stylex.props(styles.empty).className}>{t('noSessions')}</Empty>;
   } else if (visible.length === 0) {
-    body = <Empty className={stylex.props(styles.empty).className}>没有匹配的会话</Empty>;
+    body = <Empty className={stylex.props(styles.empty).className}>{t('noMatchingSessions')}</Empty>;
   } else {
     body = groups.map((group) => (
       <div key={group.key} className={stylex.props(styles.group).className}>
-        <div className={stylex.props(styles.groupLabel).className}>{group.label}</div>
+        <div className={stylex.props(styles.groupLabel).className}>{t(({ today: 'today', yesterday: 'yesterday', week: 'thisWeek', earlier: 'earlier' } as const)[group.key])}</div>
         {group.sessions.map((session) => (
           <SessionRow
             key={session.id}
@@ -279,8 +282,8 @@ export function AssistantSessionList({
             renaming={session.id === renamingId}
             menuItems={buildSessionMenuItems({
               onRename: () => setRenamingId(session.id),
-              onDelete: () => confirmDelete(session, onDelete),
-            })}
+              onDelete: () => confirmDelete(session, onDelete, t),
+            }, { rename: t('rename'), delete: t('delete') })}
             onSelect={() => onSelect(session.id)}
             onStartRename={() => setRenamingId(session.id)}
             onCommitRename={(title) => {
@@ -295,7 +298,7 @@ export function AssistantSessionList({
   }
 
   return (
-    <aside className={`assistant-sidebar ${stylex.props(styles.sidebar).className}`} aria-label="会话列表">
+    <aside className={`assistant-sidebar ${stylex.props(styles.sidebar).className}`} aria-label={t('sessionList')}>
       <div className={`assistant-sidebar-head ${stylex.props(styles.head).className}`}>
         {onCollapse ? <SidebarToggle collapsed={false} onToggle={onCollapse} /> : null}
         <label className={`assistant-session-search ${stylex.props(styles.search).className}`}>
@@ -303,10 +306,10 @@ export function AssistantSessionList({
           <input
             ref={searchRef}
             type="search"
-            aria-label="搜索会话"
+            aria-label={t('searchSessions')}
             className={stylex.props(styles.searchInput).className}
             value={query}
-            placeholder="搜索会话"
+            placeholder={t('searchSessions')}
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
               if (event.key === 'Escape') {
@@ -316,12 +319,12 @@ export function AssistantSessionList({
             }}
           />
         </label>
-        <Tooltip content="新建会话 ⇧⌘N">
+        <Tooltip content={`${t('newSession')} ⇧⌘N`}>
           <button
             type="button"
             className={`assistant-new-session ${stylex.props(styles.iconButton).className}`}
             onClick={onCreate}
-            aria-label="新建会话"
+            aria-label={t('newSession')}
           >
             <Plus size={16} />
           </button>

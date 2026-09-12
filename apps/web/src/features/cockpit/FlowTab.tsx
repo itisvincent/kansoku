@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import {
   Bar,
   BarChart,
@@ -68,6 +69,7 @@ function BucketRow({ label, bucket }: { label: string; bucket: CapitalBucket }) 
 }
 
 function FlowMiniChart({ flow }: { flow: CockpitFlow }) {
+  const { locale } = useLocale();
   const data = flow.curve
     .map((p) => ({ t: p.time, v: p.value }))
     .filter((d) => Number.isFinite(d.t) && Number.isFinite(d.v));
@@ -95,7 +97,7 @@ function FlowMiniChart({ flow }: { flow: CockpitFlow }) {
             contentStyle={tooltipContentStyle}
             labelStyle={tooltipLabelStyle}
             itemStyle={tooltipItemStyle}
-            labelFormatter={(t) => tooltipTime(Number(t))}
+            labelFormatter={(t) => tooltipTime(Number(t), locale)}
             formatter={(value) => [Number(value).toLocaleString(), '净流入']}
           />
           <ReferenceLine y={0} stroke={colors.borderStrong} />

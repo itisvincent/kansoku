@@ -24,6 +24,7 @@ import type { MentionCandidate } from './atMention.js';
 import { resolveActiveSessionId } from './assistantPageState.js';
 import { useAssistantSessions } from './useAssistantSessions';
 import { colors, radii } from '../../theme/tokens.stylex';
+import { useLocale } from '@web/lib/i18n';
 
 const styles = stylex.create({
   page: {
@@ -161,7 +162,8 @@ function assistantRoute(id: string | null, canvasPath?: string | null): string {
 }
 
 export function AssistantChatPage() {
-  useTitle('AI 对话');
+  const { t } = useLocale();
+  useTitle(t('aiChat'));
   const { sessions, loading, error, refresh, create, rename, remove } = useAssistantSessions();
   const requestedId = useQueryParam('session');
   const requestedCanvasPath = useQueryParam('canvas');
@@ -328,7 +330,7 @@ export function AssistantChatPage() {
             {...stylex.props(styles.resizeHandle, resizing && styles.resizeHandleActive)}
             role="separator"
             aria-orientation="vertical"
-            aria-label="调整侧边栏宽度"
+            aria-label={t('resizeSidebar')}
             onPointerDown={startResize}
             onDoubleClick={resetSidebarWidth}
           />
@@ -354,7 +356,7 @@ export function AssistantChatPage() {
           />
         ) : loading ? (
           <div className="assistant-sidebar-state">
-            <Spinner /> 正在读取会话…
+            <><Spinner /> {t('loadingSessions')}</>
           </div>
         ) : (
           <Empty className={stylex.props(styles.empty).className}>
@@ -363,9 +365,9 @@ export function AssistantChatPage() {
                 <SidebarToggle collapsed onToggle={toggleSidebar} />
               </div>
             ) : null}
-            <p>选一个会话，或者新建一个开始对话</p>
+            <p>{t('chooseOrCreateSession')}</p>
             <Button accent style={{ borderRadius: radii.full }} onClick={onCreate}>
-              新建会话
+              {t('newSession')}
             </Button>
           </Empty>
         )}

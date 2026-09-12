@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { normalizeSymbol } from '../../lib/symbol';
 import { Kbd } from '../../ui';
 import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
+import { useLocale } from '@web/lib/i18n';
 
 const styles = stylex.create({
   trigger: {
@@ -189,6 +190,7 @@ export function NewTabLauncher({
   onOpenSymbol,
   onOpenTrainer,
 }: NewTabLauncherProps) {
+  const { t } = useLocale();
   const [symbol, setSymbol] = useState('');
   const [triggerHovered, setTriggerHovered] = useState(false);
 
@@ -218,8 +220,8 @@ export function NewTabLauncher({
     >
       <Popover.Trigger
         {...stylex.props(styles.trigger, open && styles.triggerActive)}
-        aria-label="新建标签"
-        title="新建标签"
+        aria-label={t('newTab')}
+        title={t('newTab')}
         onMouseEnter={() => setTriggerHovered(true)}
         onMouseLeave={() => setTriggerHovered(false)}
       >
@@ -235,14 +237,14 @@ export function NewTabLauncher({
           sideOffset={4}
           collisionPadding={8}
         >
-          <Popover.Popup {...stylex.props(styles.popup)} aria-label="新建标签">
+          <Popover.Popup {...stylex.props(styles.popup)} aria-label={t('newTab')}>
             <div {...stylex.props(styles.search)}>
               <Search size={13} aria-hidden />
               <input
                 {...stylex.props(styles.searchInput)}
                 autoFocus
-                aria-label="输入股票代码"
-                placeholder="输入股票代码"
+                aria-label={t('enterSymbol')}
+                placeholder={t('enterSymbol')}
                 value={symbol}
                 onChange={(event) => setSymbol(event.target.value)}
                 onKeyDown={(event) => {
@@ -257,7 +259,7 @@ export function NewTabLauncher({
                 onClick={() => run(onOpenHome)}
               >
                 <LayoutDashboard {...stylex.props(styles.menuIcon)} size={14} aria-hidden />
-                <span>盘面</span>
+                <span>{t('dashboard')}</span>
               </button>
               <button
                 {...stylex.props(styles.menuButton)}
@@ -265,7 +267,7 @@ export function NewTabLauncher({
                 onClick={() => run(onOpenChat)}
               >
                 <MessageCircle {...stylex.props(styles.menuIcon)} size={14} aria-hidden />
-                <span>AI 对话</span>
+                <span>{t('aiChat')}</span>
                 <Kbd className={stylex.props(styles.menuKbd).className} keys={['mod', 'L']} />
               </button>
               <button
@@ -274,7 +276,7 @@ export function NewTabLauncher({
                 onClick={() => run(onOpenResearch)}
               >
                 <Library {...stylex.props(styles.menuIcon)} size={14} aria-hidden />
-                <span>研究库</span>
+                <span>{t('researchLibrary')}</span>
                 <Kbd
                   className={stylex.props(styles.menuKbd).className}
                   keys={['shift', 'mod', 'L']}
@@ -289,7 +291,7 @@ export function NewTabLauncher({
                     onClick={() => run(onOpenTrainer)}
                   >
                     <GraduationCap {...stylex.props(styles.menuIcon)} size={14} aria-hidden />
-                    <span>盲盘训练</span>
+                    <span>{t('blindTraining')}</span>
                     <Kbd
                       className={stylex.props(styles.menuKbd).className}
                       keys={['shift', 'mod', 'B']}

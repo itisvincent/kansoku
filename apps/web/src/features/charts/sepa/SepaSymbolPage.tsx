@@ -9,6 +9,7 @@ import { client } from '@web/lib/client';
 import { Empty, ErrorBox } from '@web/ui';
 import { useIntradayDoc } from '../intraday/useIntradayDoc';
 import { colors } from '../../../theme/tokens.stylex';
+import { useLocale } from '@web/lib/i18n';
 import { SepaCockpit, type SepaDocView } from './SepaCockpit';
 
 const styles = stylex.create({
@@ -39,6 +40,7 @@ function Page({ children }: { children: ReactNode }) {
 }
 
 function PinnedSepaView({ sym, analysisId }: { sym: string; analysisId: string }) {
+  const { t } = useLocale();
   const { doc, error, reload } = useIntradayDoc(analysisId);
 
   if (error) {
@@ -53,12 +55,12 @@ function PinnedSepaView({ sym, analysisId }: { sym: string; analysisId: string }
     return (
       <Page>
         <ErrorBox>
-          <p>这份分析不是 SEPA 仪表盘。</p>
+          <p>{t('notSepaDashboard')}</p>
           <a
             className={`back-link ${stylex.props(styles.backLink).className}`}
             href={symbolAnalysisPath(sym, analysisId)}
           >
-            去驾驶舱查看
+            {t('viewCockpit')}
           </a>
         </ErrorBox>
       </Page>
@@ -69,6 +71,7 @@ function PinnedSepaView({ sym, analysisId }: { sym: string; analysisId: string }
 }
 
 function LatestSepaView({ sym }: { sym: string }) {
+  const { t } = useLocale();
   const { data: charts, error: listError } = useQuery<ChartMeta[]>(
     `charts.list:sepa:${sym}`,
     () => client.charts.list({ type: 'sepa', symbol: sym }),
@@ -89,12 +92,12 @@ function LatestSepaView({ sym }: { sym: string }) {
     return (
       <Page>
         <Empty>
-          <p>这只股票还没有 SEPA 仪表盘</p>
+          <p>{t('noSepaDashboard')}</p>
           <a
             className={`back-link ${stylex.props(styles.backLink).className}`}
             href={symbolAnalysisPath(sym, null)}
           >
-            <ArrowLeft className={stylex.props(styles.icon).className} size={13} /> 返回驾驶舱
+            <ArrowLeft className={stylex.props(styles.icon).className} size={13} /> {t('backToCockpit')}
           </a>
         </Empty>
       </Page>

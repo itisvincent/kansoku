@@ -5,6 +5,7 @@ import type { AssistantSessionMeta } from '@kansoku/core/contract/index';
 import { Dot, TimeAgo, showContextMenu, type ContextMenuItem } from '@web/ui';
 import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
 import { sessionDisplayTitle } from './sessionGroups';
+import { useLocale } from '@web/lib/i18n';
 
 const styles = stylex.create({
   row: {
@@ -134,6 +135,7 @@ function RenameInput({
   onCommit: (title: string) => void;
   onCancel: () => void;
 }) {
+  const { t } = useLocale();
   const [draft, setDraft] = useState(initial);
   const doneRef = useRef(false);
 
@@ -148,7 +150,7 @@ function RenameInput({
   return (
     <input
       autoFocus
-      aria-label="会话标题"
+      aria-label={t('sessionTitle')}
       className={stylex.props(styles.renameInput).className}
       value={draft}
       maxLength={40}
@@ -190,6 +192,7 @@ export function SessionRow({
   onCommitRename: (title: string) => void;
   onCancelRename: () => void;
 }) {
+  const { t } = useLocale();
   const displayTitle = sessionDisplayTitle(session);
 
   const openMenu = (event: MouseEvent) => {
@@ -242,7 +245,7 @@ export function SessionRow({
           className={`assistant-session-trail-idle ${stylex.props(styles.trailIdle).className}`}
           aria-hidden={!session.busy}
         >
-          {session.busy ? <Dot tone="accent" pulse aria-label="生成中" /> : null}
+          {session.busy ? <Dot tone="accent" pulse aria-label={t('generating')} /> : null}
         </span>
         <span className={`assistant-session-trail-hover ${stylex.props(styles.trailHover).className}`}>
           <span className={stylex.props(styles.time).className}>
@@ -251,7 +254,7 @@ export function SessionRow({
           <button
             type="button"
             className={stylex.props(styles.more).className}
-            aria-label="更多操作"
+            aria-label={t('moreActions')}
             onClick={openMenu}
           >
             <Ellipsis size={14} />

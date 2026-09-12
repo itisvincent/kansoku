@@ -27,8 +27,7 @@ import { tabKind, type TabState } from './tabsStore';
 import type { TabsController } from './tabsController';
 import { NewTabLauncher } from './NewTabLauncher';
 import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
-
-const PINNED_TAB_LABEL = '盘面';
+import { useLocale, type MessageKey } from '@web/lib/i18n';
 
 const statusPulse = stylex.keyframes({
   '50%': { opacity: 0.45, transform: 'scale(0.8)' },
@@ -312,26 +311,28 @@ function TabIcon({ route, active }: { route: string; active: boolean }) {
 
 const HUB_STATUS_META: Record<
   HubStatus,
-  { label: string; tone?: 'accent' | 'ok'; pulse?: boolean }
+  { label: MessageKey; tone?: 'accent' | 'ok'; pulse?: boolean }
 > = {
-  connected: { label: '行情已连接', tone: 'ok' },
-  connecting: { label: '行情连接中…', tone: 'accent' },
-  reconnecting: { label: '行情已断开，重连中…', tone: 'accent', pulse: true },
+  connected: { label: 'quotesConnected', tone: 'ok' },
+  connecting: { label: 'quotesConnecting', tone: 'accent' },
+  reconnecting: { label: 'quotesReconnecting', tone: 'accent', pulse: true },
 };
 
 function HubStatusDot() {
+  const { t } = useLocale();
   const status = useHubStatus();
   const meta = HUB_STATUS_META[status];
   return (
-    <Tooltip content={meta.label} placement="bottom">
+    <Tooltip content={t(meta.label)} placement="bottom">
       <span className={classNames('desktop-hub-status', styles.hubStatus)}>
-        <Dot tone={meta.tone} pulse={meta.pulse} aria-label={meta.label} role="status" />
+        <Dot tone={meta.tone} pulse={meta.pulse} aria-label={t(meta.label)} role="status" />
       </span>
     </Tooltip>
   );
 }
 
 function PopoutTitlebarButton({ symbol }: { symbol: string }) {
+  const { t } = useLocale();
   const bridge = getPopoutBridge();
   if (!bridge) return null;
 
@@ -339,8 +340,8 @@ function PopoutTitlebarButton({ symbol }: { symbol: string }) {
     <button
       className={classNames('desktop-titlebar-settings', styles.settings)}
       type="button"
-      aria-label="弹出盯盘小窗"
-      title="弹出盯盘小窗"
+      aria-label={t('popoutChart')}
+      title={t('popoutChart')}
       onClick={() => {
         void bridge.openPopout(symbol);
       }}
@@ -367,6 +368,7 @@ function Tab({
   onClose: () => void;
   onContextMenu: () => void;
 }) {
+  const { t } = useLocale();
   const button = (
     <button
       type="button"
@@ -376,7 +378,7 @@ function Tab({
         active ? styles.tabActive : undefined,
         pinned ? styles.tabPinned : undefined,
       )}
-      aria-label={pinned ? PINNED_TAB_LABEL : undefined}
+      aria-label={pinned ? t('dashboard') : undefined}
       onClick={onActivate}
       onContextMenu={(event) => {
         event.preventDefault();
@@ -394,7 +396,7 @@ function Tab({
               active ? styles.tabCloseActive : undefined,
             )}
             role="button"
-            aria-label="关闭标签页"
+            aria-label={t('closeTab')}
             onClick={(event) => {
               event.stopPropagation();
               onClose();
@@ -410,7 +412,7 @@ function Tab({
   if (!pinned) return button;
   return (
     <Tooltip
-      content={PINNED_TAB_LABEL}
+      content={t('dashboard')}
       placement="bottom"
       className={classNames('desktop-tab-anchor', styles.tabAnchor)}
     >
@@ -442,6 +444,7 @@ function useUpdaterStatus(): UpdaterUiStatus | null {
 }
 
 export function DesktopTitlebar({ controller }: { controller: TabsController }) {
+  const { t } = useLocale();
   const {
     snapshot,
     activateTab,
@@ -462,12 +465,12 @@ export function DesktopTitlebar({ controller }: { controller: TabsController }) 
   const updateBusy = update?.phase === 'downloading' || update?.phase === 'preparing';
   const updateLabel =
     update?.phase === 'downloading'
-      ? `正在下载更新${update.percent === undefined ? '' : ` ${Math.floor(update.percent)}%`}`
+      ? `${t('downloadingUpdate')}${update.percent === undefined ? '' : ` ${Math.floor(update.percent)}%`}`
       : update?.phase === 'preparing'
-        ? `正在准备更新${update.percent === undefined ? '' : ` ${Math.floor(update.percent)}%`}`
+        ? `${t('preparingUpdate')}${update.percent === undefined ? '' : ` ${Math.floor(update.percent)}%`}`
         : update?.phase === 'ready'
-          ? '重启并安装更新'
-          : '有更新可用';
+          ? t('restartToUpdate')
+          : t('updateAvailable');
   const activeSymbol = symbolFromRoute(controller.activeTab.route);
   const { pro, licensed } = useCapabilities();
   const trainerBridge = getOpenTrainerBridge();
@@ -485,27 +488,27 @@ export function DesktopTitlebar({ controller }: { controller: TabsController }) 
     const items: ContextMenuItem[] = [
       {
         key: 'close',
-        label: '关闭标签页',
+        label: t('closeTab'),
         accelerator: 'CmdOrCtrl+W',
         disabled: pinned,
         onClick: () => closeTabById(tabId),
       },
       {
         key: 'close-others',
-        label: '关闭其他标签页',
+        label: t('closeOtherTabs'),
         disabled: !multi,
         onClick: () => closeOtherTabs(tabId),
       },
       {
         key: 'close-right',
-        label: '关闭右侧标签页',
+        label: t('closeTabsToRight'),
         disabled: isLast,
         onClick: () => closeTabsToRight(tabId),
       },
       { type: 'divider' },
       {
         key: 'new',
-        label: '新建标签页',
+        label: t('newTab'),
         accelerator: 'CmdOrCtrl+T',
         onClick: () => setNewTabLauncherOpen(true),
       },
@@ -513,7 +516,7 @@ export function DesktopTitlebar({ controller }: { controller: TabsController }) 
         ? [
             {
               key: 'open-in-window',
-              label: '在新窗口中打开',
+              label: t('openInNewWindow'),
               onClick: () => {
                 void openWindowBridge.openWindow(tabId);
               },
@@ -525,7 +528,7 @@ export function DesktopTitlebar({ controller }: { controller: TabsController }) 
             { type: 'divider' as const },
             {
               key: 'popout',
-              label: '弹出盯盘小窗',
+              label: t('popoutChart'),
               onClick: () => {
                 void popoutBridge.openPopout(symbol);
               },
@@ -591,8 +594,8 @@ export function DesktopTitlebar({ controller }: { controller: TabsController }) 
             tabKind(controller.activeTab.route) === 'settings' ? styles.settingsActive : undefined,
           )}
           type="button"
-          aria-label="设置"
-          title="设置（⌘,）"
+          aria-label={t('settings')}
+          title={`${t('settings')} (Ctrl/Cmd+,)`}
           onClick={focusOrOpenSettings}
         >
           <span

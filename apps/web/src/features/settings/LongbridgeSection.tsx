@@ -9,14 +9,13 @@ import { useLocale } from '../../lib/i18n';
 
 const INSTALL_URL = 'https://open.longbridge.com/docs/cli/install';
 
-const REGION_OPTIONS = [
-  { value: 'auto', label: '自动' },
-  { value: 'com', label: '国际站 .com' },
-  { value: 'cn', label: '境内站 .cn' },
-] satisfies readonly SegmentedControlOption<LongbridgeRegionPreference>[];
-
 export function LongbridgeSection() {
   const { t } = useLocale();
+  const regionOptions = [
+    { value: 'auto', label: t('automatic') },
+    { value: 'com', label: t('internationalSite') },
+    { value: 'cn', label: t('mainlandSite') },
+  ] satisfies readonly SegmentedControlOption<LongbridgeRegionPreference>[];
   const bridge = getDesktopCredentialsBridge();
   const { data, reload } = useQuery<CredentialsGetResult>(
     bridge ? 'credentials.status' : null,
@@ -54,10 +53,13 @@ export function LongbridgeSection() {
   };
 
   return (
-    <SettingsGroup name="Longbridge CLI" badge={<Badge tone={ready ? 'up' : 'down'}>{label}</Badge>}>
+    <SettingsGroup
+      name="Longbridge CLI"
+      badge={<Badge tone={ready ? 'up' : 'down'}>{label}</Badge>}
+    >
       <SettingsRow
         label={t('executable')}
-        mono={data?.cliPath ?? '未找到'}
+        mono={data?.cliPath ?? t('notFound')}
         error={data?.lastError ?? undefined}
       >
         <Button onClick={reload}>{t('redetect')}</Button>
@@ -69,10 +71,10 @@ export function LongbridgeSection() {
           error={regionError ?? undefined}
         >
           <SegmentedControl
-            ariaLabel="长桥线路"
+            ariaLabel={t('longbridgeRoute')}
             disabled={regionBusy}
             value={region.data.region}
-            options={REGION_OPTIONS}
+            options={regionOptions}
             onChange={(next) => void handleRegionChange(next)}
           />
         </SettingsRow>

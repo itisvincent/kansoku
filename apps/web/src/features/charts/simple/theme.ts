@@ -5,6 +5,7 @@ import {
   localMarketTimeLabel,
 } from '@kansoku/shared/time';
 import { theme } from '@web/lib/theme';
+import { translate, type Locale } from '@web/lib/i18n';
 
 export const tooltipContentStyle: CSSProperties = {
   backgroundColor: theme.bgSurface,
@@ -26,8 +27,8 @@ export function hhmm(t: number): string {
   return formatMarketClock(new Date(t));
 }
 
-export function tooltipTime(t: number): string {
+export function tooltipTime(t: number, locale: Locale): string {
   const date = new Date(t);
   const local = localMarketTimeLabel(date);
-  return local ? `${formatMarketDateTime(date)}\n本地时间 ${local}` : formatMarketDateTime(date);
+  return local ? `${formatMarketDateTime(date)}\n${translate(locale, 'localTimeLabel')} ${local}` : formatMarketDateTime(date);
 }

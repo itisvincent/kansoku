@@ -3,11 +3,12 @@ import { BadgeCheck, Bot, Monitor, Plug, SlidersHorizontal, type LucideIcon } fr
 import { AiSettingsPane } from './AiSettingsPane';
 import { AdvancedPane, ConnectionsPane, DisplayPane, LicensePane } from './panes';
 import type { SettingsSectionId } from './types';
+import { translate, type MessageKey } from '../../lib/i18n';
 
 export interface SettingsSectionDef {
   id: SettingsSectionId;
-  label: string;
-  description: string;
+  label: MessageKey;
+  description: MessageKey;
   Icon: LucideIcon;
   Pane: ComponentType;
 }
@@ -15,36 +16,36 @@ export interface SettingsSectionDef {
 export const SETTINGS_SECTIONS: readonly SettingsSectionDef[] = [
   {
     id: 'ai',
-    label: 'AI 模型',
-    description: '角色分配、Provider 凭据与今日用量',
+    label: 'aiModels',
+    description: 'aiModelsDescription',
     Icon: Bot,
     Pane: AiSettingsPane,
   },
   {
     id: 'display',
-    label: '显示',
-    description: '时间口径与关注的市场',
+    label: 'display',
+    description: 'displayDescription',
     Icon: Monitor,
     Pane: DisplayPane,
   },
   {
     id: 'connections',
-    label: '连接',
-    description: '行情来源、本地工作区与同步',
+    label: 'connections',
+    description: 'connectionsDescription',
     Icon: Plug,
     Pane: ConnectionsPane,
   },
   {
     id: 'license',
-    label: '订阅与授权',
-    description: '当前方案、设备与付费功能',
+    label: 'license',
+    description: 'licenseDescription',
     Icon: BadgeCheck,
     Pane: LicensePane,
   },
   {
     id: 'advanced',
-    label: '高级',
-    description: '技能模板、离线训练与诊断',
+    label: 'advanced',
+    description: 'advancedDescription',
     Icon: SlidersHorizontal,
     Pane: AdvancedPane,
   },

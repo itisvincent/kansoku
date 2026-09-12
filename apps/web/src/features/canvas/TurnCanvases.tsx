@@ -2,6 +2,7 @@ import { LayoutTemplate } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
 import { colors, fonts, fontSizes, radii } from '../../theme/tokens.stylex';
 import type { CanvasEntry } from './canvasEntries';
+import { useLocale } from '@web/lib/i18n';
 
 const styles = stylex.create({
   card: {
@@ -82,6 +83,7 @@ export function TurnCanvases({
   entries: CanvasEntry[];
   onOpen?: (slug: string) => void;
 }) {
+  const { t } = useLocale();
   if (entries.length === 0) return null;
   return (
     <div className={`chat-turn-canvases ${stylex.props(styles.card).className}`}>
@@ -90,8 +92,8 @@ export function TurnCanvases({
           <LayoutTemplate size={15} />
         </div>
         <div>
-          <div className={stylex.props(styles.kicker).className}>{entries.length} 张画布</div>
-          <div className={stylex.props(styles.sub).className}>本轮保存</div>
+          <div className={stylex.props(styles.kicker).className}>{t('canvasCount', { count: entries.length })}</div>
+          <div className={stylex.props(styles.sub).className}>{t('savedThisTurn')}</div>
         </div>
       </div>
       {entries.map((entry) => (
@@ -106,7 +108,7 @@ export function TurnCanvases({
               className={`link-button ${stylex.props(styles.open).className}`}
               onClick={() => onOpen(entry.slug)}
             >
-              打开
+              {t('open')}
             </button>
           ) : null}
         </div>

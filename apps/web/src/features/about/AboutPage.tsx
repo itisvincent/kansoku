@@ -6,6 +6,7 @@ import { navigate } from '@web/lib/router';
 import { Card, SectionTitle } from '@web/ui';
 import { useTitle } from '@web/lib/useTitle';
 import { colors, fontSizes } from '../../theme/tokens.stylex';
+import { useLocale } from '@web/lib/i18n';
 
 const styles = stylex.create({
   root: {
@@ -137,13 +138,14 @@ function AboutBackLink() {
         else navigate('/');
       }}
     >
-      <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} /> 返回
+      <ArrowLeft className={`icon ${stylex.props(styles.icon).className}`} size={13} /> <span>{useLocale().t('back')}</span>
     </a>
   );
 }
 
 export function AboutPage() {
-  useTitle('关于');
+  const { t } = useLocale();
+  useTitle(t('aboutPageTitle'));
   const rootProps = stylex.props(styles.root);
 
   return (
@@ -158,7 +160,7 @@ export function AboutPage() {
           height={72}
         />
         <h1 {...stylex.props(styles.heading)}>Kansoku</h1>
-        <div {...stylex.props(styles.version)}>版本 {__APP_VERSION__}</div>
+        <div {...stylex.props(styles.version)}>{t('version')} {__APP_VERSION__}</div>
         <div {...stylex.props(styles.copyright)}>© 2026 Innei · AGPL-3.0 + Commons Clause</div>
         <div {...stylex.props(styles.links)}>
           <a
@@ -173,21 +175,20 @@ export function AboutPage() {
       </div>
 
       <Card {...stylex.props(styles.card)}>
-        <SectionTitle>许可证</SectionTitle>
+        <SectionTitle>{t('licenseTextTitle')}</SectionTitle>
         <p {...stylex.props(styles.licenseSummary)}>
-          本软件按 AGPL-3.0 授权，并附加 Commons Clause
-          条款：允许使用、修改和分发，但禁止把本软件本体作为收费产品或收费服务出售。
+          {t('licenseSummary')}
         </p>
         <details>
-          <summary {...stylex.props(styles.summary)}>查看完整许可证文本</summary>
+          <summary {...stylex.props(styles.summary)}>{t('viewFullLicense')}</summary>
           <pre {...stylex.props(styles.licenseText)}>{LICENSE_TEXT}</pre>
         </details>
       </Card>
 
       <Card {...stylex.props(styles.card)}>
-        <SectionTitle>第三方开源组件</SectionTitle>
+        <SectionTitle>{t('thirdPartyComponents')}</SectionTitle>
         <details>
-          <summary {...stylex.props(styles.summary)}>共 {CREDITS.length} 个组件</summary>
+          <summary {...stylex.props(styles.summary)}>{t('componentsCount', { count: CREDITS.length })}</summary>
           <ul {...stylex.props(styles.credits)}>
             {CREDITS.map((entry) => (
               <li key={`${entry.name}@${entry.version}`} {...stylex.props(styles.credit)}>

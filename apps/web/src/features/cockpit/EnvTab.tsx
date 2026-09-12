@@ -1,3 +1,4 @@
+import { useLocale } from '@web/lib/i18n';
 import {
   CartesianGrid,
   Legend,
@@ -76,6 +77,7 @@ function mergeBenchmark(series: BenchmarkSeries[]): Record<string, number>[] {
 }
 
 function BenchmarkChart({ series }: { series: BenchmarkSeries[] }) {
+  const { locale } = useLocale();
   const data = mergeBenchmark(series);
   return (
     <div {...stylex.props(styles.benchmarkChart)}>
@@ -108,7 +110,7 @@ function BenchmarkChart({ series }: { series: BenchmarkSeries[] }) {
           <Tooltip
             contentStyle={tooltipContentStyle}
             labelStyle={tooltipLabelStyle}
-            labelFormatter={(t) => tooltipTime(Number(t))}
+            labelFormatter={(t) => tooltipTime(Number(t), locale)}
             formatter={(value) => `${Number(value).toFixed(2)}%`}
           />
           <ReferenceLine y={0} stroke={colors.borderStrong} />

@@ -1,6 +1,7 @@
 import { clsx } from 'clsx';
 import * as stylex from '@stylexjs/stylex';
 import { colors, fonts, fontSizes, radii } from './theme/tokens.stylex';
+import { useLocale } from './lib/i18n';
 
 const shimmer = stylex.keyframes({
   from: { backgroundPosition: '100% 0' },
@@ -444,13 +445,14 @@ const PANORAMA_ROWS = ['row-1', 'row-2', 'row-3', 'row-4'];
 const CALENDAR_DAYS = Array.from({ length: 42 }, (_, i) => i + 1);
 
 function TopStripBone() {
+  const { t } = useLocale();
   return (
     <div
       className={classNames('home-top-strip app-skeleton-top-strip', styles.topStrip)}
       aria-hidden="true"
     >
       <div className={classNames('hts-id', styles.topStripId)}>
-        <h1 className={classNames('', styles.topStripHeading)}>盘面</h1>
+        <h1 className={classNames('', styles.topStripHeading)}>{t('dashboard')}</h1>
         <Bone className="app-skeleton-bone--session" style={styles.sessionBone} />
         <Bone className="app-skeleton-bone--hts-date" style={styles.htsDateBone} />
       </div>
@@ -495,6 +497,7 @@ function SymbolCardBone() {
 }
 
 function TimelineBone() {
+  const { t } = useLocale();
   return (
     <div
       className={classNames('date-timeline app-skeleton-timeline', styles.timeline)}
@@ -504,7 +507,7 @@ function TimelineBone() {
         {TIMELINE_BONES.map((day) => (
           <div className={classNames('dtl-item', styles.timelineItem)} key={day}>
             <span className={classNames('dtl-month', styles.timelineMonth)}>
-              {day === 1 ? '7月' : '\u00A0'}
+              {day === 1 ? t('july') : '\u00A0'}
             </span>
             <span className={classNames('dtl-dot', styles.timelineDot)} />
             <Bone
@@ -587,6 +590,7 @@ function EventCalendarBone() {
 }
 
 export function AppSkeleton() {
+  const { t } = useLocale();
   const desktop = isElectronShell();
 
   return (
@@ -597,7 +601,7 @@ export function AppSkeleton() {
         desktop && styles.desktop,
       )}
       aria-busy="true"
-      aria-label="加载中"
+      aria-label={t('loading')}
     >
       {desktop && (
         <div className={classNames('app-skeleton-titlebar', styles.titlebar)}>
@@ -630,7 +634,7 @@ export function AppSkeleton() {
             <div
               className={classNames('section-title section-title--with-age', styles.sectionTitle)}
             >
-              看盘
+              {t('marketWatch')}
             </div>
             <div className={classNames('overview-grid', styles.overviewGrid)} aria-hidden="true">
               <SymbolCardBone />
@@ -650,7 +654,7 @@ export function AppSkeleton() {
             <div
               className={classNames('section-title section-title--with-age', styles.sectionTitle)}
             >
-              市场全景
+              {t('marketPanorama')}
             </div>
             <div className="market-panorama" aria-hidden="true">
               <div className={classNames('pano-tabs', styles.panoramaTabs)}>
@@ -689,10 +693,10 @@ export function AppSkeleton() {
               <div
                 className={classNames('section-title section-title--with-age', styles.sectionTitle)}
               >
-                持仓
+                {t('positions')}
               </div>
               <PositionsBone />
-              <div className={classNames('section-title', styles.sectionTitle)}>事件日历</div>
+              <div className={classNames('section-title', styles.sectionTitle)}>{t('eventCalendar')}</div>
               <EventCalendarBone />
             </div>
           </div>
