@@ -358,6 +358,7 @@ const enUS = {
   indicatorFvg: 'Fair value gaps',
   indicatorEma: 'EMA lines',
   indicatorVwap: 'VWAP',
+  indicatorBoll: 'Bollinger Bands',
   indicatorDay: 'Intraday reference levels',
   indicatorOptions: 'Options walls',
   indicatorFractal: 'Fractals',
@@ -622,7 +623,7 @@ const enUS = {
   chartTfVisible: 'Visible timeframes',
   chartTfAnalysis: 'Analysis',
   chartTfHelp:
-    'The three analysis timeframes are fixed. Other timeframes load on demand and are not saved in the analysis archive.',
+    '5m / 15m / 1h come from the saved analysis. 1m, 30m, 4h, daily, weekly and monthly load live. Hide any tab you do not need.',
   chartNewsConclusion: 'News assessment',
   chartPositionView: 'Position overview',
   chartCost: 'Cost',

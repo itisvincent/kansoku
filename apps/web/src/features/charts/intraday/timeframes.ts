@@ -95,8 +95,9 @@ export function sanitizeTimeframes(raw: unknown): ChartTf[] {
   const picked = Array.isArray(raw)
     ? raw.filter((k): k is ChartTf => TF_KEYS.has(k as string))
     : [];
-  const wanted = new Set<ChartTf>([...picked, ...ANALYSIS_TFS]);
-  return TF_ORDER.filter((k) => wanted.has(k));
+  const wanted = new Set<ChartTf>(picked);
+  const ordered = TF_ORDER.filter((k) => wanted.has(k));
+  return ordered.length ? ordered : [...ANALYSIS_TFS];
 }
 
 function loadStored(storageKey: string): ChartTf[] {
@@ -122,10 +123,10 @@ export function useVisibleTimeframes(storageKey: string = TIMEFRAMES_STORAGE_KEY
   }, [storageKey, visibleTfs]);
 
   const toggleTf = useCallback((tf: ChartTf) => {
-    if (ANALYSIS_SET.has(tf)) return;
-    setVisibleTfs((prev) =>
-      sanitizeTimeframes(prev.includes(tf) ? prev.filter((k) => k !== tf) : [...prev, tf]),
-    );
+    setVisibleTfs((prev) => {
+      const next = prev.includes(tf) ? prev.filter((k) => k !== tf) : [...prev, tf];
+      return next.length ? sanitizeTimeframes(next) : prev;
+    });
   }, []);
 
   return { visibleTfs, toggleTf };

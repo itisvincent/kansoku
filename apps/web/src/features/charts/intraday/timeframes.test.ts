@@ -19,24 +19,21 @@ const built = {
 const viewTf = { candles: [{ time: 9 }] } as unknown as IntradayTfData;
 
 describe('sanitizeTimeframes', () => {
-  it('always keeps the three analysis timeframes, whatever was stored', () => {
+  it('falls back to analysis timeframes only when nothing valid is stored', () => {
     expect(sanitizeTimeframes([])).toEqual(ANALYSIS_TFS);
     expect(sanitizeTimeframes(null)).toEqual(ANALYSIS_TFS);
-    expect(sanitizeTimeframes(['day'])).toEqual(['m5', 'm15', 'h1', 'day']);
+  });
+
+  it('keeps a custom set such as 1h / 4h / daily without forcing 5m and 15m', () => {
+    expect(sanitizeTimeframes(['day', 'h1', '4h'])).toEqual(['h1', '4h', 'day']);
   });
 
   it('drops unknown keys and orders from shortest to longest', () => {
-    expect(sanitizeTimeframes(['month', 'nope', '1m', 'h1'])).toEqual([
-      '1m',
-      'm5',
-      'm15',
-      'h1',
-      'month',
-    ]);
+    expect(sanitizeTimeframes(['month', 'nope', '1m', 'h1'])).toEqual(['1m', 'h1', 'month']);
   });
 
   it('de-duplicates repeated keys', () => {
-    expect(sanitizeTimeframes(['day', 'day'])).toEqual(['m5', 'm15', 'h1', 'day']);
+    expect(sanitizeTimeframes(['day', 'day'])).toEqual(['day']);
   });
 });
 
@@ -84,11 +81,23 @@ describe('useVisibleTimeframes', () => {
     expect(result.current.visibleTfs).toEqual(ANALYSIS_TFS);
   });
 
-  it('refuses to remove an analysis timeframe', () => {
+  it('lets you hide 5m / 15m and keep 1h, 4h and daily', () => {
     const { result } = renderHook(() => useVisibleTimeframes());
 
     act(() => result.current.toggleTf('m5'));
+    act(() => result.current.toggleTf('m15'));
+    act(() => result.current.toggleTf('4h'));
+    act(() => result.current.toggleTf('day'));
 
-    expect(result.current.visibleTfs).toEqual(ANALYSIS_TFS);
+    expect(result.current.visibleTfs).toEqual(['h1', '4h', 'day']);
+  });
+
+  it('refuses to hide the last remaining timeframe', () => {
+    localStorage.setItem('intraday-timeframes', JSON.stringify(['day']));
+    const { result } = renderHook(() => useVisibleTimeframes());
+
+    act(() => result.current.toggleTf('day'));
+
+    expect(result.current.visibleTfs).toEqual(['day']);
   });
 });

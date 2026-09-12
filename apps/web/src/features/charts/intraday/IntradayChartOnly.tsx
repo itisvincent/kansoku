@@ -8,6 +8,7 @@ import type { DrawingsHandle } from '../drawings/useDrawings';
 import { namespacedKey, useIntradayControls } from './controlsContext';
 import { isSessionlessTf, tfDataOf, type ChartTf } from './timeframes';
 import { useLiveBuilt } from './useLiveBuilt';
+import { bollinger } from '@kansoku/core/analysis/indicators';
 import { useMaSeries } from './useMaLines';
 import { useIntradayCharts, type DrawingChartHandle } from './useIntradayCharts';
 
@@ -170,6 +171,18 @@ export function IntradayChartOnly({
   const [drawingHandle, setDrawingHandle] = useState<DrawingsHandle | null>(null);
   const candles = useMemo(() => tfDataOf(built, activeTf)?.candles ?? [], [built, activeTf]);
   const maSeries = useMaSeries(candles, maLines);
+  const bollLast = useMemo(() => {
+    if (!toggles.boll || candles.length < 20) return null;
+    const bb = bollinger(
+      candles.map((c) => c.close),
+      20,
+      2,
+    );
+    for (let i = bb.mid.length - 1; i >= 0; i--) {
+      if (bb.mid[i] !== null) return bb.mid[i];
+    }
+    return null;
+  }, [toggles.boll, candles]);
   useIntradayCharts(
     built,
     activeTf,
@@ -228,6 +241,16 @@ export function IntradayChartOnly({
                 {s.last !== null && ` $${fmt(s.last)}`}
               </span>
             ))}
+          {toggles.boll && (
+            <span>
+              <span
+                className={`swatch ${stylex.props(styles.swatch).className}`}
+                style={{ background: '#38bdf8' }}
+              />
+              BOLL(20)
+              {bollLast !== null && ` $${fmt(bollLast)}`}
+            </span>
+          )}
           {!isSessionlessTf(activeTf) && (
             <>
               <span>

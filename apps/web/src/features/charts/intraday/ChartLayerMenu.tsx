@@ -35,7 +35,7 @@ interface ChartLayerMenuProps {
 export function ChartLayerMenu({ built, activeTf }: ChartLayerMenuProps) {
   const { t: tr } = useLocale();
   const LAYER_GROUP_DEFS: { title: string; keys: IndicatorToggleKey[] }[] = [
-    { title: tr('layerReference'), keys: ['ema', 'vwap', 'levels', 'daylevel', 'optwall'] },
+    { title: tr('layerReference'), keys: ['ema', 'vwap', 'boll', 'levels', 'daylevel', 'optwall'] },
     { title: tr('layerStructure'), keys: ['fvg', 'pattern123', 'sb', 'candle'] },
     { title: tr('layerSignals'), keys: ['crosses', 'divergence', 'macdBeichi', 'ai'] },
   ];

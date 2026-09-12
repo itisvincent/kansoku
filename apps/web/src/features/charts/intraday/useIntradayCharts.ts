@@ -7,6 +7,7 @@ import {
   CandlestickSeries,
   HistogramSeries,
   LineSeries,
+  LineStyle,
   type IChartApi,
   type ISeriesApi,
   type ISeriesMarkersPluginApi,
@@ -46,6 +47,7 @@ import { PositionBoxPrimitive } from './positionBoxPrimitive';
 import { SessionBgPrimitive } from './sessionPrimitive';
 import { ZhongshuPrimitive } from './zhongshuPrimitive';
 import { filterVisibleOverlayItems, selectVisibleMarkers } from './markerSelection';
+import { bollinger, lineData } from '@kansoku/core/analysis/indicators';
 import { seriesPalette, theme } from '@web/lib/theme';
 
 const EMA_COLORS = [
@@ -66,6 +68,9 @@ interface Handle {
   macdSession: SessionBgPrimitive;
   emaSeries: ISeriesApi<'Line'>[];
   vwapSeries: ISeriesApi<'Line'>;
+  bollMid: ISeriesApi<'Line'>;
+  bollUpper: ISeriesApi<'Line'>;
+  bollLower: ISeriesApi<'Line'>;
   hist: ISeriesApi<'Histogram'>;
   dif: ISeriesApi<'Line'>;
   difMarkers: ISeriesMarkersPluginApi<Time>;
@@ -83,6 +88,9 @@ interface Handle {
 
 const NEAR_LEFT_BARS = 10;
 const VWAP_COLOR = '#c084fc';
+const BOLL_COLOR = '#38bdf8';
+const BOLL_PERIOD = 20;
+const BOLL_K = 2;
 const DAY_LEVEL_COLOR = '#8b949e';
 const CALL_WALL_COLOR = '#e3b341';
 const PUT_WALL_COLOR = '#39c5cf';
@@ -244,6 +252,20 @@ export function useIntradayCharts(
       lastValueVisible: true,
       crosshairMarkerVisible: false,
     });
+    const bollLine = {
+      color: BOLL_COLOR,
+      lineWidth: 1 as const,
+      priceLineVisible: false,
+      lastValueVisible: false,
+      crosshairMarkerVisible: false,
+    };
+    const bollUpper = main.addSeries(LineSeries, bollLine);
+    const bollLower = main.addSeries(LineSeries, bollLine);
+    const bollMid = main.addSeries(LineSeries, {
+      ...bollLine,
+      lineStyle: LineStyle.Dashed,
+      lastValueVisible: true,
+    });
 
     const macd = baseChart(macdEl, true, true);
     const hist = macd.addSeries(HistogramSeries, {
@@ -291,6 +313,9 @@ export function useIntradayCharts(
       macdSession,
       emaSeries,
       vwapSeries,
+      bollMid,
+      bollUpper,
+      bollLower,
       hist,
       dif,
       difMarkers,
@@ -365,6 +390,21 @@ export function useIntradayCharts(
       locale,
     };
     h.vwapSeries.setData(toggles.vwap && d.vwap ? padLineData(d.vwap, timeline) : []);
+    if (toggles.boll && d.candles.length >= BOLL_PERIOD) {
+      const bb = bollinger(
+        d.candles.map((c) => c.close),
+        BOLL_PERIOD,
+        BOLL_K,
+      );
+      const times = d.candles.map((c) => c.time);
+      h.bollMid.setData(padLineData(lineData(times, bb.mid), timeline));
+      h.bollUpper.setData(padLineData(lineData(times, bb.upper), timeline));
+      h.bollLower.setData(padLineData(lineData(times, bb.lower), timeline));
+    } else {
+      h.bollMid.setData([]);
+      h.bollUpper.setData([]);
+      h.bollLower.setData([]);
+    }
     h.fvg.setData(fvgZones, fvgContext);
     h.fvgTip.setData(fvgZones, fvgContext);
     const zhongshus = d.chanStructure?.zhongshus ?? [];

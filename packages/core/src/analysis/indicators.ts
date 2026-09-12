@@ -15,6 +15,33 @@ export function sma(arr: number[], n: number): (number | null)[] {
   return out;
 }
 
+export function bollinger(
+  closes: number[],
+  period = 20,
+  k = 2,
+): { mid: (number | null)[]; upper: (number | null)[]; lower: (number | null)[] } {
+  const mid = sma(closes, period);
+  const upper: (number | null)[] = [];
+  const lower: (number | null)[] = [];
+  for (let i = 0; i < closes.length; i++) {
+    const mean = mid[i];
+    if (mean === null) {
+      upper.push(null);
+      lower.push(null);
+      continue;
+    }
+    let sumSq = 0;
+    for (let j = i - period + 1; j <= i; j++) {
+      const delta = closes[j] - mean;
+      sumSq += delta * delta;
+    }
+    const sd = Math.sqrt(sumSq / period);
+    upper.push(mean + k * sd);
+    lower.push(mean - k * sd);
+  }
+  return { mid, upper, lower };
+}
+
 export function ema(arr: number[], n: number): (number | null)[] {
   const out: (number | null)[] = [];
   let prev: number | null = null;

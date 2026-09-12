@@ -1,5 +1,5 @@
 import { useLocale } from '@web/lib/i18n';
-import type { ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import type { IntradayBuilt, TimeframeKey } from '@kansoku/shared/types';
 import * as stylex from '@stylexjs/stylex';
 import type { SidebarTab } from '../SidebarTabs';
@@ -81,6 +81,9 @@ export function IntradayTimeframeSwitch({
 }) {
   const { t: i18n, locale } = useLocale();
   const { visibleTfs } = useIntradayControls();
+  useEffect(() => {
+    if (visibleTfs.length && !visibleTfs.includes(activeTf)) onChange(visibleTfs[0]);
+  }, [visibleTfs, activeTf, onChange]);
   return (
     <div
       className={`chart-timeframe-switch ${stylex.props(styles.timeframeSwitch).className}`}

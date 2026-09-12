@@ -107,12 +107,12 @@ export function TimeframeSettingsMenu() {
             {TF_OPTIONS.map((option) => (
               <label
                 key={option.key}
-                className={`tf-settings-row${option.analysis ? ' tf-settings-row--fixed' : ''} ${stylex.props(styles.row, option.analysis && styles.rowFixed).className}`}
+                className={`tf-settings-row ${stylex.props(styles.row).className}`}
               >
                 <Checkbox
                   size="sm"
                   checked={shown.has(option.key)}
-                  disabled={option.analysis}
+                  disabled={shown.has(option.key) && shown.size === 1}
                   onCheckedChange={() => toggleTf(option.key)}
                 />
                 {tfLabel(option.key, locale)}
