@@ -249,6 +249,23 @@ const enUS = {
   keepCurrent: 'Keep current',
   applyTemplate: 'Use the new template (back up current as .bak.<old template hash>)',
   settingsCategories: 'Settings categories',
+  webSearch: 'Web search',
+  webSearchBackend: 'Network search backend for AI',
+  webSearchFallbackOrder:
+    'Providers are tried in order; the next is used only when the previous fails',
+  webSearchUnavailable:
+    'Without a configured provider, AI has no network search and uses only Longbridge data and local materials',
+  savedApiKey: 'Saved API key',
+  orSetEnv: 'or set environment variable',
+  pasteApiKey: 'Paste API key',
+  requestKey: 'Get key',
+  replace: 'Replace',
+  localCodexCli: 'Local Codex CLI',
+  codexSearchFallback:
+    'Fallback search using your ChatGPT allowance. It may take tens of seconds and returns text without a source list.',
+  codexDetected: 'Codex detected',
+  codexNotDetected: 'Codex not detected; install it to enable this',
+  enableCodexSearch: 'Enable Codex CLI search',
   high52w: '52w high',
   low52w: '52w low',
   buy: 'Buy',

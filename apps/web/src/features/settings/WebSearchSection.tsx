@@ -7,10 +7,12 @@ import { client } from '@web/lib/client';
 import { isDesktopRealtime } from '@web/lib/portTransport';
 import { Badge, Button, Input, Switch } from '@web/ui';
 import { SettingsGroup, SettingsRow } from './SettingsGroup';
+import { useLocale } from '../../lib/i18n';
 
 const CODEX_ROW = 'codex';
 
 export function WebSearchSection() {
+  const { t } = useLocale();
   const { data, reload } = useQuery<WebSearchStatus>(
     isDesktopRealtime() ? 'settings.getWebSearch' : null,
     () => client.settings.getWebSearch(),
@@ -46,20 +48,16 @@ export function WebSearchSection() {
 
   return (
     <SettingsGroup
-      name="网页搜索"
+      name={t('webSearch')}
       badge={
         <Badge tone={data.configured ? 'up' : 'down'}>
-          {data.configured ? '已启用' : '未启用'}
+          {data.configured ? t('enabled') : t('disabled')}
         </Badge>
       }
     >
       <SettingsRow
-        label="AI 的联网检索后端"
-        description={
-          data.configured
-            ? '按下面的顺序依次尝试，前一个失败才轮到下一个'
-            : '一个都没配时，AI 完全不会拿到联网检索工具，只能用长桥数据和本地资料'
-        }
+        label={t('webSearchBackend')}
+        description={data.configured ? t('webSearchFallbackOrder') : t('webSearchUnavailable')}
       />
       {WEB_SEARCH_PROVIDERS.map((provider) => {
         const status = statusOf.get(provider.id);
@@ -74,8 +72,8 @@ export function WebSearchSection() {
               configured
                 ? status?.fromEnv
                   ? `来自环境变量 ${provider.envVar}`
-                  : '已保存 API Key'
-                : `未配置 · 或设环境变量 ${provider.envVar}`
+                  : t('savedApiKey')
+                : `${t('notConfigured')} · ${t('orSetEnv')} ${provider.envVar}`
             }
             error={error?.row === provider.id ? error.message : undefined}
           >
@@ -84,7 +82,7 @@ export function WebSearchSection() {
                 <Input
                   autoFocus
                   type="password"
-                  placeholder="粘贴 API Key"
+                  placeholder={t('pasteApiKey')}
                   value={draftKey}
                   onChange={(event) => setDraftKey(event.target.value)}
                 />
@@ -93,7 +91,7 @@ export function WebSearchSection() {
                   disabled={busy === provider.id || !draftKey.trim()}
                   onClick={() => void save(provider.id)}
                 >
-                  保存
+                  {t('save')}
                 </Button>
                 <Button
                   onClick={() => {
@@ -101,7 +99,7 @@ export function WebSearchSection() {
                     setDraftKey('');
                   }}
                 >
-                  取消
+                  {t('cancel')}
                 </Button>
               </>
             ) : (
@@ -109,7 +107,7 @@ export function WebSearchSection() {
                 <Button
                   onClick={() => window.open(provider.signupUrl, '_blank', 'noopener,noreferrer')}
                 >
-                  申请 Key
+                  {t('requestKey')}
                 </Button>
                 <Button
                   onClick={() => {
@@ -118,7 +116,7 @@ export function WebSearchSection() {
                     setError(null);
                   }}
                 >
-                  {configured ? '更换' : '填入'}
+                  {configured ? t('replace') : t('fillIn')}
                 </Button>
                 {configured && !status?.fromEnv ? (
                   <Button
@@ -129,7 +127,7 @@ export function WebSearchSection() {
                       )
                     }
                   >
-                    删除
+                    {t('delete')}
                   </Button>
                 ) : null}
               </>
@@ -138,13 +136,13 @@ export function WebSearchSection() {
         );
       })}
       <SettingsRow
-        label="本机 codex CLI"
-        description="兜底用。不要 Key，走你自己的 ChatGPT 额度，但一次要几十秒，而且只给整段文字、没有可核对的来源列表"
-        mono={data.codex.cliAvailable ? '已检测到 codex' : '未检测到 codex，装了才会生效'}
+        label={t('localCodexCli')}
+        description={t('codexSearchFallback')}
+        mono={data.codex.cliAvailable ? t('codexDetected') : t('codexNotDetected')}
         error={error?.row === CODEX_ROW ? error.message : undefined}
       >
         <Switch
-          ariaLabel="启用 codex CLI 搜索"
+          ariaLabel={t('enableCodexSearch')}
           checked={data.codex.enabled}
           disabled={busy === CODEX_ROW}
           onCheckedChange={(next) =>
