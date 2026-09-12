@@ -1,68 +1,89 @@
-import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type ReactNode,
+} from 'react';
+import enUS from './locales/en-US';
+import zhCN from './locales/zh-CN';
 
 export type Locale = 'zh-CN' | 'en-US';
+export type MessageKey = keyof typeof zhCN;
+export type MessageParams = Readonly<Record<string, string | number>>;
+export const LOCALE_STORAGE_KEY = 'kansoku.locale';
+const messages = { 'zh-CN': zhCN, 'en-US': enUS };
 
-const STORAGE_KEY = 'kansoku.locale';
+export function translate(locale: Locale, key: MessageKey, params: MessageParams = {}): string {
+  return messages[locale][key].replace(/\{(\w+)\}/g, (placeholder, name: string) =>
+    Object.prototype.hasOwnProperty.call(params, name) ? String(params[name]) : placeholder,
+  );
+}
 
-const messages = {
-  'zh-CN': {
-    settings: '设置', back: '返回', about: '关于 Kansoku',
-    aiModels: 'AI 模型', aiModelsDescription: '角色分配、Provider 凭据与今日用量',
-    display: '显示', displayDescription: '时间口径与关注的市场',
-    connections: '连接', connectionsDescription: '行情来源、本地工作区与同步',
-    license: '订阅与授权', licenseDescription: '当前方案、设备与付费功能',
-    advanced: '高级', advancedDescription: '技能模板、离线训练与诊断',
-    language: '语言', languageDescription: '选择界面语言', chinese: '简体中文', english: 'English',
-    checking: '检测中', connected: '已连接', notInstalledCli: '未安装 CLI', extensionMissing: '缺少浏览器扩展', noSession: '需要登录 x.com', executable: '可执行文件', opencliDescription: 'AI 分析时用它抓推特上的消息面', redetect: '重新检测', installCli: '安装 CLI', copyCommand: '复制命令', installExtension: '装浏览器扩展', downloadExtension: '下载扩展', loginX: '登录 x.com',
-    providerCredentials: 'Provider 与凭据', keysCount: '个 key', codexLoggedIn: 'Codex 已登录', codexNotLoggedIn: 'Codex 未登录', codexLoginError: 'Codex 登录异常', lobeConnected: 'LobeHub 已连接', lobePending: 'LobeHub 待启用', lobeNotConnected: 'LobeHub 未连接', masterKeyError: '主密钥异常，已存的凭据无法解密', resetCredentials: '重置全部凭据', addProvider: '添加 Provider', saving: '保存中…', apiKey: 'API key', connectData: '连接数据', configureAi: '配置 AI', connectX: '连接 X', checkingOpencli: '正在检测 opencli 环境…', twitterExplainer: 'AI 分析时会抓取推特上的市场消息；可以先跳过，之后随时在设置里配置。', finish: '完成', skipConfigureLater: '跳过，稍后在设置里配置', timeDisplay: '时间显示', marketTime: '美东时间', localTime: '本地时间', preferredTime: '优先显示的时间', localTimezone: '本地时区', watchedMarkets: '关注市场', keepOneMarket: '至少保留一个市场', marketConnected: '已连接', cliNotInstalled: '未安装 CLI', loginRequired: '需要登录', tokenUnreadable: 'Token 无法读取', route: '线路', routeDescription: '自动模式探测可达线路，改完下次连接生效', installHint: '还没装 CLI？', installHintDescription: '安装后回来点重新检测', installGuide: '安装说明', workspaceLocal: '本地', iCloud: 'iCloud', workspaceDev: '开发仓库', directory: '目录位置', loading: '加载中…', showInExplorer: '在文件管理器中显示', contents: '存放内容', workspaceDescription: 'journal、stocks 与 Agent skills 都在这里，可以直接把这个目录当 Codex 或 Claude Code 项目打开', restoreLocal: '恢复到本机', restoreDescription: '把 iCloud Workspace 复制回本机，iCloud 原文件保留', restore: '恢复…', localLicense: '本机授权', diagnostics: '诊断日志', logDirectory: '日志目录', viewLogs: '查看日志', agentKit: 'Agent Kit', enabled: '启用', agentKitDescription: '为外部 Claude Code / Codex 提供内置 skills 软链接与 kansoku-cli 入口', integrationLocation: '接入位置', templateVersion: '模板版本', pendingConflict: '冲突待处理', handle: '处理', templateAvailable: '新模板可用', view: '查看', actions: '操作', useWorkspace: '使用 Agent Workspace', connectProject: '接入其他项目…', refresh: '重刷', clean: '清理', training: '盲盘训练', autoRefill: '自动补货', autoRefillDescription: '池容低于 5 局自动补至 15 局；连续补空两次后暂停挂起，手动补一次恢复', aiChecking: '正在检测本机 AI 环境…', aiExplainer: 'AI 用于盘中快评、升级分析、深度研究和追问。可以先跳过，之后随时在设置里配置。', use: '使用', install: '去安装', login: '登录', fillIn: '填入', recommended: '推荐', configuring: '配置中…', starting: '启动中…', saveAndUse: '保存并使用', installDocs: '安装文档',
-  },
-  'en-US': {
-    settings: 'Settings', back: 'Back', about: 'About Kansoku',
-    aiModels: 'AI Models', aiModelsDescription: 'Role assignments, provider credentials, and today’s usage',
-    display: 'Display', displayDescription: 'Time conventions and watched markets',
-    connections: 'Connections', connectionsDescription: 'Market data, workspace, and synchronization',
-    license: 'Subscription & License', licenseDescription: 'Current plan, device, and paid features',
-    advanced: 'Advanced', advancedDescription: 'Skill templates, offline training, and diagnostics',
-    language: 'Language', languageDescription: 'Choose the interface language', chinese: '简体中文', english: 'English',
-    checking: 'Checking', connected: 'Connected', notInstalledCli: 'CLI not installed', extensionMissing: 'Browser extension missing', noSession: 'Sign in to x.com', executable: 'Executable', opencliDescription: 'Fetches X/Twitter market context for AI analysis', redetect: 'Check again', installCli: 'Install CLI', copyCommand: 'Copy command', installExtension: 'Install browser extension', downloadExtension: 'Download extension', loginX: 'Sign in to x.com',
-    providerCredentials: 'Providers & credentials', keysCount: 'keys', codexLoggedIn: 'Codex signed in', codexNotLoggedIn: 'Codex not signed in', codexLoginError: 'Codex sign-in error', lobeConnected: 'LobeHub connected', lobePending: 'LobeHub pending', lobeNotConnected: 'LobeHub not connected', masterKeyError: 'The master key is invalid; saved credentials cannot be decrypted', resetCredentials: 'Reset all credentials', addProvider: 'Add provider', saving: 'Saving…', apiKey: 'API key', connectData: 'Connect data', configureAi: 'Configure AI', connectX: 'Connect X', checkingOpencli: 'Checking opencli…', twitterExplainer: 'AI analysis can use market context from X/Twitter. You can skip this and configure it later in Settings.', finish: 'Finish', skipConfigureLater: 'Skip and configure later in Settings', timeDisplay: 'Time display', marketTime: 'US Eastern time', localTime: 'Local time', preferredTime: 'Preferred time', localTimezone: 'Local time zone', watchedMarkets: 'Watched markets', keepOneMarket: 'Keep at least one market selected', marketConnected: 'Connected', cliNotInstalled: 'CLI not installed', loginRequired: 'Sign-in required', tokenUnreadable: 'Token cannot be read', route: 'Route', routeDescription: 'Automatic mode probes reachable routes; changes apply on the next connection', installHint: 'CLI not installed?', installHintDescription: 'After installing, click Check again', installGuide: 'Installation guide', workspaceLocal: 'Local', iCloud: 'iCloud', workspaceDev: 'Development repository', directory: 'Directory', loading: 'Loading…', showInExplorer: 'Show in File Explorer', contents: 'Contents', workspaceDescription: 'Your journal, stocks, and Agent skills live here. You can open this directory as a Codex or Claude Code project.', restoreLocal: 'Restore locally', restoreDescription: 'Copy the iCloud Workspace back to this computer; the iCloud originals are kept', restore: 'Restore…', localLicense: 'Local license', diagnostics: 'Diagnostics', logDirectory: 'Log directory', viewLogs: 'View logs', agentKit: 'Agent Kit', enabled: 'Enabled', agentKitDescription: 'Provide built-in skill links and the kansoku-cli entry point to Claude Code / Codex', integrationLocation: 'Integration location', templateVersion: 'Template version', pendingConflict: 'Pending conflict', handle: 'Handle', templateAvailable: 'New template available', view: 'View', actions: 'Actions', useWorkspace: 'Use Agent Workspace', connectProject: 'Connect another project…', refresh: 'Refresh', clean: 'Clean', training: 'Blind training', autoRefill: 'Auto refill', autoRefillDescription: 'Automatically refill from fewer than 5 episodes to 15; pauses after two empty refills and resumes after one manual refill', aiChecking: 'Checking the local AI environment…', aiExplainer: 'AI powers intraday reviews, upgraded analysis, deep research, and follow-up questions. You can skip this and configure it later in Settings.', use: 'Use', install: 'Install', login: 'Sign in', fillIn: 'Enter key', recommended: 'Recommended', configuring: 'Configuring…', starting: 'Starting…', saveAndUse: 'Save and use', installDocs: 'Installation guide',
-  },
-} as const;
+type LocaleContextValue = {
+  locale: Locale;
+  setLocale: (locale: Locale) => void;
+  t: (key: MessageKey, params?: MessageParams) => string;
+};
 
-type MessageKey = keyof typeof messages['en-US'];
-type LocaleContextValue = { locale: Locale; setLocale: (locale: Locale) => void; t: (key: MessageKey) => string };
-const LocaleContext = createContext<LocaleContextValue | null>(null);
+const fallback: LocaleContextValue = {
+  locale: 'zh-CN',
+  setLocale: () => {},
+  t: (key, params) => translate('zh-CN', key, params),
+};
+const LocaleContext = createContext<LocaleContextValue>(fallback);
+
+function normalizeLocale(value: string | null): Locale {
+  return value === 'zh-CN' ? 'zh-CN' : 'en-US';
+}
 
 function readLocale(): Locale {
-  if (typeof window === 'undefined') return 'zh-CN';
-  return window.localStorage.getItem(STORAGE_KEY) === 'en-US' ? 'en-US' : 'zh-CN';
+  try {
+    return normalizeLocale(window.localStorage.getItem(LOCALE_STORAGE_KEY));
+  } catch {
+    // Restricted storage and server-side rendering must not prevent startup.
+    return 'en-US';
+  }
 }
 
 export function LocaleProvider({ children }: { children: ReactNode }) {
   const [locale, setLocaleState] = useState<Locale>(readLocale);
-  const setLocale = (next: Locale) => {
+  const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
-    window.localStorage.setItem(STORAGE_KEY, next);
-  };
-  useEffect(() => { document.documentElement.lang = locale; }, [locale]);
-  const value = useMemo(() => ({ locale, setLocale, t: (key: MessageKey) => messages[locale][key] }), [locale]);
+    try {
+      window.localStorage.setItem(LOCALE_STORAGE_KEY, next);
+    } catch {
+      // The selection still applies for this window when storage is unavailable.
+    }
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = locale;
+  }, [locale]);
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.storageArea && event.storageArea !== window.localStorage) return;
+      if (event.key === LOCALE_STORAGE_KEY || event.key === null) {
+        setLocaleState(normalizeLocale(event.newValue));
+      }
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
+  const value = useMemo<LocaleContextValue>(
+    () => ({
+      locale,
+      setLocale,
+      t: (key, params) => translate(locale, key, params),
+    }),
+    [locale, setLocale],
+  );
   return <LocaleContext.Provider value={value}>{children}</LocaleContext.Provider>;
 }
 
 export function useLocale(): LocaleContextValue {
-  const value = useContext(LocaleContext);
-  if (value) return value;
-  // Keep isolated page/unit renders working (several route and component tests
-  // intentionally render a settings pane without bootstrapping the app shell).
-  const locale: Locale = 'zh-CN';
-  return { locale, setLocale: () => {}, t: (key: MessageKey) => messages[locale][key] };
+  return useContext(LocaleContext);
 }
-
-
-
-
-
-
-
-
-

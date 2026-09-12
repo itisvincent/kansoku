@@ -7,6 +7,21 @@ export class SettingsIpc extends IpcService implements WrapEnvelope<SettingsApi>
   static readonly groupName = 'settings';
 
   @IpcMethod()
+  startXaiLogin() {
+    return toEnvelope('settings.startXaiLogin', () => settingsService.startXaiLogin());
+  }
+
+  @IpcMethod()
+  pollXaiLogin(input: Parameters<SettingsApi['pollXaiLogin']>[0]) {
+    return toEnvelope('settings.pollXaiLogin', () => settingsService.pollXaiLogin(input));
+  }
+
+  @IpcMethod()
+  cancelXaiLogin(input: Parameters<SettingsApi['cancelXaiLogin']>[0]) {
+    return toEnvelope('settings.cancelXaiLogin', () => settingsService.cancelXaiLogin(input));
+  }
+
+  @IpcMethod()
   getAi() {
     return toEnvelope('settings.getAi', () => settingsService.getAi());
   }

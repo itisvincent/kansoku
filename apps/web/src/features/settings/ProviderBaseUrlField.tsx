@@ -4,6 +4,7 @@ import { errorMessage } from '@web/lib/api';
 import { client } from '@web/lib/client';
 import { Badge, Button, Input } from '@web/ui';
 import { colors, fontSizes } from '../../theme/tokens.stylex';
+import { useLocale } from '@web/lib/i18n';
 
 const styles = stylex.create({
   editor: {
@@ -48,6 +49,7 @@ export function ProviderBaseUrlField({
   baseUrl: string | null;
   onChanged: () => void;
 }) {
+  const { t } = useLocale();
   const [value, setValue] = useState(baseUrl ?? '');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,12 +76,13 @@ export function ProviderBaseUrlField({
           className={stylex.props(styles.input).className}
           value={value}
           onChange={(event) => setValue(event.target.value)}
-          placeholder="默认官方地址，可填中转站地址"
+          aria-label={t('baseUrlOptional')}
+          placeholder={t('baseUrlPlaceholder')}
         />
         <Button className={stylex.props(styles.button).className} disabled={busy} onClick={save}>
-          {busy ? '保存中…' : '保存'}
+          {busy ? t('saving') : t('save')}
         </Button>
-        {baseUrl ? <Badge tone="accent">已自定义</Badge> : null}
+        {baseUrl ? <Badge tone="accent">{t('customEndpoint')}</Badge> : null}
       </div>
       {error ? (
         <div

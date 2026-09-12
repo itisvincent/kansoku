@@ -10,6 +10,7 @@ import { parseClientInput } from '../platform/zodInput.js';
 import { z } from 'zod';
 import { easternDate } from '../marketdata/session.js';
 import { settingsDeps } from './settings.deps.js';
+import { xaiLogin } from './xaiLogin.js';
 import { runTestConnection } from './settings.testConnection.js';
 import {
   allowedProviders,
@@ -131,6 +132,7 @@ export const aiSettingsService: AiSettingsService = {
     const keyResult = credentialKeySchema.safeParse(input.key);
     if (!keyResult.success) throw new ClientError('"key" must be a non-empty string');
     const key = keyResult.data;
+    if (provider === 'xai') xaiLogin.cancel();
     credentials.setApiKey(provider, key);
     const entry = credentials.listEntries().find((e) => e.provider === provider);
     return { provider, masked: entry?.masked ?? null };
@@ -146,6 +148,14 @@ export const aiSettingsService: AiSettingsService = {
       );
     }
     const normalized = normalizeProviderBaseUrl(input.baseUrl);
+    if (provider === 'xai') {
+      if (normalized && (await credentials.read('xai'))?.type === 'oauth') {
+        throw new ClientError(
+          'xAI subscription sign-in requires the official endpoint. Use an API key for a custom Base URL.',
+        );
+      }
+      xaiLogin.cancel();
+    }
     credentials.setBaseUrl(provider, normalized);
     applyBaseUrlOverride(models, provider, normalized);
     return { provider, baseUrl: normalized };
@@ -153,6 +163,7 @@ export const aiSettingsService: AiSettingsService = {
 
   async deleteCredential(input) {
     const { credentials, models } = settingsDeps();
+    if (input.provider === 'xai') xaiLogin.cancel();
     try {
       await credentials.delete(input.provider);
     } catch (err) {
@@ -209,6 +220,12 @@ export const aiSettingsService: AiSettingsService = {
         } catch {
           auth = { kind: 'oauth', status: 'error' };
         }
+      } else if (id === 'xai') {
+        const entry = credentials.listEntries().find((item) => item.provider === id);
+        auth = {
+          kind: entry?.kind ?? 'api_key',
+          status: entry ? (entry.ok ? 'configured' : 'error') : 'missing',
+        };
       } else {
         auth = { kind: 'api_key', status: configuredApiKey.has(id) ? 'configured' : 'missing' };
       }
@@ -247,6 +264,7 @@ export const aiSettingsService: AiSettingsService = {
 
   async resetCredentials() {
     const { db, credentials, secretBox, models } = settingsDeps();
+    xaiLogin.cancel();
     db.transaction(() => {
       credentials.wipeAll();
     });

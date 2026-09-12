@@ -3,6 +3,7 @@ import { Button, Dot, Input } from '@web/ui';
 import { colors, fonts, fontSizes } from '../../theme/tokens.stylex';
 import { ProviderBaseUrlField } from './ProviderBaseUrlField';
 import type { CatalogProvider, CredentialEntry } from './types';
+import { useLocale, type MessageKey } from '@web/lib/i18n';
 
 const styles = stylex.create({
   row: {
@@ -43,10 +44,10 @@ const styles = stylex.create({
     overflowWrap: 'anywhere',
   },
   controls: {
-    alignItems: 'center',
-    display: 'flex',
-    gap: '6px',
-    marginTop: '8px',
+    'alignItems': 'center',
+    'display': 'flex',
+    'gap': '6px',
+    'marginTop': '8px',
     '@media (max-width: 560px)': {
       alignItems: 'stretch',
       flexDirection: 'column',
@@ -73,19 +74,29 @@ const styles = stylex.create({
   },
 });
 
-function credentialMeta(credential: CredentialEntry | undefined): string {
-  if (!credential) return '尚未保存 API key';
-  if (!credential.ok) return '已存凭据无法解密';
-  return (credential.masked ?? '已保存') + ' · 更新于 ' + credential.updatedAt.slice(0, 10);
+function credentialMeta(
+  credential: CredentialEntry | undefined,
+  t: (key: MessageKey) => string,
+): string {
+  if (!credential) return t('noSavedKey');
+  if (!credential.ok) return t('credentialUnreadable');
+  return (
+    (credential.kind === 'oauth' ? t('subscriptionConnected') : (credential.masked ?? t('saved'))) +
+    ' · ' +
+    credential.updatedAt.slice(0, 10)
+  );
 }
 
-function providerState(credential: CredentialEntry | undefined): {
+function providerState(
+  credential: CredentialEntry | undefined,
+  t: (key: MessageKey) => string,
+): {
   label: string;
   tone: 'up' | 'accent' | 'muted';
 } {
-  if (!credential) return { label: '未配置', tone: 'muted' };
-  if (!credential.ok) return { label: '需重新填写', tone: 'accent' };
-  return { label: '已保存', tone: 'up' };
+  if (!credential) return { label: t('notConfigured'), tone: 'muted' };
+  if (!credential.ok) return { label: t('reconnectRequired'), tone: 'accent' };
+  return { label: credential.kind === 'oauth' ? t('connected') : t('saved'), tone: 'up' };
 }
 
 export function ProviderAuthRow({
@@ -102,6 +113,7 @@ export function ProviderAuthRow({
   onCancel,
   onDelete,
   onChanged,
+  onLogin,
 }: {
   provider: CatalogProvider;
   credential: CredentialEntry | undefined;
@@ -116,8 +128,10 @@ export function ProviderAuthRow({
   onCancel: () => void;
   onDelete: () => void;
   onChanged: () => void;
+  onLogin?: () => void;
 }) {
-  const state = providerState(credential);
+  const { t } = useLocale();
+  const state = providerState(credential, t);
   const stateStyle =
     state.tone === 'up'
       ? styles.stateUp
@@ -132,7 +146,7 @@ export function ProviderAuthRow({
     >
       <div className={`settings-provider-head ${stylex.props(styles.head).className}`}>
         <span className={`settings-provider-name ${stylex.props(styles.name).className}`}>
-          {provider.name}
+          {provider.id === 'xai' ? 'xAI / Grok' : provider.name}
         </span>
         <span
           className={`settings-provider-state settings-provider-state--${state.tone} ${stylex.props(styles.state, stateStyle).className}`}
@@ -142,8 +156,16 @@ export function ProviderAuthRow({
         </span>
       </div>
       <div className={`settings-provider-meta ${stylex.props(styles.meta).className}`}>
-        {credentialMeta(credential)}
+        {credentialMeta(credential, t)}
       </div>
+      {onLogin ? (
+        <div {...stylex.props(styles.controls)}>
+          <Button onClick={onLogin} disabled={busy}>
+            {t('xaiLogin')}
+          </Button>
+          <span {...stylex.props(styles.meta)}>{t('xaiSubscription')}</span>
+        </div>
+      ) : null}
       {editing ? (
         <div className={`settings-provider-editor ${stylex.props(styles.controls).className}`}>
           <Input
@@ -159,32 +181,34 @@ export function ProviderAuthRow({
             disabled={busy || !editKey}
             onClick={onSave}
           >
-            {busy ? '保存中…' : '保存'}
+            {busy ? t('saving') : t('save')}
           </Button>
           <Button
             className={stylex.props(styles.editorButton).className}
             disabled={busy}
             onClick={onCancel}
           >
-            取消
+            {t('cancel')}
           </Button>
         </div>
       ) : (
         <div className={`settings-provider-actions ${stylex.props(styles.controls).className}`}>
-          <Button onClick={onStartEdit}>{credential ? '更新 key' : '添加 key'}</Button>
+          <Button onClick={onStartEdit}>{credential ? t('updateKey') : t('addKey')}</Button>
           {credential ? (
             <Button disabled={busy} onClick={onDelete}>
-              {busy ? '删除中…' : '删除'}
+              {busy ? t('deleting') : credential.kind === 'oauth' ? t('signOut') : t('delete')}
             </Button>
           ) : null}
         </div>
       )}
-      <ProviderBaseUrlField
-        key={baseUrl ?? ''}
-        provider={provider.id}
-        baseUrl={baseUrl}
-        onChanged={onChanged}
-      />
+      {credential?.kind !== 'oauth' ? (
+        <ProviderBaseUrlField
+          key={baseUrl ?? ''}
+          provider={provider.id}
+          baseUrl={baseUrl}
+          onChanged={onChanged}
+        />
+      ) : null}
       {error ? (
         <div
           className={`settings-provider-error ${stylex.props(styles.error).className}`}

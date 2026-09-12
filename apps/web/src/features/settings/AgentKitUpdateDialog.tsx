@@ -4,6 +4,7 @@ import { Button } from '@web/ui';
 import type { PendingUpdate } from '@kansoku/core/contract/agentKit';
 import { colors, fontSizes, fonts } from '../../theme/tokens.stylex';
 import type { DesktopAgentKitBridge } from './desktopAgentKit';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   providerMeta: {
@@ -38,6 +39,7 @@ export function AgentKitUpdateDialog({
   onResolved: () => void;
   close: () => void;
 }) {
+  const { t } = useLocale();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,11 +59,11 @@ export function AgentKitUpdateDialog({
 
   return (
     <div className="settings-reset-confirm">
-      <p>{update.dest} 有新版本的模板可用。</p>
+      <p>{t('updateDescription', { file: update.dest })}</p>
       <div className={`settings-provider-meta ${stylex.props(styles.providerMeta).className}`}>
-        旧模板 hash：{update.oldTemplateHash.slice(0, 12)}
+        {t('oldTemplateHash', { hash: update.oldTemplateHash.slice(0, 12) })}
         <br />
-        新模板 hash：{update.newTemplateHash.slice(0, 12)}
+        {t('newTemplateHash', { hash: update.newTemplateHash.slice(0, 12) })}
       </div>
       {error ? (
         <div
@@ -72,10 +74,10 @@ export function AgentKitUpdateDialog({
       ) : null}
       <div className={`settings-cred-actions ${stylex.props(styles.actions).className}`}>
         <Button disabled={busy} onClick={close}>
-          继续保留
+          {t('keepCurrent')}
         </Button>
         <Button accent disabled={busy} onClick={() => void apply()}>
-          使用新模板覆盖（备份当前为 .bak.&lt;旧模板 hash&gt;）
+          {t('applyTemplate')}
         </Button>
       </div>
     </div>

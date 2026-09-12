@@ -10,6 +10,7 @@ import { DeviceLoginDialog } from './DeviceLoginDialog';
 import { SettingsGroup } from './SettingsGroup';
 import { useLocale } from '../../lib/i18n';
 import { ProviderAuthRow } from './ProviderAuthRow';
+import { XaiLoginDialog } from './XaiLoginDialog';
 import {
   CODEX_PROVIDER,
   type AiSettings,
@@ -481,12 +482,14 @@ export function ProviderCredentialsSection({
     (provider) =>
       provider.id === CODEX_PROVIDER ||
       provider.id === LOBEHUB_PROVIDER ||
+      provider.id === 'xai' ||
       credentials.has(provider.id) ||
       usedProviders.has(provider.id),
   );
   const availableToAdd = catalog.providers.filter(
     (provider) =>
       provider.auth.kind === 'api_key' &&
+      provider.id !== 'xai' &&
       !credentials.has(provider.id) &&
       !usedProviders.has(provider.id),
   );
@@ -536,7 +539,7 @@ export function ProviderCredentialsSection({
               creditsError={lobehubCreditsError}
               onChanged={onChanged}
             />
-          ) : provider.id === CODEX_PROVIDER || provider.auth.kind === 'oauth' ? (
+          ) : provider.id === CODEX_PROVIDER ? (
             <CodexAuthRow key={provider.id} provider={provider} />
           ) : (
             <ProviderAuthRow
@@ -554,6 +557,18 @@ export function ProviderCredentialsSection({
               onCancel={() => cancelEdit(provider.id)}
               onDelete={() => deleteCredential(provider.id)}
               onChanged={onChanged}
+              onLogin={
+                provider.id === 'xai'
+                  ? () =>
+                      openModal({
+                        title: t('xaiLogin'),
+                        size: 'sm',
+                        body: (closeModal) => (
+                          <XaiLoginDialog closeModal={closeModal} onConnected={onChanged} />
+                        ),
+                      })
+                  : undefined
+              }
             />
           ),
         )}

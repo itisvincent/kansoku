@@ -20,7 +20,18 @@ export type {
 } from '@kansoku/pro-api';
 export type { LongbridgeRegionPreference } from '../marketdata/longbridgeEndpoints.js';
 
+export interface XaiLoginState {
+  sessionId: string;
+  status: 'pending' | 'connected' | 'error' | 'cancelled';
+  userCode?: string;
+  verificationUri?: string;
+  error?: string;
+}
+
 export interface SettingsApi {
+  startXaiLogin(): Promise<XaiLoginState>;
+  pollXaiLogin(input: { sessionId: string }): Promise<XaiLoginState>;
+  cancelXaiLogin(input: { sessionId: string }): Promise<{ cancelled: true }>;
   getAi(): Promise<SettingsAiOut>;
   putRole(input: {
     role: string;
@@ -73,6 +84,9 @@ export interface WebSearchStatus {
 }
 
 export const settingsRoutes = defineRoutes<SettingsApi>('settings', {
+  startXaiLogin: { method: 'POST', path: '/ai/xai/login' },
+  pollXaiLogin: { method: 'GET', path: '/ai/xai/login/:sessionId' },
+  cancelXaiLogin: { method: 'DELETE', path: '/ai/xai/login/:sessionId' },
   getAi: { method: 'GET', path: '/ai' },
   putRole: { method: 'PUT', path: '/ai/roles/:role' },
   deleteRole: { method: 'DELETE', path: '/ai/roles/:role' },

@@ -4,6 +4,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Catalog } from '../settings/types';
+import { LocaleProvider } from '../../lib/i18n';
 
 const getCatalog = vi.fn();
 const putCredential = vi.fn();
@@ -50,9 +51,33 @@ function enterApiKey(value = 'sk-test') {
 describe('StepAi', () => {
   afterEach(() => {
     cleanup();
+    localStorage.clear();
     for (const mock of [getCatalog, putCredential, putProviderBaseUrl, putRole]) {
       mock.mockReset();
     }
+  });
+
+  it('offers a visible xAI subscription sign-in in English even before credentials are saved', async () => {
+    localStorage.setItem('kansoku.locale', 'en-US');
+    getCatalog.mockResolvedValue({
+      providers: [
+        ...catalog.providers,
+        {
+          id: 'xai',
+          name: 'xAI',
+          auth: { kind: 'api_key', status: 'missing' },
+          models: [{ id: 'grok-test', name: 'Grok Test', thinkingLevels: [] }],
+        },
+      ],
+    });
+    renderWithClient(
+      <LocaleProvider>
+        <StepAi ripgrepAvailable onNext={() => {}} />
+      </LocaleProvider>,
+    );
+    expect(await screen.findByText('xAI / Grok')).toBeTruthy();
+    expect(screen.getByText('OAuth')).toBeTruthy();
+    expect(screen.getByText('Sign in with SuperGrok or X Premium, or use an API key')).toBeTruthy();
   });
 
   it('saves a custom Base URL before refreshing the catalog and assigning the primary model', async () => {

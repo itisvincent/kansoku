@@ -202,9 +202,18 @@ function SettingsBackLink() {
 
 function SettingsRail({ active }: { active: SettingsSectionId }) {
   const { t } = useLocale();
-  const labels = { ai: 'aiModels', display: 'display', connections: 'connections', license: 'license', advanced: 'advanced' } as const;
+  const labels = {
+    ai: 'aiModels',
+    display: 'display',
+    connections: 'connections',
+    license: 'license',
+    advanced: 'advanced',
+  } as const;
   return (
-    <nav className={`settings-rail ${stylex.props(styles.rail).className}`} aria-label={t('settings')}>
+    <nav
+      className={`settings-rail ${stylex.props(styles.rail).className}`}
+      aria-label={t('settingsCategories')}
+    >
       <div className={`settings-rail-inner ${stylex.props(styles.railInner).className}`}>
         <SettingsBackLink />
         {SETTINGS_SECTIONS.map(({ id, Icon }) => {
@@ -254,9 +263,31 @@ export function SettingsPage({ section }: { section: SettingsSectionId }) {
         <SettingsRail active={active.id} />
         <div className={`settings-pane ${stylex.props(styles.pane).className}`}>
           <div {...stylex.props(styles.paneBody)}>
-            <h1 {...stylex.props(styles.heading)}>{t(({ ai: 'aiModels', display: 'display', connections: 'connections', license: 'license', advanced: 'advanced' } as const)[active.id])}</h1>
+            <h1 {...stylex.props(styles.heading)}>
+              {t(
+                (
+                  {
+                    ai: 'aiModels',
+                    display: 'display',
+                    connections: 'connections',
+                    license: 'license',
+                    advanced: 'advanced',
+                  } as const
+                )[active.id],
+              )}
+            </h1>
             <div className={`settings-pane-subtitle ${stylex.props(styles.subtitle).className}`}>
-              {t(({ ai: 'aiModelsDescription', display: 'displayDescription', connections: 'connectionsDescription', license: 'licenseDescription', advanced: 'advancedDescription' } as const)[active.id])}
+              {t(
+                (
+                  {
+                    ai: 'aiModelsDescription',
+                    display: 'displayDescription',
+                    connections: 'connectionsDescription',
+                    license: 'licenseDescription',
+                    advanced: 'advancedDescription',
+                  } as const
+                )[active.id],
+              )}
             </div>
             <Pane />
           </div>

@@ -5,6 +5,7 @@ import { AgentKitConflictDialog } from './AgentKitConflictDialog';
 import { AgentKitUpdateDialog } from './AgentKitUpdateDialog';
 import { SettingsField, SettingsGroup, SettingsRow } from './SettingsGroup';
 import { openSettingsConfirm } from './openSettingsConfirm';
+import { useLocale } from '../../lib/i18n';
 import {
   getDesktopAgentKitBridge,
   type AgentKitStatus,
@@ -29,6 +30,7 @@ function locationLabel(status: AgentKitStatus): string {
 }
 
 export function AgentKitSection() {
+  const { t } = useLocale();
   const [bridge] = useState(() => getDesktopAgentKitBridge());
   const [status, setStatus] = useState<AgentKitStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -70,16 +72,20 @@ export function AgentKitSection() {
   const forceSync = () => void withBusy(() => bridge.forceSync());
   const clean = () =>
     openSettingsConfirm({
-      title: '清理 Agent Kit',
-      message: '这会删除本地生成的引导文件、skills 软链接与 kansoku-cli 入口。',
-      confirmLabel: '确认清理',
+      title: t('agentKitClean'),
+      message: t('agentKitCleanDescription'),
+      confirmLabel: t('confirmClean'),
       danger: true,
       onConfirm: () => void withBusy(() => bridge.clean()),
     });
 
   const openConflict = (conflict: PendingConflict) =>
     openModal({
-      title: <>处理冲突 · {conflict.dest}</>,
+      title: (
+        <>
+          {t('resolveConflict')} · {conflict.dest}
+        </>
+      ),
       size: 'sm',
       body: (close) => (
         <AgentKitConflictDialog
@@ -93,7 +99,11 @@ export function AgentKitSection() {
 
   const openUpdate = (update: PendingUpdate) =>
     openModal({
-      title: <>新模板可用 · {update.dest}</>,
+      title: (
+        <>
+          {t('templateAvailable')} · {update.dest}
+        </>
+      ),
       size: 'sm',
       body: (close) => (
         <AgentKitUpdateDialog update={update} bridge={bridge} onResolved={reload} close={close} />
@@ -105,55 +115,55 @@ export function AgentKitSection() {
   return (
     <SettingsGroup name="Agent Kit">
       <SettingsRow
-        label="启用"
-        description="为外部 Claude Code / Codex 提供内置 skills 软链接与 kansoku-cli 入口"
+        label={t('enabled')}
+        description={t('agentKitDescription')}
         error={error ?? undefined}
       >
         <Switch
-          ariaLabel="启用 Agent Kit"
+          ariaLabel={t('agentKitEnable')}
           checked={status?.enabled ?? false}
           disabled={busy || !status}
           onCheckedChange={(checked) => toggle(checked)}
         />
       </SettingsRow>
       <SettingsRow
-        label="接入位置"
+        label={t('integrationLocation')}
         mono={
           status
-            ? `${locationLabel(status)}${status.resolvedPath === null ? '（未生效）' : ''}`
-            : '加载中…'
+            ? `${locationLabel(status)}${status.resolvedPath === null ? t('notActive') : ''}`
+            : t('loading')
         }
       />
       {status ? (
         <SettingsRow
-          label="模板版本"
-          mono={`${status.kitVersion ?? '—'} · 上次同步 ${status.lastSyncAt ?? '—'}`}
+          label={t('templateVersion')}
+          mono={`${status.kitVersion ?? '—'} · ${t('lastSync', { time: status.lastSyncAt ?? '—' })}`}
         />
       ) : null}
       {status?.pendingConflicts?.map((conflict) => (
-        <SettingsRow key={conflict.dest} label="冲突待处理" mono={conflict.dest}>
-          <Button onClick={() => openConflict(conflict)}>处理</Button>
+        <SettingsRow key={conflict.dest} label={t('pendingConflict')} mono={conflict.dest}>
+          <Button onClick={() => openConflict(conflict)}>{t('handle')}</Button>
         </SettingsRow>
       ))}
       {status?.pendingUpdates?.map((update) => (
-        <SettingsRow key={update.dest} label="新模板可用" mono={update.dest}>
-          <Button onClick={() => openUpdate(update)}>查看</Button>
+        <SettingsRow key={update.dest} label={t('templateAvailable')} mono={update.dest}>
+          <Button onClick={() => openUpdate(update)}>{t('view')}</Button>
         </SettingsRow>
       ))}
-      <SettingsField label="操作">
+      <SettingsField label={t('actions')}>
         <div {...stylex.props(styles.actions)}>
           <Button disabled={busy || status?.location.kind === 'follow-data-root'} onClick={follow}>
-            使用 Agent Workspace
+            {t('useWorkspace')}
           </Button>
           <Button disabled={busy} onClick={pick}>
-            接入其他项目…
+            {t('connectProject')}
           </Button>
           <span {...stylex.props(styles.spacer)} />
           <Button disabled={busy || !canSync} onClick={forceSync}>
-            重刷
+            {t('refresh')}
           </Button>
           <Button disabled={busy} onClick={clean}>
-            清理
+            {t('clean')}
           </Button>
         </div>
       </SettingsField>

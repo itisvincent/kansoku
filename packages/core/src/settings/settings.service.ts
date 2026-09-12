@@ -12,8 +12,29 @@ import { setCodexSearchEnabled } from '../ai/websearch/codexOptIn.js';
 import { webSearchStatus } from '../ai/websearch/index.js';
 import type { SettingsApi } from '../contract/settings.js';
 import { aiSettingsService } from './aiSettings.service.js';
+import { settingsDeps } from './settings.deps.js';
+import { xaiLogin } from './xaiLogin.js';
+import { ClientError } from '../platform/errors.js';
 
 export const settingsService: SettingsApi = {
+  async startXaiLogin() {
+    const { models, credentials } = settingsDeps();
+    const oauth = models.getProvider('xai')?.auth.oauth;
+    if (!oauth) throw new ClientError('xAI OAuth is unavailable in this build.');
+    if (credentials.getBaseUrl('xai')) {
+      throw new ClientError(
+        'Reset the xAI Base URL to the official endpoint before using subscription sign-in.',
+      );
+    }
+    return xaiLogin.start(oauth, credentials);
+  },
+  async pollXaiLogin(input) {
+    return xaiLogin.poll(input.sessionId);
+  },
+  async cancelXaiLogin(input) {
+    xaiLogin.cancel(input.sessionId);
+    return { cancelled: true };
+  },
   getAi() {
     return aiSettingsService.getAi();
   },

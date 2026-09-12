@@ -4,6 +4,7 @@ import { Button } from '@web/ui';
 import type { PendingConflict } from '@kansoku/core/contract/agentKit';
 import { colors, fontSizes } from '../../theme/tokens.stylex';
 import type { DesktopAgentKitBridge } from './desktopAgentKit';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   testResult: {
@@ -30,6 +31,7 @@ export function AgentKitConflictDialog({
   onResolved: () => void;
   close: () => void;
 }) {
+  const { t } = useLocale();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +51,7 @@ export function AgentKitConflictDialog({
 
   return (
     <div className="settings-reset-confirm">
-      <p>目标文件 {conflict.dest} 已经存在但不在 Kit 管理列表里，请选择处理方式：</p>
+      <p>{t('conflictDescription', { file: conflict.dest })}</p>
       {error ? (
         <div
           className={`settings-test-result settings-test-result--fail ${stylex.props(styles.testResult, styles.testResultFail).className}`}
@@ -59,13 +61,13 @@ export function AgentKitConflictDialog({
       ) : null}
       <div className={`settings-cred-actions ${stylex.props(styles.credActions).className}`}>
         <Button disabled={busy} onClick={close}>
-          稍后再说
+          {t('later')}
         </Button>
         <Button disabled={busy} onClick={() => void resolve('keep-original')}>
-          保留原文件（登记为归用户所有）
+          {t('keepOriginal')}
         </Button>
         <Button accent disabled={busy} onClick={() => void resolve('use-template')}>
-          使用 Kit 模板覆盖（备份原文件为 .bak）
+          {t('useKitTemplate')}
         </Button>
       </div>
     </div>

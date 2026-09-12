@@ -4,12 +4,13 @@ import { errorMessage } from '../../lib/api';
 import { useQuery } from '../../lib/apiHooks';
 import { client } from '../../lib/client';
 import { DeviceLoginDialog } from '../settings/DeviceLoginDialog';
+import { XaiLoginDialog } from '../settings/XaiLoginDialog';
 import { defaultThinkingLevel, firstModelId, saveRole } from '../settings/roleShared';
 import { CODEX_PROVIDER, type Catalog, LOBEHUB_PROVIDER } from '../settings/types';
 import { Button, Card, Input, openModal, Select } from '../../ui';
 import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
 import { CodexLogo, KeyLogo, LobeHubLogo } from './brandLogos';
-import { useLocale } from '../../lib/i18n';
+import { useLocale, type MessageKey } from '../../lib/i18n';
 
 const CODEX_INSTALL_COMMAND = 'npm install -g @openai/codex';
 const CODEX_INSTALL_URL = 'https://github.com/openai/codex';
@@ -158,9 +159,13 @@ function fetchCatalog(): Promise<Catalog> {
   return client.settings.getCatalog() as Promise<Catalog>;
 }
 
-async function connectPrimary(catalog: Catalog, providerId: string): Promise<void> {
+async function connectPrimary(
+  catalog: Catalog,
+  providerId: string,
+  t: (key: MessageKey) => string,
+): Promise<void> {
   const modelId = firstModelId(catalog, providerId);
-  if (!modelId) throw new Error('该来源暂无可用模型，请稍后在设置里选择');
+  if (!modelId) throw new Error(t('providerNoModels'));
   const thinkingLevel = defaultThinkingLevel(catalog, providerId, modelId);
   await saveRole('primary', {
     mode: 'custom',
@@ -211,7 +216,7 @@ export function StepAi({
 
   const codexReady =
     catalog.providers.find((p) => p.id === CODEX_PROVIDER)?.auth.status === 'configured';
-  const apiProviders = catalog.providers.filter((p) => p.auth.kind === 'api_key');
+  const apiProviders = catalog.providers.filter((p) => p.auth.kind === 'api_key' || p.id === 'xai');
   const effectiveApiProvider = apiProvider || apiProviders[0]?.id || '';
 
   const finish = async (tag: string, connect: () => Promise<void>) => {
@@ -226,7 +231,7 @@ export function StepAi({
     }
   };
 
-  const useCodex = () => finish('codex', () => connectPrimary(catalog, CODEX_PROVIDER));
+  const useCodex = () => finish('codex', () => connectPrimary(catalog, CODEX_PROVIDER, t));
   const skip = () => finish('skip', async () => {});
 
   const saveApiKey = () =>
@@ -236,7 +241,7 @@ export function StepAi({
         provider: effectiveApiProvider,
         baseUrl: apiBaseUrl,
       });
-      await connectPrimary(await fetchCatalog(), effectiveApiProvider);
+      await connectPrimary(await fetchCatalog(), effectiveApiProvider, t);
     });
 
   const loginLobehub = async () => {
@@ -245,7 +250,7 @@ export function StepAi({
     try {
       const info = await client.lobehub.startDeviceLogin();
       openModal({
-        title: '连接 LobeHub Cloud',
+        title: t('connectLobehub'),
         size: 'sm',
         body: (closeModal) => (
           <DeviceLoginDialog
@@ -257,7 +262,7 @@ export function StepAi({
               // advances — the user just picks a model in settings.
               void (async () => {
                 try {
-                  await connectPrimary(await fetchCatalog(), LOBEHUB_PROVIDER);
+                  await connectPrimary(await fetchCatalog(), LOBEHUB_PROVIDER, t);
                 } catch (err) {
                   console.warn('onboarding: LobeHub connected but model not assigned', err);
                 }
@@ -283,8 +288,8 @@ export function StepAi({
     key: 'codex',
     logo: <CodexLogo />,
     name: 'codex',
-    tag: codexReady ? '已检测 · 推荐' : null,
-    sub: codexReady ? '用本机登录态，一键直接用，不额外收费' : '装了 codex 可白嫖本地额度',
+    tag: codexReady ? t('detectedRecommended') : null,
+    sub: codexReady ? t('codexUseLocal') : t('codexInstallHint'),
     recommended: codexReady,
     action: codexReady
       ? { label: busy === 'codex' ? t('configuring') : t('use'), accent: true, onClick: useCodex }
@@ -295,7 +300,7 @@ export function StepAi({
     logo: <LobeHubLogo />,
     name: 'LobeHub Cloud',
     tag: codexReady ? null : t('recommended'),
-    sub: codexReady ? '登录即用，云端个人额度' : '登录即用，无需 API Key',
+    sub: codexReady ? t('lobePersonalCredits') : t('lobeNoKey'),
     recommended: !codexReady,
     action: {
       label: busy === 'lobehub' ? t('starting') : t('login'),
@@ -313,6 +318,33 @@ export function StepAi({
     action: { label: t('fillIn'), accent: false, onClick: () => setShowApiKey((v) => !v) },
   };
   const rows = codexReady ? [codexRow, lobehubRow, apiKeyRow] : [lobehubRow, codexRow, apiKeyRow];
+  if (catalog.providers.some((provider) => provider.id === 'xai')) {
+    rows.splice(1, 0, {
+      key: 'xai',
+      logo: <KeyLogo />,
+      name: 'xAI / Grok',
+      tag: 'OAuth',
+      sub: t('xaiSubscription'),
+      recommended: false,
+      action: {
+        label: t('login'),
+        accent: false,
+        onClick: () =>
+          openModal({
+            title: t('xaiLogin'),
+            size: 'sm',
+            body: (closeModal) => (
+              <XaiLoginDialog
+                closeModal={closeModal}
+                onConnected={() => {
+                  void finish('xai', async () => connectPrimary(await fetchCatalog(), 'xai', t));
+                }}
+              />
+            ),
+          }),
+      },
+    });
+  }
 
   return (
     <Card className={`onboarding-card ${stylex.props(styles.card).className}`}>
@@ -324,7 +356,7 @@ export function StepAi({
       {!ripgrepAvailable ? (
         <div className={`onboarding-install ${stylex.props(styles.install).className}`}>
           <p className={`onboarding-explainer ${stylex.props(styles.explainer).className}`}>
-            未检测到 rg。AI 仍可使用，但无法可靠搜索研究库；安装后重新打开 Kansoku 即可。
+            {t('ripgrepMissing')}
           </p>
           <pre className={`onboarding-cli-command ${stylex.props(styles.cliCommand).className}`}>
             <code>{RIPGREP_INSTALL_COMMAND}</code>
@@ -360,7 +392,7 @@ export function StepAi({
       {showInstall ? (
         <div className={`onboarding-install ${stylex.props(styles.install).className}`}>
           <p className={`onboarding-explainer ${stylex.props(styles.explainer).className}`}>
-            装好 codex 并登录后，回到这里会自动检测到。
+            {t('codexReturnAfterLogin')}
           </p>
           <pre className={`onboarding-cli-command ${stylex.props(styles.cliCommand).className}`}>
             <code>{CODEX_INSTALL_COMMAND}</code>
@@ -384,13 +416,13 @@ export function StepAi({
             className={`onboarding-apikey-row ${stylex.props(styles.apiKeyRow, styles.apiKeyEndpoint).className}`}
           >
             <Input
-              aria-label="Base URL（可选）"
+              aria-label={t('baseUrlOptional')}
               autoComplete="off"
               className={stylex.props(styles.apiField).className}
               type="url"
               value={apiBaseUrl}
               onChange={(event) => setApiBaseUrl(event.target.value)}
-              placeholder="默认官方地址，可填中转站地址（可选）"
+              placeholder={t('baseUrlPlaceholder')}
             />
           </div>
           <div

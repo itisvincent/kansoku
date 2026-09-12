@@ -4,6 +4,20 @@ import { jsonResponse } from '../../httpResponse.js';
 
 @Controller('settings')
 export class SettingsController {
+  @Post('/ai/xai/login')
+  async startXaiLogin() {
+    return { ok: true, data: await settingsService.startXaiLogin() };
+  }
+
+  @Get('/ai/xai/login/:sessionId')
+  async pollXaiLogin(@Param('sessionId') sessionId: string) {
+    return { ok: true, data: await settingsService.pollXaiLogin({ sessionId }) };
+  }
+
+  @Delete('/ai/xai/login/:sessionId')
+  async cancelXaiLogin(@Param('sessionId') sessionId: string) {
+    return { ok: true, data: await settingsService.cancelXaiLogin({ sessionId }) };
+  }
   @Get('/ai')
   async getAi() {
     const data = await settingsService.getAi();
