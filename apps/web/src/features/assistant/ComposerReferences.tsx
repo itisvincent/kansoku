@@ -2,6 +2,7 @@ import * as stylex from '@stylexjs/stylex';
 import { AtSign, X } from 'lucide-react';
 import { colors, fontSizes, radii, sizes } from '../../theme/tokens.stylex';
 import type { MentionCandidate } from './atMention.js';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   root: {
@@ -44,22 +45,22 @@ const styles = stylex.create({
     whiteSpace: 'nowrap',
   },
   remove: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderStyle: 'none',
-    borderWidth: 0,
-    borderRadius: radii.full,
-    color: colors.textMuted,
-    cursor: 'pointer',
-    display: 'inline-flex',
-    flex: '0 0 auto',
-    height: '20px',
-    justifyContent: 'center',
-    padding: 0,
-    transitionDuration: '120ms',
-    transitionProperty: 'color, background-color, scale',
-    transitionTimingFunction: 'ease-out',
-    width: '20px',
+    'alignItems': 'center',
+    'backgroundColor': 'transparent',
+    'borderStyle': 'none',
+    'borderWidth': 0,
+    'borderRadius': radii.full,
+    'color': colors.textMuted,
+    'cursor': 'pointer',
+    'display': 'inline-flex',
+    'flex': '0 0 auto',
+    'height': '20px',
+    'justifyContent': 'center',
+    'padding': 0,
+    'transitionDuration': '120ms',
+    'transitionProperty': 'color, background-color, scale',
+    'transitionTimingFunction': 'ease-out',
+    'width': '20px',
     ':hover': {
       backgroundColor: colors.backgroundHover,
       color: colors.textPrimary,
@@ -77,12 +78,13 @@ export function ComposerReferences({
   references: MentionCandidate[];
   onRemove: (path: string) => void;
 }) {
+  const { t } = useLocale();
   if (references.length === 0) return null;
 
   return (
     <div
       className={`assistant-composer-references ${stylex.props(styles.root).className}`}
-      aria-label="已引用的研究资料"
+      aria-label={t('referencedMaterials')}
     >
       {references.map((reference) => (
         <span
@@ -103,7 +105,7 @@ export function ComposerReferences({
           <button
             type="button"
             {...stylex.props(styles.remove)}
-            aria-label={`移除 ${reference.title}`}
+            aria-label={`${t('remove')} ${reference.title}`}
             onClick={() => onRemove(reference.path)}
           >
             <X size={11} aria-hidden="true" />

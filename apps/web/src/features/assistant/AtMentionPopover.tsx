@@ -1,6 +1,7 @@
 import * as stylex from '@stylexjs/stylex';
 import { colors, fontSizes, radii, sizes } from '../../theme/tokens.stylex';
 import type { MentionCandidate } from './atMention.js';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   popover: {
@@ -70,16 +71,17 @@ export function AtMentionPopover({
   activeIndex: number;
   onPick: (candidate: MentionCandidate) => void;
 }) {
+  const { t } = useLocale();
   if (candidates.length === 0) {
     return (
       <div {...stylex.props(styles.popover)}>
-        <div {...stylex.props(styles.empty)}>没有匹配的文件</div>
+        <div {...stylex.props(styles.empty)}>{t('noMatchingFiles')}</div>
       </div>
     );
   }
 
   return (
-    <div {...stylex.props(styles.popover)} role="listbox" aria-label="研究资料">
+    <div {...stylex.props(styles.popover)} role="listbox" aria-label={t('referenceMaterials')}>
       {candidates.map((candidate, index) => (
         <button
           type="button"

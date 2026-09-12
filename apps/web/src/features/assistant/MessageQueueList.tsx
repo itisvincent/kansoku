@@ -2,6 +2,7 @@ import * as stylex from '@stylexjs/stylex';
 import { X } from 'lucide-react';
 import type { QueueItem } from './messageQueue.js';
 import { colors, fontSizes, fonts, radii, sizes } from '../../theme/tokens.stylex';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   root: {
@@ -110,12 +111,13 @@ export function MessageQueueList({
   queue: QueueItem[];
   onRemove: (id: string) => void;
 }) {
+  const { t } = useLocale();
   if (queue.length === 0) return null;
 
   return (
-    <div {...stylex.props(styles.root)} aria-label="待发送消息">
+    <div {...stylex.props(styles.root)} aria-label={t('queuedMessages')}>
       <div {...stylex.props(styles.head)}>
-        <span>待发送</span>
+        <span>{t('queued')}</span>
         <span {...stylex.props(styles.count)}>{queue.length}</span>
       </div>
       <div {...stylex.props(styles.items)}>
@@ -126,7 +128,7 @@ export function MessageQueueList({
             <button
               type="button"
               {...stylex.props(styles.remove)}
-              aria-label="移出队列"
+              aria-label={t('removeFromQueue')}
               onClick={() => onRemove(item.id)}
             >
               <X size={12} aria-hidden="true" />
