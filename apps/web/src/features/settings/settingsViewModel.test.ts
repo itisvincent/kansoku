@@ -190,7 +190,22 @@ describe('deriveSettingsViewModel', () => {
   it("keeps configuration usable when today's usage cannot load", () => {
     const view = deriveSettingsViewModel({ settings, catalog, usage: null, roles });
 
-    expect(view.summary.usageLabel).toBe('暂不可用');
+    expect(view.summary.usageLabel).toBeNull();
     expect(view.roles.comment.usageLabel).toBe('今日 —');
+  });
+
+  it('localizes derived role warnings and usage without changing issue grouping', () => {
+    const english = deriveSettingsViewModel({ settings, catalog, usage, roles, locale: 'en-US' });
+    const chinese = deriveSettingsViewModel({ settings, catalog, usage, roles, locale: 'zh-CN' });
+    expect(english.roles.comment.effectiveLabel).toBe('DeepSeek V4 · Thinking off');
+    expect(english.roles.analyst.effectiveLabel).toBe(
+      'Anthropic is not authenticated; this role is paused',
+    );
+    expect(english.summary.usageLabel).toBe('$1.84 · Calls: 131');
+    expect(english.issues.map((issue) => issue.id)).toEqual(
+      chinese.issues.map((issue) => issue.id),
+    );
+    expect(english.issues[0].detail).toBe('Roles using this provider: Advanced analysis.');
+    expect(JSON.stringify(english)).not.toMatch(/[\u4e00-\u9fff]/);
   });
 });

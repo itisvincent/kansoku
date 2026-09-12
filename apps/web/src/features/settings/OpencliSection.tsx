@@ -24,13 +24,26 @@ export function OpencliSection() {
 
   return (
     <SettingsGroup
-      name="X/Twitter（opencli）"
-      badge={<Badge tone={ready ? 'up' : 'down'}>{state ? ({ ready: t('connected'), not_installed: t('notInstalledCli'), extension_missing: t('extensionMissing'), no_session: t('noSession') } as const)[state] : t('checking')}</Badge>}
+      name="X/Twitter (opencli)"
+      badge={
+        <Badge tone={ready ? 'up' : 'down'}>
+          {state
+            ? (
+                {
+                  ready: t('connected'),
+                  not_installed: t('notInstalledCli'),
+                  extension_missing: t('extensionMissing'),
+                  no_session: t('noSession'),
+                } as const
+              )[state]
+            : t('checking')}
+        </Badge>
+      }
     >
       <SettingsRow
         label={t('executable')}
         description={t('opencliDescription')}
-        mono={data?.cliPath ?? '未找到'}
+        mono={data?.cliPath ?? t('notFound')}
         error={ready ? undefined : (data?.lastError ?? undefined)}
       >
         <Button onClick={reload}>{t('redetect')}</Button>
@@ -46,20 +59,14 @@ export function OpencliSection() {
         </SettingsRow>
       ) : null}
       {state === 'extension_missing' ? (
-        <SettingsRow
-          label={t('installExtension')}
-          description="下载 opencli-extension 并解压，在 chrome://extensions 开启开发者模式后「加载已解压的扩展程序」"
-        >
+        <SettingsRow label={t('installExtension')} description={t('opencliExtensionSteps')}>
           <Button onClick={() => window.open(RELEASES_URL, '_blank', 'noopener,noreferrer')}>
             {t('downloadExtension')}
           </Button>
         </SettingsRow>
       ) : null}
       {state === 'no_session' ? (
-        <SettingsRow
-          label={t('loginX')}
-          description="在 Chrome 里登录后刷新一下 x.com 页面，再点重新检测"
-        />
+        <SettingsRow label={t('loginX')} description={t('opencliSessionSteps')} />
       ) : null}
     </SettingsGroup>
   );

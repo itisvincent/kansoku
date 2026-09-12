@@ -1,3 +1,4 @@
+import { translate, type Locale, type MessageKey } from '../../lib/i18n';
 import type { Market } from '@kansoku/shared/time';
 
 export type SettingsSectionId = 'ai' | 'display' | 'connections' | 'license' | 'advanced';
@@ -112,14 +113,17 @@ export function normalizeAiSettings(settings: PersistedAiSettings): AiSettings {
   };
 }
 
-export const ROLE_LABEL: Record<Role, string> = {
-  comment: '盘中快评',
-  analyst: '升级分析',
-  deepDive: '深度研究',
-  chat: '追问',
-  casePick: '案例精选',
-  title: '会话标题',
+const ROLE_KEYS: Record<Role, MessageKey> = {
+  comment: 'roleComment',
+  analyst: 'roleAnalyst',
+  deepDive: 'roleDeepDive',
+  chat: 'roleChat',
+  casePick: 'roleCasePick',
+  title: 'roleTitle',
 };
+export function roleLabel(role: Role, locale: Locale = 'zh-CN'): string {
+  return translate(locale, ROLE_KEYS[role]);
+}
 
 export const CODEX_PROVIDER = 'openai-codex';
 export const LOBEHUB_PROVIDER = 'lobehub';
@@ -150,18 +154,20 @@ export interface LobeHubDeviceLogin {
   intervalSeconds: number;
 }
 
-const THINKING_LABEL: Record<string, string> = {
-  off: '关闭思考',
-  minimal: '最简',
-  low: '低',
-  medium: '中',
-  high: '高',
-  xhigh: '极高',
+const THINKING_KEYS: Record<string, MessageKey> = {
+  off: 'thinkingOff',
+  minimal: 'thinkingMinimal',
+  low: 'thinkingLow',
+  medium: 'thinkingMedium',
+  high: 'thinkingHigh',
+  xhigh: 'thinkingXHigh',
 };
-
-export function thinkingLabel(level: string | null): string {
-  return level ? (THINKING_LABEL[level] ?? level) : THINKING_LABEL.off;
+export function thinkingLabel(level: string | null, locale: Locale = 'zh-CN'): string {
+  const key = THINKING_KEYS[level ?? 'off'];
+  return key ? translate(locale, key) : level!;
 }
-
 export type { Market };
-export const MARKET_LABEL: Record<Market, string> = { US: '美股', HK: '港股', CN: 'A 股' };
+const MARKET_KEYS: Record<Market, MessageKey> = { US: 'marketUS', HK: 'marketHK', CN: 'marketCN' };
+export function marketLabel(market: Market, locale: Locale = 'zh-CN'): string {
+  return translate(locale, MARKET_KEYS[market]);
+}

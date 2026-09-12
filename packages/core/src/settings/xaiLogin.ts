@@ -58,16 +58,11 @@ export function createXaiLogin() {
             notify(event) {
               if (controller.signal.aborted || event.type !== 'device_code') return;
               const url = new URL(event.verificationUri);
-              // xAI has returned an incomplete `/oauth2/device/approve` URL in
-              // some responses. The current device page is hosted on
-              // accounts.x.ai and requires the user code query parameter.
-              if (url.pathname === '/oauth2/device/approve' && event.userCode) {
-                url.hostname = 'accounts.x.ai';
-                url.pathname = '/oauth2/device';
-                url.search = `?user_code=${encodeURIComponent(event.userCode)}`;
-              }
               if (
                 url.protocol !== 'https:' ||
+                url.username !== '' ||
+                url.password !== '' ||
+                url.port !== '' ||
                 (url.hostname !== 'x.ai' && !url.hostname.endsWith('.x.ai'))
               ) {
                 throw new Error('Unexpected xAI verification address.');

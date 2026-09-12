@@ -1,3 +1,4 @@
+import { useLocale } from '../../lib/i18n';
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { useQuery } from '@web/lib/apiHooks';
@@ -50,11 +51,12 @@ function AiSettingsWorkspace({
   lobehubCredits: LobeHubCredits | null;
   lobehubCreditsError: string | null;
 }) {
+  const { locale } = useLocale();
   const [roleDrafts, setRoleDrafts] = useState<AiRoles>(() => settings.roles);
   const updateRoleDraft = (role: Role | 'primary', next: RoleSetting) => {
     setRoleDrafts((current) => ({ ...current, [role]: next }));
   };
-  const view = deriveSettingsViewModel({ settings, catalog, usage, roles: roleDrafts });
+  const view = deriveSettingsViewModel({ settings, catalog, usage, roles: roleDrafts, locale });
   const usedProviderIds = Array.from(
     new Set(
       Object.values(roleDrafts).flatMap((setting) =>
@@ -92,6 +94,7 @@ function AiSettingsWorkspace({
 }
 
 export function AiSettingsPane() {
+  const { t } = useLocale();
   const {
     data: settings,
     error: settingsError,
@@ -127,13 +130,13 @@ export function AiSettingsPane() {
             reloadCatalog();
           }}
         >
-          重试
+          {t('retry')}
         </Button>
       </ErrorBox>
     );
   }
 
-  if (!settings || !catalog) return <NoteBlock>加载中…</NoteBlock>;
+  if (!settings || !catalog) return <NoteBlock>{t('loading')}</NoteBlock>;
 
   return (
     <AiSettingsWorkspace

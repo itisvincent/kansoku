@@ -70,13 +70,11 @@ describe('xAI device login', () => {
       const models = builtinModels({ credentials: store });
       const provider = models.getProvider('xai')!;
       const oauth = provider.auth.oauth!;
-      const refresh = vi
-        .fn()
-        .mockResolvedValue({
-          ...token,
-          access: 'refreshed-access',
-          expires: Date.now() + 3600_000,
-        });
+      const refresh = vi.fn().mockResolvedValue({
+        ...token,
+        access: 'refreshed-access',
+        expires: Date.now() + 3600_000,
+      });
       models.setProvider({ ...provider, auth: { ...provider.auth, oauth: { ...oauth, refresh } } });
       const state = manager.start(
         { ...oauth, login: async () => ({ ...token, expires: 1 }) },
@@ -100,13 +98,11 @@ describe('xAI device login', () => {
 
   it('exposes only the device code and stores the token before reporting success', async () => {
     const flow = setup();
-    flow
-      .interaction()
-      .notify({
-        type: 'device_code',
-        userCode: 'ABCD',
-        verificationUri: 'https://auth.x.ai/activate',
-      });
+    flow.interaction().notify({
+      type: 'device_code',
+      userCode: 'ABCD',
+      verificationUri: 'https://auth.x.ai/activate',
+    });
     expect(flow.manager.poll(flow.state.sessionId)).toMatchObject({
       status: 'pending',
       userCode: 'ABCD',
@@ -162,17 +158,29 @@ describe('xAI device login', () => {
     expect(flow.stored()).toBeUndefined();
   });
 
-  it('rejects verification links outside xAI', () => {
+  it.each([
+    'https://x.ai.example.com/activate',
+    'https://attacker.example/oauth2/device/approve',
+    'http://accounts.x.ai/oauth2/device',
+    'https://user:password@accounts.x.ai/oauth2/device',
+    'https://accounts.x.ai:444/oauth2/device',
+  ])('rejects untrusted verification link %s', (verificationUri) => {
     const flow = setup();
     expect(() =>
-      flow
-        .interaction()
-        .notify({
-          type: 'device_code',
-          userCode: 'ABCD',
-          verificationUri: 'https://x.ai.example.com/activate',
-        }),
+      flow.interaction().notify({
+        type: 'device_code',
+        userCode: 'ABCD',
+        verificationUri,
+      }),
     ).toThrow(/Unexpected/);
+    flow.manager.cancel();
+  });
+
+  it('preserves the complete verification URL supplied by xAI', () => {
+    const flow = setup();
+    const verificationUri = 'https://accounts.x.ai/oauth2/device?user_code=ABCD-EFGH';
+    flow.interaction().notify({ type: 'device_code', userCode: 'ABCD-EFGH', verificationUri });
+    expect(flow.manager.poll(flow.state.sessionId).verificationUri).toBe(verificationUri);
     flow.manager.cancel();
   });
 });

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { LocaleProvider, useLocale } from '@web/lib/i18n';
 import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { resetCapabilitiesStoreForTests } from '@web/features/edition/capabilitiesStore';
@@ -125,6 +126,7 @@ describe('SettingsPage', () => {
     cleanup();
     resetCapabilitiesStoreForTests();
     resetLicenseModalStoreForTests();
+    localStorage.removeItem('kansoku.locale');
     for (const mock of [
       getAi,
       getCatalog,
@@ -138,6 +140,49 @@ describe('SettingsPage', () => {
     ]) {
       mock.mockReset();
     }
+  });
+
+  it('switches the complete AI settings surface between English and Chinese', async () => {
+    mockSettingsPageQueries(preEndpointsSettings);
+    getCatalog.mockResolvedValue({
+      providers: [
+        { id: 'xai', name: 'xAI', models: [], auth: { kind: 'api_key', status: 'missing' } },
+        {
+          id: 'openai-codex',
+          name: 'Codex',
+          models: [],
+          auth: { kind: 'oauth', status: 'missing' },
+        },
+        { id: 'lobehub', name: 'LobeHub', models: [], auth: { kind: 'oauth', status: 'missing' } },
+      ],
+    });
+    localStorage.setItem('kansoku.locale', 'en-US');
+    function LanguageToggle() {
+      const { locale, setLocale } = useLocale();
+      return (
+        <button onClick={() => setLocale(locale === 'en-US' ? 'zh-CN' : 'en-US')}>
+          Switch language
+        </button>
+      );
+    }
+    const { container } = renderWithClient(
+      <LocaleProvider>
+        <LanguageToggle />
+        <SettingsPage section="ai" />
+      </LocaleProvider>,
+    );
+    await screen.findByText('Intraday commentary');
+    expect(screen.getByRole('button', { name: 'Sign in to xAI / Grok' })).toBeTruthy();
+    expect(
+      screen.getByRole('radiogroup', { name: 'Assignment mode for Follow-up chat' }),
+    ).toBeTruthy();
+    expect(container.textContent).not.toMatch(/[\u4e00-\u9fff]/);
+    fireEvent.click(screen.getByRole('button', { name: 'Switch language' }));
+    expect(screen.getByText('盘中快评')).toBeTruthy();
+    expect(screen.getAllByText('已停用，不会发起调用', { exact: true }).length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole('button', { name: 'Switch language' }));
+    expect(container.textContent).not.toMatch(/[\u4e00-\u9fff]/);
+    expect(localStorage.getItem('kansoku.locale')).toBe('en-US');
   });
 
   it('renders without crashing when the settings.getAi response is missing a role added after the client last cached it', async () => {

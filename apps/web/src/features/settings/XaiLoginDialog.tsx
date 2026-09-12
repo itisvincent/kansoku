@@ -24,6 +24,7 @@ export function XaiLoginDialog({
   const { t } = useLocale();
   const [login, setLogin] = useState<XaiLoginState | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [attempt, setAttempt] = useState(0);
   const complete = useEffectEvent(() => {
     onConnected();
     closeModal();
@@ -69,11 +70,18 @@ export function XaiLoginDialog({
       if (timer) clearTimeout(timer);
       if (sessionId) void client.settings.cancelXaiLogin({ sessionId }).catch(() => {});
     };
-  }, []);
+  }, [attempt]);
+
+  const restart = () => {
+    setLogin(null);
+    setError(null);
+    setAttempt((value) => value + 1);
+  };
 
   return (
     <div {...stylex.props(styles.root)}>
       <p {...stylex.props(styles.description)}>{t('xaiLoginDescription')}</p>
+      <p {...stylex.props(styles.description)}>{t('xaiLoginRecovery')}</p>
       {login?.userCode ? <div {...stylex.props(styles.code)}>{login.userCode}</div> : null}
       {error || login?.status === 'error' ? (
         <div role="alert">{error ?? login?.error}</div>
@@ -88,6 +96,7 @@ export function XaiLoginDialog({
       )}
       <div {...stylex.props(styles.actions)}>
         <Button onClick={closeModal}>{t('cancel')}</Button>
+        {login || error ? <Button onClick={restart}>{t('xaiNewCode')}</Button> : null}
         {login?.status === 'pending' && login.userCode && login.verificationUri ? (
           <>
             <Button onClick={() => void navigator.clipboard.writeText(login.userCode!)}>
@@ -98,6 +107,13 @@ export function XaiLoginDialog({
               onClick={() => window.open(login.verificationUri, '_blank', 'noopener,noreferrer')}
             >
               {t('openXaiLogin')}
+            </Button>
+            <Button
+              onClick={() =>
+                window.open('https://accounts.x.ai/oauth2/device', '_blank', 'noopener,noreferrer')
+              }
+            >
+              {t('xaiManualCode')}
             </Button>
           </>
         ) : null}

@@ -78,7 +78,7 @@ export function SettingsStatusStrip({
               {t('retry')}
             </button>
           </>
-        ) : summary.usageLabel === '暂不可用' ? (
+        ) : summary.usageLabel === null ? (
           t('usageUnavailable')
         ) : (
           t('todayUsage', { value: summary.usageLabel })

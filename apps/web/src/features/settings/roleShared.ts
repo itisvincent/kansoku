@@ -1,3 +1,4 @@
+import { translate, type Locale } from '../../lib/i18n';
 import { client } from '@web/lib/client';
 import {
   CODEX_PROVIDER,
@@ -41,10 +42,16 @@ export function selectableProviders(
   return catalog.providers.filter((p) => p.auth.status === 'configured' || p.id === currentId);
 }
 
-export function providerLabel(catalog: Catalog, providerId: string): string {
+export function providerLabel(
+  catalog: Catalog,
+  providerId: string,
+  locale: Locale = 'zh-CN',
+): string {
   const provider = catalog.providers.find((p) => p.id === providerId);
   if (!provider) return providerId;
-  return provider.auth.status === 'configured' ? provider.name : `${provider.name}（未认证）`;
+  return provider.auth.status === 'configured'
+    ? provider.name
+    : translate(locale, 'providerUnauthenticated', { provider: provider.name });
 }
 
 export function providerKeyReady(

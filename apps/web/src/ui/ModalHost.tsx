@@ -6,6 +6,7 @@ import {
   type ReactNode,
 } from 'react';
 import { X } from 'lucide-react';
+import { useLocale } from '../lib/i18n';
 import { clsx } from 'clsx';
 import * as stylex from '@stylexjs/stylex';
 import { closeModal, getSnapshot, subscribe, type ModalEntry } from './modalStore';
@@ -64,18 +65,18 @@ const styles = stylex.create({
   },
   headActions: { alignItems: 'center', display: 'flex', flex: '0 0 auto', gap: '4px' },
   headAction: {
-    alignItems: 'center',
-    backgroundColor: 'transparent',
-    borderRadius: radii.default,
-    borderStyle: 'none',
-    borderWidth: 0,
-    color: colors.textSecondary,
-    cursor: 'pointer',
-    display: 'inline-flex',
-    height: '24px',
-    justifyContent: 'center',
-    padding: 0,
-    width: '24px',
+    'alignItems': 'center',
+    'backgroundColor': 'transparent',
+    'borderRadius': radii.default,
+    'borderStyle': 'none',
+    'borderWidth': 0,
+    'color': colors.textSecondary,
+    'cursor': 'pointer',
+    'display': 'inline-flex',
+    'height': '24px',
+    'justifyContent': 'center',
+    'padding': 0,
+    'width': '24px',
     ':hover': { backgroundColor: colors.backgroundHover, color: colors.textPrimary },
     ':focus-visible': { outline: colors.focusOutline, outlineOffset: '1px' },
   },
@@ -92,6 +93,7 @@ function styledHeaderAction(action: ReactNode): ReactNode {
 }
 
 function ModalFrame({ entry }: { entry: ModalEntry }) {
+  const { t } = useLocale();
   const close = () => closeModal(entry.id);
 
   useEffect(() => {
@@ -119,10 +121,9 @@ function ModalFrame({ entry }: { entry: ModalEntry }) {
 
   return (
     <div
-      className={`modal-backdrop ${stylex.props(
-        styles.backdrop,
-        entry.state !== 'open' && styles.backdropHidden,
-      ).className}`}
+      className={`modal-backdrop ${
+        stylex.props(styles.backdrop, entry.state !== 'open' && styles.backdropHidden).className
+      }`}
       data-state={entry.state}
       onClick={close}
     >
@@ -143,7 +144,7 @@ function ModalFrame({ entry }: { entry: ModalEntry }) {
               type="button"
               className={`modal-close ${stylex.props(styles.headAction).className}`}
               onClick={close}
-              aria-label="关闭"
+              aria-label={t('close')}
             >
               <X size={16} />
             </button>

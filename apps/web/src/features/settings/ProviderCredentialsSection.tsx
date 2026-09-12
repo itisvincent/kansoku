@@ -8,7 +8,7 @@ import { colors, fonts, fontSizes } from '../../theme/tokens.stylex';
 import { SettingsConfirmActions, SettingsConfirmDialog } from './openSettingsConfirm';
 import { DeviceLoginDialog } from './DeviceLoginDialog';
 import { SettingsGroup } from './SettingsGroup';
-import { useLocale } from '../../lib/i18n';
+import { useLocale, type MessageKey } from '../../lib/i18n';
 import { ProviderAuthRow } from './ProviderAuthRow';
 import { XaiLoginDialog } from './XaiLoginDialog';
 import {
@@ -21,10 +21,10 @@ import {
   LOBEHUB_PROVIDER,
 } from './types';
 
-const CODEX_STATUS_LABEL: Record<string, string> = {
-  configured: '已登录',
-  missing: '未登录，终端运行 codex 登录',
-  error: '登录态异常',
+const CODEX_STATUS_LABEL: Record<string, MessageKey> = {
+  configured: 'codexLoggedIn',
+  missing: 'codexLoginInstruction',
+  error: 'codexLoginError',
 };
 
 const styles = stylex.create({
@@ -177,7 +177,7 @@ function ResetCredentialsDialog({
   };
 
   return (
-    <SettingsConfirmDialog danger message="会清空全部已存 key，之后需要重新填写。">
+    <SettingsConfirmDialog danger message={t('resetCredentialsHint')}>
       {error ? (
         <div
           className={`settings-test-result settings-test-result--fail ${stylex.props(styles.testResult, styles.testResultFail).className}`}
@@ -187,10 +187,10 @@ function ResetCredentialsDialog({
       ) : null}
       <SettingsConfirmActions>
         <Button disabled={busy} onClick={closeModal}>
-          取消
+          {t('cancel')}
         </Button>
         <Button danger disabled={busy} onClick={reset}>
-          {busy ? '重置中…' : '确认重置'}
+          {busy ? t('resettingCredentials') : t('confirmReset')}
         </Button>
       </SettingsConfirmActions>
     </SettingsConfirmDialog>
@@ -198,6 +198,7 @@ function ResetCredentialsDialog({
 }
 
 function CodexAuthRow({ provider }: { provider: CatalogProvider }) {
+  const { t } = useLocale();
   const tone =
     provider.auth.status === 'configured'
       ? 'up'
@@ -227,11 +228,11 @@ function CodexAuthRow({ provider }: { provider: CatalogProvider }) {
           }`}
         >
           <Dot tone={tone} />
-          {CODEX_STATUS_LABEL[provider.auth.status]}
+          {t(CODEX_STATUS_LABEL[provider.auth.status])}
         </span>
       </div>
       <div className={`settings-provider-meta ${stylex.props(styles.providerMeta).className}`}>
-        使用本机 Codex 登录态，不在此页面保存 key
+        {t('codexLocalAuthHint')}
       </div>
     </div>
   );
@@ -252,18 +253,19 @@ function LobeHubAuthRow({
   creditsError: string | null;
   onChanged: () => void;
 }) {
+  const { t } = useLocale();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const status = account?.status ?? 'disconnected';
   const tone = status === 'connected' ? 'up' : status === 'refresh_required' ? 'down' : 'accent';
   const label =
     status === 'connected'
-      ? '已连接'
+      ? t('connected')
       : status === 'refresh_required'
-        ? '需要重新登录'
+        ? t('signInAgainRequired')
         : status === 'unavailable'
-          ? '等待 Client ID'
-          : '未连接';
+          ? t('waitingClientId')
+          : t('disconnected');
 
   const login = async () => {
     setBusy(true);
@@ -271,7 +273,7 @@ function LobeHubAuthRow({
     try {
       const info = await client.lobehub.startDeviceLogin();
       openModal({
-        title: '连接 LobeHub Cloud',
+        title: t('connectLobehub'),
         size: 'sm',
         body: (closeModal) => (
           <DeviceLoginDialog login={info} closeModal={closeModal} onConnected={onChanged} />
@@ -330,22 +332,28 @@ function LobeHubAuthRow({
       {status === 'connected' ? (
         <>
           <div className={`settings-provider-meta ${stylex.props(styles.providerMeta).className}`}>
-            {account?.email ?? account?.name ?? account?.userId ?? 'LobeHub Cloud 个人账户'}
+            {account?.email ?? account?.name ?? account?.userId ?? t('lobePersonalAccount')}
             {credits?.plan ? ` · ${credits.plan}` : ''}
           </div>
           <div className={stylex.props(styles.lobehubCredits).className}>
-            <span>可用额度 {credits ? formatUsd(credits.availableUsd) : '读取中…'}</span>
             <span>
-              本月使用 {credits ? formatUsd(credits.currentMonthUsd) : (creditsError ?? '读取中…')}
+              {t('availableCreditValue', {
+                value: credits ? formatUsd(credits.availableUsd) : t('loading'),
+              })}
             </span>
-            <span>{provider.models.length} 个对话模型</span>
+            <span>
+              {t('monthlyUsageValue', {
+                value: credits
+                  ? formatUsd(credits.currentMonthUsd)
+                  : (creditsError ?? t('loading')),
+              })}
+            </span>
+            <span>{t('chatModelCount', { count: provider.models.length })}</span>
           </div>
         </>
       ) : (
         <div className={`settings-provider-meta ${stylex.props(styles.providerMeta).className}`}>
-          {status === 'unavailable'
-            ? 'Cloud 开发者 Client 完成后配置 LOBEHUB_OAUTH_CLIENT_ID 即可启用'
-            : '使用 Device Flow 登录个人 LobeHub Cloud 账户'}
+          {status === 'unavailable' ? t('lobeClientSetup') : t('lobeDeviceFlow')}
         </div>
       )}
       <div
@@ -353,11 +361,15 @@ function LobeHubAuthRow({
       >
         {status === 'connected' ? (
           <Button disabled={busy} onClick={logout}>
-            {busy ? '退出中…' : '退出登录'}
+            {busy ? t('signingOut') : t('signOut')}
           </Button>
         ) : (
           <Button disabled={busy || status === 'unavailable'} onClick={login}>
-            {busy ? '启动中…' : status === 'refresh_required' ? '重新登录' : '登录 LobeHub Cloud'}
+            {busy
+              ? t('starting')
+              : status === 'refresh_required'
+                ? t('signInAgain')
+                : t('signInLobehub')}
           </Button>
         )}
       </div>
@@ -463,7 +475,7 @@ export function ProviderCredentialsSection({
 
   const handleReset = () => {
     openModal({
-      title: '重置全部凭据',
+      title: t('resetCredentials'),
       size: 'sm',
       body: (closeModal) => (
         <ResetCredentialsDialog closeModal={closeModal} onChanged={onChanged} />

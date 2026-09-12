@@ -1,9 +1,14 @@
+import { translate, type Locale, type MessageKey } from '../../lib/i18n';
 import type { TrainerCaseTag } from '@kansoku/pro-api';
 
-export const TRAINER_CASE_TAG_LABEL: Record<TrainerCaseTag, string> = {
-  'trend-follow': '趋势跟随',
-  'pullback-entry': '回调买点',
-  'false-breakout': '假突破',
-  'top-reversal': '顶部反转',
-  'range-bound': '区间震荡',
+const CASE_TAG_KEYS: Record<TrainerCaseTag, MessageKey> = {
+  'trend-follow': 'caseTrendFollow',
+  'pullback-entry': 'casePullbackEntry',
+  'false-breakout': 'caseFalseBreakout',
+  'top-reversal': 'caseTopReversal',
+  'range-bound': 'caseRangeBound',
 };
+
+export function trainerCaseTagLabel(tag: TrainerCaseTag, locale: Locale = 'zh-CN'): string {
+  return translate(locale, CASE_TAG_KEYS[tag]);
+}

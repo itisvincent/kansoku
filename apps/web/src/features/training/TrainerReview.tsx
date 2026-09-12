@@ -1,3 +1,4 @@
+import { useLocale } from '../../lib/i18n';
 import { useEffect, useMemo, useState } from 'react';
 import type { TrainerCoachCall, TrainerLesson, TrainerReviewPayload } from '@kansoku/pro-api';
 import * as stylex from '@stylexjs/stylex';
@@ -6,7 +7,7 @@ import { IntradayChartOnly } from '../charts/intraday/IntradayChartOnly';
 import type { DrawingChartHandle } from '../charts/intraday/useIntradayCharts';
 import { getPopoutBridge } from '../desktop/desktopWindowsBridge';
 import type { TrainerBridge } from '../desktop/desktopTrainerBridge';
-import { TRAINER_CASE_TAG_LABEL } from './caseTagLabels';
+import { trainerCaseTagLabel } from './caseTagLabels';
 import {
   buildReviewBuilt,
   reviewBands,
@@ -196,6 +197,7 @@ interface ReviewBodyProps {
 }
 
 function ReviewBody({ payload, bridge, sessionId, onPayloadChange }: ReviewBodyProps) {
+  const { t, locale } = useLocale();
   const max = reviewMaxBrush(payload);
   // Parked at the end so the whole case is on screen at once — the played run, the stretch never
   // reached, and the epilogue. Dragging left is what rewinds it.
@@ -246,7 +248,8 @@ function ReviewBody({ payload, bridge, sessionId, onPayloadChange }: ReviewBodyP
           {payload.provenance.sourceCutoff.slice(0, 10)}
         </span>
         <span className={`trainer-chip ${stylex.props(styles.chip).className}`}>
-          标签：{payload.tag ? TRAINER_CASE_TAG_LABEL[payload.tag] : '未标注'}
+          {t('trainingTagLabel')}
+          {payload.tag ? trainerCaseTagLabel(payload.tag, locale) : t('untagged')}
         </span>
         <OpenRealChartButton symbol={payload.provenance.sourceSymbol} />
       </section>

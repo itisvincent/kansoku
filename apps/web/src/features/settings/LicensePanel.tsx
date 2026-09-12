@@ -1,3 +1,4 @@
+import { useLocale, translate, type Locale } from '../../lib/i18n';
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { errorMessage } from '@web/lib/api';
@@ -84,13 +85,15 @@ const styles = stylex.create({
   },
 });
 
-function activateErrorMessage(raw: string): string {
-  if (/responded (401|404)/.test(raw)) return '授权码无效，请检查后重新输入';
-  if (/responded (409|422)/.test(raw)) return '此授权码的设备数已达上限，请先在其他设备停用后再试';
-  return `激活失败：${raw}`;
+function activateErrorMessage(raw: string, locale: Locale): string {
+  const t = (key: 'invalidLicenseKey' | 'licenseDeviceLimit') => translate(locale, key);
+  if (/responded (401|404)/.test(raw)) return t('invalidLicenseKey');
+  if (/responded (409|422)/.test(raw)) return t('licenseDeviceLimit');
+  return translate(locale, 'activationFailed', { error: raw });
 }
 
 function DeactivateConfirm({ closeModal }: { closeModal: () => void }) {
+  const { t } = useLocale();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -109,7 +112,7 @@ function DeactivateConfirm({ closeModal }: { closeModal: () => void }) {
   };
 
   return (
-    <SettingsConfirmDialog danger message="停用后本机将失去 AI 功能授权，可随时用授权码重新激活。">
+    <SettingsConfirmDialog danger message={t('deactivateLicenseHint')}>
       {error ? (
         <div
           className={`settings-test-result settings-test-result--fail ${stylex.props(styles.testResult, styles.testResultFail).className}`}
@@ -119,10 +122,10 @@ function DeactivateConfirm({ closeModal }: { closeModal: () => void }) {
       ) : null}
       <SettingsConfirmActions>
         <Button disabled={busy} onClick={closeModal}>
-          取消
+          {t('cancel')}
         </Button>
         <Button danger disabled={busy} onClick={() => void deactivate()}>
-          {busy ? '停用中…' : '确认停用'}
+          {busy ? t('deactivating') : t('confirmDeactivate')}
         </Button>
       </SettingsConfirmActions>
     </SettingsConfirmDialog>
@@ -143,6 +146,7 @@ export function ActivateForm({
   showSubscribeLink?: boolean;
   onActivated?: () => void;
 }) {
+  const { t, locale } = useLocale();
   const [key, setKey] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -156,7 +160,7 @@ export function ActivateForm({
     try {
       const result = await client.license.activate({ key: trimmed });
       if (!result.activated) {
-        setError(activateErrorMessage(result.error));
+        setError(activateErrorMessage(result.error, locale));
         return;
       }
       const caps = await refreshCapabilities();
@@ -179,20 +183,20 @@ export function ActivateForm({
         <div
           className={`settings-preference-description ${stylex.props(styles.invalidNotice).className}`}
         >
-          此授权码已失效（可能是退订或更换了套餐），请重新输入有效的授权码。
+          {t('invalidLicenseNotice')}
         </div>
       ) : null}
       {notice === 'expired' ? (
         <div
           className={`settings-preference-description ${stylex.props(styles.expiredNotice).className}`}
         >
-          授权过期：超过 14 天未通过服务端验证。网络恢复后自动重验；订阅到期请续订或更换授权码。
+          {t('expiredLicenseNotice')}
         </div>
       ) : null}
       <div className={stylex.props(styles.inputRow).className}>
         <Input
           className={stylex.props(styles.input).className}
-          placeholder="输入授权码"
+          placeholder={t('enterLicenseKey')}
           value={key}
           onChange={(e) => setKey(e.target.value)}
           onKeyDown={(e) => {
@@ -201,7 +205,7 @@ export function ActivateForm({
           disabled={busy}
         />
         <Button accent disabled={busy || !key.trim()} onClick={() => void activate()}>
-          {busy ? '激活中…' : '激活'}
+          {busy ? t('activating') : t('activate')}
         </Button>
       </div>
       {error ? (
@@ -217,8 +221,10 @@ export function ActivateForm({
           className={stylex.props(styles.subscribeLink).className}
           onClick={() => openLicenseModal('guard')}
         >
-          还没有授权码？
-          {subscribeData.trialDays ? `免费试用 ${subscribeData.trialDays} 天` : '前往订阅'}
+          {t('noLicenseKey')}
+          {subscribeData.trialDays
+            ? t('freeTrialDays', { days: subscribeData.trialDays })
+            : t('subscribe')}
         </button>
       ) : null}
     </div>
@@ -240,17 +246,22 @@ function LicensedStatus({
   restartRequired?: boolean;
   proUnavailable?: boolean;
 }) {
+  const { t, locale } = useLocale();
   return (
     <SettingsRow
       label={
-        state === 'grace' ? <Badge tone="accent">离线宽限中</Badge> : <Badge tone="up">已授权</Badge>
+        state === 'grace' ? (
+          <Badge tone="accent">{t('offlineGrace')}</Badge>
+        ) : (
+          <Badge tone="up">{t('licensed')}</Badge>
+        )
       }
       description={
         <>
-          {maskedKey ? `授权码 ${maskedKey}` : null}
-          {deviceName ? ` · 设备 ${deviceName}` : null}
+          {maskedKey ? t('licenseKeyValue', { key: maskedKey }) : null}
+          {deviceName ? ` · ${t('licenseDeviceValue', { device: deviceName })}` : null}
           {state === 'grace' && graceUntil
-            ? ` · 离线宽限至 ${new Date(graceUntil).toLocaleString()}`
+            ? ` · ${t('licenseGraceUntil', { time: new Date(graceUntil).toLocaleString(locale) })}`
             : null}
         </>
       }
@@ -258,33 +269,36 @@ function LicensedStatus({
         restartRequired ? (
           getDesktopAppControlBridge() ? (
             <>
-              AI 付费功能需要重启应用后才会生效。
-              <Button onClick={() => void getDesktopAppControlBridge()?.relaunch()}>立即重启</Button>
+              {t('paidAiRestartHint')}
+              <Button onClick={() => void getDesktopAppControlBridge()?.relaunch()}>
+                {t('restartNow')}
+              </Button>
             </>
           ) : (
-            'AI 付费功能需要重启应用后才会生效，请手动退出并重新打开 Kansoku。'
+            t('paidAiManualRestartHint')
           )
         ) : proUnavailable ? (
-          '当前构建不包含付费模块，无法启用 AI 付费功能。'
+          t('paidAiUnavailable')
         ) : undefined
       }
     >
       <Button
         onClick={() =>
           openModal({
-            title: '停用本机',
+            title: t('deactivateDevice'),
             size: 'sm',
             body: (closeModal) => <DeactivateConfirm closeModal={closeModal} />,
           })
         }
       >
-        停用本机
+        {t('deactivateDevice')}
       </Button>
     </SettingsRow>
   );
 }
 
 export function LicensePanel() {
+  const { t } = useLocale();
   const { licensed, license, pro, hasEncBundle } = useCapabilities();
 
   if (licensed) {
@@ -303,7 +317,7 @@ export function LicensePanel() {
   const notice =
     license?.state === 'invalid' ? 'invalid' : license?.state === 'expired' ? 'expired' : undefined;
   return (
-    <SettingsField label="激活" description="输入授权码启用付费功能">
+    <SettingsField label={t('activate')} description={t('activateLicenseHint')}>
       <ActivateForm notice={notice} />
     </SettingsField>
   );

@@ -6,7 +6,7 @@ import { getTrainerBridge } from '@web/features/desktop/desktopTrainerBridge';
 import { fmt, signed } from '@web/lib/format';
 import { Card, SectionTitle } from '@web/ui';
 import { colors, fonts, fontSizes, radii } from '../../theme/tokens.stylex';
-import { TRAINER_CASE_TAG_LABEL } from './caseTagLabels';
+import { trainerCaseTagLabel } from './caseTagLabels';
 import { useLocale } from '../../lib/i18n';
 
 const pct = (value: number | null): string => (value === null ? '—' : `${fmt(value * 100, 0)}%`);
@@ -106,7 +106,7 @@ const styles = stylex.create({
 });
 
 export function TrainingStatsPage() {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const bridge = useMemo(() => getTrainerBridge(), []);
   const [stats, setStats] = useState<TrainerStats | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -190,10 +190,10 @@ export function TrainingStatsPage() {
               className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}
               key={row.tag ?? 'untagged'}
             >
-              <span>{row.tag ? TRAINER_CASE_TAG_LABEL[row.tag] : t('untagged')}</span>
+              <span>{row.tag ? trainerCaseTagLabel(row.tag, locale) : t('untagged')}</span>
               <b className={stylex.props(styles.keyValueValue).className}>
                 {row.locked
-                  ? `${row.samples} 局，样本不足`
+                  ? t('insufficientSessionSamples', { count: row.samples })
                   : `${signed(row.netR)}R · ${pct(row.winRate)}`}
               </b>
             </div>
@@ -217,7 +217,7 @@ export function TrainingStatsPage() {
             </div>
           </Guard>
           <p className={`trainer-settle-hint ${stylex.props(styles.settleHint).className}`}>
-            实盘被止损后没有平行世界，看不到这个数。
+            {t('stopHealthHint')}
           </p>
         </Card>
 
@@ -227,19 +227,24 @@ export function TrainingStatsPage() {
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
               <span>{t('persuaded')}</span>
               <b className={stylex.props(styles.keyValueValue).className}>
-                {pct(stats.coachInfluence.persuadedWinRate)}（{stats.coachInfluence.persuadedCount}
-                次）
+                {t('rateWithCalls', {
+                  rate: pct(stats.coachInfluence.persuadedWinRate),
+                  count: stats.coachInfluence.persuadedCount,
+                })}
               </b>
             </div>
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
               <span>{t('heldOwnView')}</span>
               <b className={stylex.props(styles.keyValueValue).className}>
-                {pct(stats.coachInfluence.heldWinRate)}（{stats.coachInfluence.heldCount} 次）
+                {t('rateWithCalls', {
+                  rate: pct(stats.coachInfluence.heldWinRate),
+                  count: stats.coachInfluence.heldCount,
+                })}
               </b>
             </div>
           </Guard>
           <p className={`trainer-settle-hint ${stylex.props(styles.settleHint).className}`}>
-            只统计有分歧的召唤，同向的不计 —— 否则「AI 附和我」会被灌水成「AI 说服我」。
+            {t('coachInfluenceHint')}
           </p>
         </Card>
 
@@ -260,7 +265,7 @@ export function TrainingStatsPage() {
             </div>
           </Guard>
           <p className={`trainer-settle-hint ${stylex.props(styles.settleHint).className}`}>
-            放弃观察权的代价。
+            {t('advanceInfluenceHint')}
           </p>
         </Card>
 
@@ -270,8 +275,10 @@ export function TrainingStatsPage() {
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
               <span>{t('directionAccuracy')}</span>
               <b className={stylex.props(styles.keyValueValue).className}>
-                {pct(stats.coachScorecard.directionAccuracy)}（{stats.coachScorecard.settled}
-                次有结果）
+                {t('rateWithOutcomes', {
+                  rate: pct(stats.coachScorecard.directionAccuracy),
+                  count: stats.coachScorecard.settled,
+                })}
               </b>
             </div>
             <div className={`training-stats-kv ${stylex.props(styles.keyValue).className}`}>
@@ -288,7 +295,7 @@ export function TrainingStatsPage() {
             </div>
           </Guard>
           <p className={`trainer-settle-hint ${stylex.props(styles.settleHint).className}`}>
-            靠错逻辑蒙对的，下次必错。
+            {t('coachReasonHint')}
           </p>
         </Card>
       </div>
@@ -296,8 +303,7 @@ export function TrainingStatsPage() {
       <p
         className={`trainer-settle-hint training-stats-guard-note ${stylex.props(styles.settleHint, styles.guardNote).className}`}
       >
-        任何一块样本不足 10 就只报个数，不报比率。刷了 3 局赢 3 局显示「胜率
-        100%」，那个数字唯一的作用是骗你。
+        {t('trainingSampleGuardHint')}
       </p>
     </div>
   );
@@ -316,15 +322,16 @@ function Guard({
   unit: string;
   children: React.ReactNode;
 }) {
+  const { t } = useLocale();
   if (!block.locked) return <>{children}</>;
   return (
     <div
       className={`training-stats-locked ${stylex.props(styles.locked).className}`}
       data-testid="training-stats-locked"
     >
-      只有 <b>{block.samples}</b> {unit}
+      {t('trainingSampleCount', { count: block.samples, unit })}
       <br />
-      样本太少，不出比率
+      {t('tooFewSamples')}
     </div>
   );
 }

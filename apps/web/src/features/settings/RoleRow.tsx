@@ -1,4 +1,4 @@
-﻿import { useState } from 'react';
+import { useState } from 'react';
 import { Check, TriangleAlert } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
 import { errorMessage } from '@web/lib/api';
@@ -17,7 +17,7 @@ import {
 } from './roleShared';
 import type { RoleView } from './settingsViewModel';
 import {
-  ROLE_LABEL,
+  roleLabel,
   thinkingLabel,
   type Catalog,
   type CredentialEntry,
@@ -212,7 +212,7 @@ export function RoleRow({
   view: RoleView;
   onDraftChange: (next: RoleSetting) => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [failure, setFailure] = useState<{ message: string; retrySnapshot: RoleSetting } | null>(
     null,
   );
@@ -311,7 +311,7 @@ export function RoleRow({
         thinkingLevel: draft.thinkingLevel,
       });
       if (!res.ok) throw new Error(res.hint ? `${res.error} (${res.hint})` : res.error);
-      setTestState({ status: 'ok', text: `通过 · ${res.latencyMs}ms` });
+      setTestState({ status: 'ok', text: t('modelTestPassed', { ms: res.latencyMs }) });
     } catch (err) {
       setTestState({ status: 'fail', text: errorMessage(err) });
     }
@@ -322,7 +322,9 @@ export function RoleRow({
       <div {...stylex.props(styles.summary)}>
         <div {...stylex.props(styles.copy)}>
           <div {...stylex.props(styles.heading)}>
-            <span className={`settings-role-name ${roleNameClassName}`}>{ROLE_LABEL[role]}</span>
+            <span className={`settings-role-name ${roleNameClassName}`}>
+              {roleLabel(role, locale)}
+            </span>
             <span {...stylex.props(styles.usage)}>{view.usageLabel}</span>
           </div>
           <div
@@ -381,7 +383,7 @@ export function RoleRow({
               value={draft.provider ?? ''}
               options={selectableProviders(catalog, draft.provider).map((p) => ({
                 value: p.id,
-                label: providerLabel(catalog, p.id),
+                label: providerLabel(catalog, p.id, locale),
               }))}
               onChange={setProvider}
             />
@@ -393,7 +395,7 @@ export function RoleRow({
             />
             <Select
               value={draft.thinkingLevel ?? 'off'}
-              options={thinkingLevels.map((t) => ({ value: t, label: thinkingLabel(t) }))}
+              options={thinkingLevels.map((t) => ({ value: t, label: thinkingLabel(t, locale) }))}
               onChange={setThinkingLevel}
             />
             <Button disabled={!complete || testState.status === 'busy'} onClick={runTest}>

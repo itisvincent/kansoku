@@ -9,14 +9,9 @@ import { SegmentedControl, type SegmentedControlOption } from '@web/ui';
 import { SettingsGroup, SettingsRow } from './SettingsGroup';
 import { useLocale } from '../../lib/i18n';
 
-const OPTIONS = [
-  { value: 'market', label: '美东时间' },
-  { value: 'local', label: '本地时间' },
-] satisfies readonly SegmentedControlOption<TimeDisplayPreference>[];
-
 const styles = stylex.create({
   mode: {
-    'width': '168px',
+    'width': 'min(100%, 300px)',
     'flex': '0 0 auto',
     'gridTemplateColumns': '1fr 1fr',
     '@media (max-width: 560px)': { width: '100%' },

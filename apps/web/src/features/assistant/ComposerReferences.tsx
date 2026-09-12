@@ -105,7 +105,7 @@ export function ComposerReferences({
           <button
             type="button"
             {...stylex.props(styles.remove)}
-            aria-label={`${t('removeFromQueue')} ${reference.title}`}
+            aria-label={t('removeReference', { title: reference.title })}
             onClick={() => onRemove(reference.path)}
           >
             <X size={11} aria-hidden="true" />

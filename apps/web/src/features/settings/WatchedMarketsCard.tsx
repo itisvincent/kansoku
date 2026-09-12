@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useQuery } from '@web/lib/apiHooks';
 import { client } from '@web/lib/client';
 import { Switch } from '@web/ui';
-import { MARKET_LABEL, type Market } from './types';
+import { marketLabel, type Market } from './types';
 import { SettingsGroup, SettingsRow } from './SettingsGroup';
 import { toggleMarket } from './watchedMarkets';
 import { useSaveQueue } from './useSaveQueue';
@@ -29,7 +29,7 @@ function WatchedMarketsCardLoaded({
   onReload: () => void;
   error: string | null;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [markets, setMarkets] = useState<Market[]>(initial);
   const [blockedHint, setBlockedHint] = useState(false);
 
@@ -61,9 +61,9 @@ function WatchedMarketsCardLoaded({
   return (
     <SettingsGroup name={t('watchedMarkets')}>
       {MARKET_ORDER.map((market) => (
-        <SettingsRow key={market} label={MARKET_LABEL[market]}>
+        <SettingsRow key={market} label={marketLabel(market, locale)}>
           <Switch
-            ariaLabel={MARKET_LABEL[market]}
+            ariaLabel={marketLabel(market, locale)}
             checked={markets.includes(market)}
             onCheckedChange={(checked) => handleToggle(market, checked)}
           />

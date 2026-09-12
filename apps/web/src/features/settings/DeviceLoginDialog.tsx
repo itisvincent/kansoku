@@ -58,8 +58,9 @@ export function DeviceLoginDialog({
   onConnected: () => void;
 }) {
   const { t } = useLocale();
-  const [status, setStatus] = useState(t('waitingForBrowser'));
+  const [status, setStatus] = useState<'pending' | 'denied' | 'expired'>('pending');
 
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -73,16 +74,16 @@ export function DeviceLoginDialog({
           return;
         }
         if (result.status === 'denied') {
-          setStatus(t('loginDenied'));
+          setStatus('denied');
           return;
         }
         if (result.status === 'expired') {
-          setStatus(t('codeExpired'));
+          setStatus('expired');
           return;
         }
         timer = setTimeout(poll, result.intervalSeconds * 1000);
-      } catch (error) {
-        if (!cancelled) setStatus(errorMessage(error));
+      } catch (cause) {
+        if (!cancelled) setError(errorMessage(cause));
       }
     };
     timer = setTimeout(poll, login.intervalSeconds * 1000);
@@ -90,7 +91,7 @@ export function DeviceLoginDialog({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [closeModal, login.intervalSeconds, onConnected, t]);
+  }, [closeModal, login.intervalSeconds, onConnected]);
 
   const url = login.verificationUriComplete ?? login.verificationUri;
   return (
@@ -98,7 +99,14 @@ export function DeviceLoginDialog({
       <p {...stylex.props(styles.description)}>{t('confirmLobehubLogin')}</p>
       <div {...stylex.props(styles.code)}>{login.userCode}</div>
       <div className={`settings-provider-meta ${stylex.props(styles.providerMeta).className}`}>
-        {status}
+        {error ??
+          t(
+            status === 'denied'
+              ? 'loginDenied'
+              : status === 'expired'
+                ? 'codeExpired'
+                : 'waitingForBrowser',
+          )}
       </div>
       <div className={`settings-cred-actions ${stylex.props(styles.credActions).className}`}>
         <Button onClick={() => void navigator.clipboard.writeText(login.userCode)}>

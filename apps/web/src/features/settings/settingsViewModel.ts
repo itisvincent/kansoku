@@ -1,5 +1,6 @@
+import { translate, type Locale, type MessageKey, type MessageParams } from '../../lib/i18n';
 import {
-  ROLE_LABEL,
+  roleLabel,
   ROLES,
   thinkingLabel,
   type AiSettings,
@@ -32,23 +33,30 @@ export interface SettingsViewModel {
     statusLabel: string;
     statusTone: 'up' | 'accent' | 'down';
     enabledLabel: string;
-    usageLabel: string;
+    usageLabel: string | null;
   };
   roles: Record<Role, RoleView>;
   issues: SettingsIssue[];
 }
-
-const formatUsage = (usage: RoleUsage | undefined): string =>
-  !usage || (usage.calls === 0 && usage.cost === 0)
-    ? '今日 —'
-    : `今日 $` + usage.cost.toFixed(2) + ` · ` + usage.calls + ` 次`;
 
 export function deriveSettingsViewModel(input: {
   settings: AiSettings;
   catalog: Catalog;
   usage: UsageToday | null;
   roles: AiSettings['roles'];
+  locale?: Locale;
 }): SettingsViewModel {
+  const locale = input.locale ?? 'zh-CN';
+  const t = (key: MessageKey, params?: MessageParams) => translate(locale, key, params);
+  const roleList = (roles: Role[]) =>
+    roles.map((role) => roleLabel(role, locale)).join(locale === 'zh-CN' ? '、' : ', ');
+  const formatUsage = (usage: RoleUsage | undefined): string =>
+    t('todayUsage', {
+      value:
+        !usage || (!usage.calls && !usage.cost)
+          ? '—'
+          : t('usageCostCalls', { cost: usage.cost.toFixed(2), count: usage.calls }),
+    });
   const providers = new Map(input.catalog.providers.map((provider) => [provider.id, provider]));
   const issues: SettingsIssue[] = [];
   const missingPrimaryRoles: Role[] = [];
@@ -59,8 +67,8 @@ export function deriveSettingsViewModel(input: {
   if (input.settings.masterKey === 'invalid') {
     issues.push({
       id: 'master-key-invalid',
-      title: '主密钥异常',
-      detail: '已存凭据无法解密，需要重置后重新填写。',
+      title: t('masterKeyInvalid'),
+      detail: t('masterKeyInvalidHint'),
       targetId: 'settings-provider-panel',
       tone: 'error',
       priority: 0,
@@ -80,15 +88,15 @@ export function deriveSettingsViewModel(input: {
       } else {
         issues.push({
           id: `stale-model-` + role,
-          title: ROLE_LABEL[role] + '模型已失效',
-          detail: '当前模型或思考档位已经不在目录，请重新选择。',
+          title: t('roleModelStale', { role: roleLabel(role, locale) }),
+          detail: t('staleModelHint'),
           targetId: `settings-role-` + role,
           tone: 'warning',
           priority: 1,
         });
       }
       return {
-        effectiveLabel: '模型已不在目录，请改选',
+        effectiveLabel: t('modelUnavailable'),
         tone: 'warning',
         usageLabel: formatUsage(input.usage?.roles[role]),
       };
@@ -99,14 +107,14 @@ export function deriveSettingsViewModel(input: {
       if (!usedBy.includes(role)) usedBy.push(role);
       authRoles.set(provider.id, usedBy);
       return {
-        effectiveLabel: provider.name + ' 未配置认证，此用途暂停',
+        effectiveLabel: t('rolePausedNoAuth', { provider: provider.name }),
         tone: provider.auth.status === 'error' ? 'error' : 'warning',
         usageLabel: formatUsage(input.usage?.roles[role]),
       };
     }
 
     return {
-      effectiveLabel: model.name + ' · ' + thinkingLabel(setting.thinkingLevel),
+      effectiveLabel: model.name + ' · ' + thinkingLabel(setting.thinkingLevel, locale),
       tone: 'default',
       usageLabel: formatUsage(input.usage?.roles[role]),
     };
@@ -116,7 +124,7 @@ export function deriveSettingsViewModel(input: {
     const setting = input.roles[role];
     if (setting.mode === 'disabled') {
       roleViews[role] = {
-        effectiveLabel: '已停用，不会发起调用',
+        effectiveLabel: t('roleDisabledHint'),
         tone: 'muted',
         usageLabel: formatUsage(input.usage?.roles[role]),
       };
@@ -133,7 +141,7 @@ export function deriveSettingsViewModel(input: {
       ) {
         missingPrimaryRoles.push(role);
         roleViews[role] = {
-          effectiveLabel: '主模型未设置，此用途暂停',
+          effectiveLabel: t('rolePausedNoPrimary'),
           tone: 'warning',
           usageLabel: formatUsage(input.usage?.roles[role]),
         };
@@ -149,8 +157,8 @@ export function deriveSettingsViewModel(input: {
   if (stalePrimaryRoles.length > 0) {
     issues.push({
       id: 'stale-model-primary',
-      title: '主模型已失效',
-      detail: stalePrimaryRoles.map((role) => ROLE_LABEL[role]).join('、') + '正在跟随主模型。',
+      title: t('primaryStale'),
+      detail: t('rolesFollowPrimary', { roles: roleList(stalePrimaryRoles) }),
       targetId: 'settings-role-primary',
       tone: 'warning',
       priority: 1,
@@ -166,8 +174,8 @@ export function deriveSettingsViewModel(input: {
     if (skipForInvalidMasterKey) continue;
     issues.push({
       id: (authError ? 'auth-error-' : 'missing-auth-') + providerId,
-      title: provider.name + (authError ? '认证异常' : '未配置认证'),
-      detail: roles.map((role) => ROLE_LABEL[role]).join('、') + '当前依赖此 Provider。',
+      title: t(authError ? 'providerAuthError' : 'providerAuthUnset', { provider: provider.name }),
+      detail: t('rolesUseProvider', { roles: roleList(roles) }),
       targetId: `settings-provider-` + providerId,
       tone: authError ? 'error' : 'warning',
       priority: 2,
@@ -177,9 +185,8 @@ export function deriveSettingsViewModel(input: {
   if (missingPrimaryRoles.length > 0) {
     issues.push({
       id: 'missing-primary',
-      title: '主模型未设置',
-      detail:
-        missingPrimaryRoles.map((role) => ROLE_LABEL[role]).join('、') + '当前正在跟随主模型。',
+      title: t('primaryMissing'),
+      detail: t('rolesFollowPrimary', { roles: roleList(missingPrimaryRoles) }),
       targetId: 'settings-role-primary',
       tone: 'warning',
       priority: 3,
@@ -192,16 +199,22 @@ export function deriveSettingsViewModel(input: {
 
   return {
     summary: {
-      statusLabel: issues.length === 0 ? '配置完整' : issues.length + ' 项需要处理',
+      statusLabel:
+        issues.length === 0
+          ? t('settingsComplete')
+          : t('settingsIssueCount', { count: issues.length }),
       statusTone: issues.some((issue) => issue.tone === 'error')
         ? 'down'
         : issues.length
           ? 'accent'
           : 'up',
-      enabledLabel: enabledCount + '/' + ROLES.length + ' 用途启用',
+      enabledLabel: t('enabledRoleCount', { enabled: enabledCount, total: ROLES.length }),
       usageLabel: input.usage
-        ? '$' + input.usage.total.cost.toFixed(2) + ' · ' + input.usage.total.calls + ' 次'
-        : '暂不可用',
+        ? t('usageCostCalls', {
+            cost: input.usage.total.cost.toFixed(2),
+            count: input.usage.total.calls,
+          })
+        : null,
     },
     roles: roleViews,
     issues,

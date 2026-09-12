@@ -1,3 +1,4 @@
+import { useLocale } from '../../lib/i18n';
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { Check, TriangleAlert } from 'lucide-react';
@@ -122,6 +123,7 @@ export function PrimaryRow({
   credentials: CredentialEntry[];
   onDraftChange: (next: RoleSetting) => void;
 }) {
+  const { t, locale } = useLocale();
   const [failure, setFailure] = useState<{ message: string; retrySnapshot: RoleSetting } | null>(
     null,
   );
@@ -173,9 +175,9 @@ export function PrimaryRow({
 
   const clear = () => {
     openSettingsConfirm({
-      title: '清除主模型',
-      message: '清除后，所有「跟随主模型」的用途将变为未配置，直到重新设置主模型。',
-      confirmLabel: '确认清除',
+      title: t('clearPrimary'),
+      message: t('clearPrimaryHint'),
+      confirmLabel: t('confirmClear'),
       onConfirm: () =>
         push({
           mode: 'disabled',
@@ -212,7 +214,7 @@ export function PrimaryRow({
         thinkingLevel: draft.thinkingLevel,
       });
       if (!res.ok) throw new Error(res.hint ? `${res.error} (${res.hint})` : res.error);
-      setTestState({ status: 'ok', text: `通过 · ${res.latencyMs}ms` });
+      setTestState({ status: 'ok', text: t('modelTestPassed', { ms: res.latencyMs }) });
     } catch (err) {
       setTestState({ status: 'fail', text: errorMessage(err) });
     }
@@ -224,10 +226,10 @@ export function PrimaryRow({
         <span
           className={`settings-role-name ${stylex.props(styles.roleName, styles.primaryRoleName).className}`}
         >
-          主模型
+          {t('primaryModel')}
         </span>
         {draft.mode !== 'custom' && (
-          <Chip onClick={() => push(defaultCustom(catalog))}>设置主模型</Chip>
+          <Chip onClick={() => push(defaultCustom(catalog))}>{t('setPrimaryModel')}</Chip>
         )}
         <span
           className={`settings-role-status${failure ? ' settings-role-status--rollback' : ''} ${stylex.props(styles.status, failure && styles.statusRollback).className}`}
@@ -235,16 +237,17 @@ export function PrimaryRow({
         >
           {queue.flushing() ? (
             <>
-              <Spinner /> 保存中
+              <Spinner /> {t('savingShort')}
             </>
           ) : failure ? (
             <>
               <TriangleAlert size={12} className={`icon ${stylex.props(styles.icon).className}`} />{' '}
-              未保存
+              {t('unsaved')}
             </>
           ) : (
             <>
-              <Check size={12} className={`icon ${stylex.props(styles.icon).className}`} /> 已保存
+              <Check size={12} className={`icon ${stylex.props(styles.icon).className}`} />{' '}
+              {t('saved')}
             </>
           )}
         </span>
@@ -257,7 +260,7 @@ export function PrimaryRow({
             value={draft.provider ?? ''}
             options={selectableProviders(catalog, draft.provider).map((p) => ({
               value: p.id,
-              label: providerLabel(catalog, p.id),
+              label: providerLabel(catalog, p.id, locale),
             }))}
             onChange={setProvider}
           />
@@ -270,11 +273,11 @@ export function PrimaryRow({
           <Select
             className={stylex.props(styles.select).className}
             value={draft.thinkingLevel ?? 'off'}
-            options={thinkingLevels.map((t) => ({ value: t, label: thinkingLabel(t) }))}
+            options={thinkingLevels.map((t) => ({ value: t, label: thinkingLabel(t, locale) }))}
             onChange={setThinkingLevel}
           />
           <Button disabled={!complete || testState.status === 'busy'} onClick={runTest}>
-            测试模型
+            {t('testModel')}
           </Button>
           {testState.status === 'busy' && <Spinner />}
           {testState.status === 'ok' && (
@@ -292,7 +295,7 @@ export function PrimaryRow({
             </span>
           )}
           <button type="button" {...stylex.props(styles.clear)} onClick={clear}>
-            清除
+            {t('clear')}
           </button>
         </div>
       )}
@@ -303,22 +306,22 @@ export function PrimaryRow({
           role="alert"
         >
           <span>{failure.message}</span>
-          <Button onClick={() => push(failure.retrySnapshot)}>重试</Button>
+          <Button onClick={() => push(failure.retrySnapshot)}>{t('retry')}</Button>
         </div>
       ) : null}
       {draft.mode !== 'custom' && (
         <div className={`settings-role-warning ${stylex.props(styles.roleWarning).className}`}>
-          未设置——所有「跟随主模型」的用途都处于暂停
+          {t('primaryUnsetHint')}
         </div>
       )}
       {computedStale && (
         <div className={`settings-role-warning ${stylex.props(styles.roleWarning).className}`}>
-          模型已不在目录，请改选
+          {t('modelUnavailable')}
         </div>
       )}
       {keyMissing && (
         <div className={`settings-role-warning ${stylex.props(styles.roleWarning).className}`}>
-          该 provider 未配 key
+          {t('providerAuthMissing')}
         </div>
       )}
     </div>

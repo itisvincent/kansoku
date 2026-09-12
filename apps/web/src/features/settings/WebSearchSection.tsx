@@ -7,9 +7,14 @@ import { client } from '@web/lib/client';
 import { isDesktopRealtime } from '@web/lib/portTransport';
 import { Badge, Button, Input, Switch } from '@web/ui';
 import { SettingsGroup, SettingsRow } from './SettingsGroup';
-import { useLocale } from '../../lib/i18n';
+import { useLocale, type MessageKey } from '../../lib/i18n';
 
 const CODEX_ROW = 'codex';
+const providerNotes: Record<string, MessageKey> = {
+  tavily: 'tavilySearchNote',
+  exa: 'exaSearchNote',
+  brave: 'braveSearchNote',
+};
 
 export function WebSearchSection() {
   const { t } = useLocale();
@@ -67,13 +72,13 @@ export function WebSearchSection() {
           <SettingsRow
             key={provider.id}
             label={provider.label}
-            description={provider.note}
+            description={providerNotes[provider.id] ? t(providerNotes[provider.id]) : provider.note}
             mono={
               configured
                 ? status?.fromEnv
-                  ? `来自环境变量 ${provider.envVar}`
+                  ? t('fromEnvironment', { name: provider.envVar })
                   : t('savedApiKey')
-                : `${t('notConfigured')} · ${t('orSetEnv')} ${provider.envVar}`
+                : t('searchKeyNotConfigured', { name: provider.envVar })
             }
             error={error?.row === provider.id ? error.message : undefined}
           >
