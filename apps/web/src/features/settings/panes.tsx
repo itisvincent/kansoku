@@ -29,7 +29,10 @@ export function DisplayPane() {
       <section className="settings-group">
         <h2>{t('language')}</h2>
         <p>{t('languageDescription')}</p>
-        <select value={locale} onChange={(event) => setLocale(event.target.value as 'zh-CN' | 'en-US')}>
+        <select
+          value={locale}
+          onChange={(event) => setLocale(event.target.value as 'zh-CN' | 'en-US')}
+        >
           <option value="en-US">{t('english')}</option>
           <option value="zh-CN">{t('chinese')}</option>
         </select>
@@ -42,7 +45,8 @@ export function DisplayPane() {
 }
 
 export function ConnectionsPane() {
-  if (!isDesktopRealtime()) return <NoteBlock>这些设置只在桌面版可用。</NoteBlock>;
+  const { t } = useLocale();
+  if (!isDesktopRealtime()) return <NoteBlock>{t('desktopOnlySettings')}</NoteBlock>;
   return (
     <>
       <LongbridgeSection />
@@ -64,7 +68,8 @@ export function LicensePane() {
 }
 
 export function AdvancedPane() {
-  if (!isDesktopRealtime()) return <NoteBlock>这些设置只在桌面版可用。</NoteBlock>;
+  const { t } = useLocale();
+  if (!isDesktopRealtime()) return <NoteBlock>{t('desktopOnlySettings')}</NoteBlock>;
   return (
     <>
       <AgentKitSection />

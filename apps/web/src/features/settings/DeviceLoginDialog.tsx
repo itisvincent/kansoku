@@ -5,6 +5,7 @@ import { client } from '@web/lib/client';
 import { Button } from '@web/ui';
 import { colors, fontSizes, fonts, radii } from '../../theme/tokens.stylex';
 import type { LobeHubDeviceLogin } from './types';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   root: {
@@ -56,7 +57,8 @@ export function DeviceLoginDialog({
   closeModal: () => void;
   onConnected: () => void;
 }) {
-  const [status, setStatus] = useState('等待在浏览器中确认…');
+  const { t } = useLocale();
+  const [status, setStatus] = useState(t('waitingForBrowser'));
 
   useEffect(() => {
     let cancelled = false;
@@ -71,11 +73,11 @@ export function DeviceLoginDialog({
           return;
         }
         if (result.status === 'denied') {
-          setStatus('授权已拒绝，请重新发起登录');
+          setStatus(t('loginDenied'));
           return;
         }
         if (result.status === 'expired') {
-          setStatus('验证码已过期，请重新发起登录');
+          setStatus(t('codeExpired'));
           return;
         }
         timer = setTimeout(poll, result.intervalSeconds * 1000);
@@ -88,24 +90,22 @@ export function DeviceLoginDialog({
       cancelled = true;
       if (timer) clearTimeout(timer);
     };
-  }, [closeModal, login.intervalSeconds, onConnected]);
+  }, [closeModal, login.intervalSeconds, onConnected, t]);
 
   const url = login.verificationUriComplete ?? login.verificationUri;
   return (
     <div {...stylex.props(styles.root)}>
-      <p {...stylex.props(styles.description)}>
-        请在 LobeHub Cloud 确认登录，并在需要时输入以下验证码。
-      </p>
+      <p {...stylex.props(styles.description)}>{t('confirmLobehubLogin')}</p>
       <div {...stylex.props(styles.code)}>{login.userCode}</div>
       <div className={`settings-provider-meta ${stylex.props(styles.providerMeta).className}`}>
         {status}
       </div>
       <div className={`settings-cred-actions ${stylex.props(styles.credActions).className}`}>
         <Button onClick={() => void navigator.clipboard.writeText(login.userCode)}>
-          复制验证码
+          {t('copyVerificationCode')}
         </Button>
         <Button accent onClick={() => window.open(url, '_blank', 'noopener,noreferrer')}>
-          打开 LobeHub Cloud
+          {t('openLobehub')}
         </Button>
       </div>
     </div>

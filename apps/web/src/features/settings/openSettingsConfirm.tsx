@@ -3,6 +3,7 @@ import * as stylex from '@stylexjs/stylex';
 import { TriangleAlert } from 'lucide-react';
 import { Button, openModal } from '@web/ui';
 import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
+import { useLocale } from '../../lib/i18n';
 
 const styles = stylex.create({
   root: {
@@ -66,6 +67,11 @@ export function SettingsConfirmDialog({
   );
 }
 
+function CancelButton({ onClick }: { onClick: () => void }) {
+  const { t } = useLocale();
+  return <Button onClick={onClick}>{t('cancel')}</Button>;
+}
+
 export function SettingsConfirmActions({ children }: { children: ReactNode }) {
   return <div {...stylex.props(styles.actions)}>{children}</div>;
 }
@@ -89,7 +95,7 @@ export function openSettingsConfirm({
     body: (closeModal) => (
       <SettingsConfirmDialog message={message} danger={danger}>
         <SettingsConfirmActions>
-          <Button onClick={closeModal}>取消</Button>
+          <CancelButton onClick={closeModal} />
           <Button
             accent={!danger}
             danger={danger}
