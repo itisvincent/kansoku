@@ -3,14 +3,16 @@ import { Badge, Button } from '@web/ui';
 import { getDesktopWorkspaceBridge, type WorkspaceStatus } from './desktopWorkspace';
 import { SettingsGroup, SettingsRow } from './SettingsGroup';
 import { openSettingsConfirm } from './openSettingsConfirm';
+import { useLocale } from '../../lib/i18n';
 
 const MODE_LABEL: Record<WorkspaceStatus['mode'], string> = {
-  'local': '本地',
-  'dev-repo': '开发仓库',
+  'local': 'workspaceLocal',
+  'dev-repo': 'workspaceDev',
   'iCloud': 'iCloud',
 };
 
 export function WorkspaceSection() {
+  const { t } = useLocale();
   const [bridge] = useState(() => getDesktopWorkspaceBridge());
   const [status, setStatus] = useState<WorkspaceStatus | null>(null);
   const [busy, setBusy] = useState(false);
@@ -66,31 +68,31 @@ export function WorkspaceSection() {
       badge={
         status ? (
           <Badge tone={status.mode === 'iCloud' ? 'accent' : undefined}>
-            {MODE_LABEL[status.mode]}
+            {t(MODE_LABEL[status.mode] as 'workspaceLocal' | 'workspaceDev' | 'iCloud')}
           </Badge>
         ) : null
       }
     >
       <SettingsRow
-        label="目录位置"
-        mono={status?.path ?? '加载中…'}
+        label={t('directory')}
+        mono={status?.path ?? t('loading')}
         error={error ?? undefined}
       >
         <Button disabled={busy || !status} onClick={() => void open()}>
-          在 Finder 中显示
+          {t('showInExplorer')}
         </Button>
       </SettingsRow>
       <SettingsRow
-        label="存放内容"
-        description="journal、stocks 与 Agent skills 都在这里，可以直接把这个目录当 Codex 或 Claude Code 项目打开"
+        label={t('contents')}
+        description={t('workspaceDescription')}
       />
       {status?.mode === 'iCloud' ? (
         <SettingsRow
-          label="恢复到本机"
-          description="把 iCloud Workspace 复制回本机，iCloud 原文件保留"
+          label={t('restoreLocal')}
+          description={t('restoreDescription')}
         >
           <Button disabled={busy} onClick={confirmRestoreLocal}>
-            恢复…
+            {t('restore')}
           </Button>
         </SettingsRow>
       ) : null}
