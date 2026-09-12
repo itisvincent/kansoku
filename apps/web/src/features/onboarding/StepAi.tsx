@@ -9,6 +9,7 @@ import { CODEX_PROVIDER, type Catalog, LOBEHUB_PROVIDER } from '../settings/type
 import { Button, Card, Input, openModal, Select } from '../../ui';
 import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
 import { CodexLogo, KeyLogo, LobeHubLogo } from './brandLogos';
+import { useLocale } from '../../lib/i18n';
 
 const CODEX_INSTALL_COMMAND = 'npm install -g @openai/codex';
 const CODEX_INSTALL_URL = 'https://github.com/openai/codex';
@@ -187,6 +188,7 @@ export function StepAi({
   ripgrepAvailable: boolean;
   onNext: () => void;
 }) {
+  const { t } = useLocale();
   const { data: catalog, loading } = useQuery<Catalog>('onboarding.catalog', fetchCatalog);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -199,9 +201,9 @@ export function StepAi({
   if (loading || !catalog) {
     return (
       <Card className={`onboarding-card ${stylex.props(styles.card).className}`}>
-        <h1 className={stylex.props(styles.title).className}>配置 AI</h1>
+        <h1 className={stylex.props(styles.title).className}>{t('configureAi')}</h1>
         <p className={`onboarding-explainer ${stylex.props(styles.explainer).className}`}>
-          正在检测本机 AI 环境…
+          {t('aiChecking')}
         </p>
       </Card>
     );
@@ -285,18 +287,18 @@ export function StepAi({
     sub: codexReady ? '用本机登录态，一键直接用，不额外收费' : '装了 codex 可白嫖本地额度',
     recommended: codexReady,
     action: codexReady
-      ? { label: busy === 'codex' ? '配置中…' : '使用', accent: true, onClick: useCodex }
-      : { label: '去安装', accent: false, onClick: () => setShowInstall((v) => !v) },
+      ? { label: busy === 'codex' ? t('configuring') : t('use'), accent: true, onClick: useCodex }
+      : { label: t('install'), accent: false, onClick: () => setShowInstall((v) => !v) },
   };
   const lobehubRow: ProviderRow = {
     key: 'lobehub',
     logo: <LobeHubLogo />,
     name: 'LobeHub Cloud',
-    tag: codexReady ? null : '推荐',
+    tag: codexReady ? null : t('recommended'),
     sub: codexReady ? '登录即用，云端个人额度' : '登录即用，无需 API Key',
     recommended: !codexReady,
     action: {
-      label: busy === 'lobehub' ? '启动中…' : '登录',
+      label: busy === 'lobehub' ? t('starting') : t('login'),
       accent: !codexReady,
       onClick: loginLobehub,
     },
@@ -308,15 +310,15 @@ export function StepAi({
     tag: null,
     sub: 'openai · anthropic · google · xAI (Grok)',
     recommended: false,
-    action: { label: '填入', accent: false, onClick: () => setShowApiKey((v) => !v) },
+    action: { label: t('fillIn'), accent: false, onClick: () => setShowApiKey((v) => !v) },
   };
   const rows = codexReady ? [codexRow, lobehubRow, apiKeyRow] : [lobehubRow, codexRow, apiKeyRow];
 
   return (
     <Card className={`onboarding-card ${stylex.props(styles.card).className}`}>
-      <h1 className={stylex.props(styles.title).className}>配置 AI</h1>
+      <h1 className={stylex.props(styles.title).className}>{t('configureAi')}</h1>
       <p className={`onboarding-explainer ${stylex.props(styles.explainer).className}`}>
-        AI 用于盘中快评、升级分析、深度研究和追问。可以先跳过，之后随时在设置里配置。
+        {t('aiExplainer')}
       </p>
 
       {!ripgrepAvailable ? (
@@ -367,10 +369,10 @@ export function StepAi({
             className={`settings-cred-actions ${stylex.props(styles.credentialActions).className}`}
           >
             <Button onClick={() => void navigator.clipboard.writeText(CODEX_INSTALL_COMMAND)}>
-              复制命令
+              {t('copyCommand')}
             </Button>
             <Button onClick={() => window.open(CODEX_INSTALL_URL, '_blank', 'noopener,noreferrer')}>
-              安装文档
+              {t('installDocs')}
             </Button>
           </div>
         </div>
@@ -415,7 +417,7 @@ export function StepAi({
               disabled={busy !== null || !effectiveApiProvider || !apiKey}
               onClick={saveApiKey}
             >
-              {busy === 'apikey' ? '保存中…' : '保存并使用'}
+              {busy === 'apikey' ? t('saving') : t('saveAndUse')}
             </Button>
           </div>
         </div>
@@ -435,7 +437,7 @@ export function StepAi({
           disabled={busy !== null}
           onClick={skip}
         >
-          跳过，稍后在设置里配置
+          {t('skipConfigureLater')}
         </button>
       </div>
     </Card>
