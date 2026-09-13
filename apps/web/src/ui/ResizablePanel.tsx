@@ -106,11 +106,11 @@ const styles = stylex.create({
   handle: {
     'position': 'relative',
     'zIndex': 2,
-    'flex': '0 0 8px',
-    'width': '8px',
-    'minWidth': '8px',
-    'marginLeft': '-4px',
-    'marginRight': '-4px',
+    'flex': '0 0 14px',
+    'width': '14px',
+    'minWidth': '14px',
+    'marginLeft': '-7px',
+    'marginRight': '-7px',
     'cursor': 'col-resize',
     'touchAction': 'none',
     'outline': 'none',
@@ -119,7 +119,7 @@ const styles = stylex.create({
       position: 'absolute',
       top: 0,
       bottom: 0,
-      left: '4px',
+      left: '7px',
       width: '1px',
       backgroundColor: colors.border,
       transition: 'background-color 120ms ease, box-shadow 120ms ease',
@@ -197,7 +197,11 @@ export function ResizablePanel({
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
     event.preventDefault();
-    event.currentTarget.setPointerCapture(event.pointerId);
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      // Some embedded Chromium surfaces do not support pointer capture.
+    }
     dragRef.current = {
       pointerId: event.pointerId,
       startPosition: event.clientX,
@@ -230,6 +234,38 @@ export function ResizablePanel({
     setDragging(false);
     storeSize(storageKey, sizeRef.current);
   };
+
+  useEffect(() => {
+    if (!dragging) return;
+    const onWindowPointerMove = (event: globalThis.PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag || drag.pointerId !== event.pointerId) return;
+      updateSize(
+        panelSizeFromPointer({
+          side,
+          startSize: drag.startSize,
+          startPosition: drag.startPosition,
+          currentPosition: event.clientX,
+          minSize,
+          maxSize,
+        }),
+      );
+    };
+    const onWindowPointerUp = (event: globalThis.PointerEvent) => {
+      if (dragRef.current?.pointerId !== event.pointerId) return;
+      dragRef.current = null;
+      setDragging(false);
+      storeSize(storageKey, sizeRef.current);
+    };
+    window.addEventListener('pointermove', onWindowPointerMove);
+    window.addEventListener('pointerup', onWindowPointerUp);
+    window.addEventListener('pointercancel', onWindowPointerUp);
+    return () => {
+      window.removeEventListener('pointermove', onWindowPointerMove);
+      window.removeEventListener('pointerup', onWindowPointerUp);
+      window.removeEventListener('pointercancel', onWindowPointerUp);
+    };
+  }, [dragging, maxSize, minSize, side, storageKey]);
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     const next = panelSizeFromKey({
