@@ -22,6 +22,7 @@ const styles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
     fontSize: fontSizes.control,
+    height: '100%',
     overflow: 'hidden',
   },
   sidebarScroll: {

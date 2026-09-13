@@ -95,10 +95,12 @@ const styles = stylex.create({
   panel: {
     display: 'flex',
     flex: '0 0 auto',
+    height: '100%',
     minHeight: 0,
   },
   content: {
     flex: '1 1 auto',
+    height: '100%',
     minWidth: 0,
     minHeight: 0,
     overflow: 'hidden',
