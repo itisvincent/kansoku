@@ -97,8 +97,11 @@ const styles = stylex.create({
     flex: '0 0 auto',
     height: '100%',
     minHeight: 0,
+    alignSelf: 'stretch',
   },
   content: {
+    display: 'flex',
+    flexDirection: 'column',
     flex: '1 1 auto',
     height: '100%',
     minWidth: 0,
