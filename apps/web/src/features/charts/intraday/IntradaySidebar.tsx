@@ -22,14 +22,12 @@ const styles = stylex.create({
     display: 'flex',
     flexDirection: 'column',
     fontSize: fontSizes.control,
-    height: '100%',
-    overflow: 'hidden',
+    height: 'auto',
+    overflow: 'visible',
   },
   sidebarScroll: {
-    flex: '1 1 auto',
-    height: 0,
-    minHeight: 0,
-    overflowY: 'scroll',
+    flex: '0 0 auto',
+    overflowY: 'visible',
     padding: 16,
   },
   header: {
