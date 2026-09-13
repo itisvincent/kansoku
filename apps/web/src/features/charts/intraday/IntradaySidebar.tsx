@@ -27,8 +27,9 @@ const styles = stylex.create({
   },
   sidebarScroll: {
     flex: '1 1 auto',
+    height: 0,
     minHeight: 0,
-    overflowY: 'auto',
+    overflowY: 'scroll',
     padding: 16,
   },
   header: {
