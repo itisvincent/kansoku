@@ -106,17 +106,7 @@ const styles = stylex.create({
     height: '100%',
     minWidth: 0,
     minHeight: 0,
-    overflowX: 'hidden',
-    overflowY: 'auto',
-    scrollbarWidth: 'auto',
-    scrollbarColor: `${colors.borderStrong} transparent`,
-    '::-webkit-scrollbar': {
-      width: '10px',
-    },
-    '::-webkit-scrollbar-thumb': {
-      backgroundColor: colors.borderStrong,
-      borderRadius: '5px',
-    },
+    overflow: 'hidden',
   },
   handle: {
     'position': 'relative',
