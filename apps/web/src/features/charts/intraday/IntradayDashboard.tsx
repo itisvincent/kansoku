@@ -18,6 +18,9 @@ const styles = stylex.create({
   layout: {
     display: 'flex',
     height: '100%',
+    minHeight: 0,
+    maxHeight: '100vh',
+    overflow: 'hidden',
     position: 'relative',
   },
   chartPane: {
