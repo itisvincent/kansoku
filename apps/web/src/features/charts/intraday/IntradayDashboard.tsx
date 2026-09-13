@@ -9,16 +9,21 @@ import { IntradaySidebar } from './IntradaySidebar';
 import { useIntradayControls } from './controlsContext';
 import { TimeframeSettingsMenu } from './TimeframeSettingsMenu';
 import { isViewPeriod, tfLabel, tfShortLabel, type ChartTf } from './timeframes';
-import { colors, fontSizes, radii, sizes } from '../../../theme/tokens.stylex';
+import { colors, fontSizes, radii } from '../../../theme/tokens.stylex';
+import { ResizablePanel } from '@web/ui';
 
 export const TF_LABELS: Record<TimeframeKey, string> = { m5: '5分钟', m15: '15分钟', h1: '1小时' };
 
 const styles = stylex.create({
   layout: {
-    display: 'grid',
-    gridTemplateColumns: `1fr ${sizes.sidebarWidth}`,
+    display: 'flex',
     height: '100%',
     position: 'relative',
+  },
+  chartPane: {
+    flex: '1 1 auto',
+    minWidth: 0,
+    minHeight: 0,
   },
   timeframeSwitch: {
     display: 'inline-flex',
@@ -133,20 +138,31 @@ export function IntradayDashboard({
         activeTf={activeTf}
         onLoadHistory={onLoadHistory}
         live={live}
+        className={stylex.props(styles.chartPane).className}
       />
-      <IntradaySidebar
-        built={built}
-        activeTf={sidebarTf}
-        predictionUpdatedAt={predictionUpdatedAt}
-        predictionStale={predictionStale}
-        conclusionReassess={conclusionReassess}
-        tabsOverride={sidebarTabs}
-        extraTabs={extraTabs}
-        active={activeTab}
-        onActiveChange={onTabChange}
-        dock={dock}
-        live={live}
-      />
+      <ResizablePanel
+        side="end"
+        defaultSize={340}
+        minSize={280}
+        maxSize={640}
+        storageKey="kansoku-cockpit-sidebar-width"
+        handleLabel="Resize chart details panel"
+        contentClassName="intraday-sidebar-resizable-content"
+      >
+        <IntradaySidebar
+          built={built}
+          activeTf={sidebarTf}
+          predictionUpdatedAt={predictionUpdatedAt}
+          predictionStale={predictionStale}
+          conclusionReassess={conclusionReassess}
+          tabsOverride={sidebarTabs}
+          extraTabs={extraTabs}
+          active={activeTab}
+          onActiveChange={onTabChange}
+          dock={dock}
+          live={live}
+        />
+      </ResizablePanel>
     </div>
   );
 }

@@ -149,6 +149,7 @@ export interface IntradayChartOnlyProps {
   onChartHandle?: (handle: DrawingChartHandle | null) => void;
   popout?: boolean;
   live?: boolean;
+  className?: string;
 }
 
 export function IntradayChartOnly({
@@ -161,6 +162,7 @@ export function IntradayChartOnly({
   onChartHandle,
   popout = false,
   live = false,
+  className,
 }: IntradayChartOnlyProps) {
   const { t: i18n } = useLocale();
   const built = useLiveBuilt(frozenBuilt, activeTf, symbol, live);
@@ -236,7 +238,7 @@ export function IntradayChartOnly({
 
   return (
     <div
-      className={`charts-col ${stylex.props(styles.chartsCol, popout && styles.popoutChartsCol).className}`}
+      className={`charts-col${className ? ` ${className}` : ''} ${stylex.props(styles.chartsCol, popout && styles.popoutChartsCol).className}`}
     >
       <div className={`chart-block ${stylex.props(styles.chartBlock, styles.mainChart).className}`}>
         <div className={`chart-label ${stylex.props(styles.chartLabel).className}`}>
