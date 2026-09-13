@@ -1,5 +1,5 @@
 import { readFile } from 'node:fs/promises';
-import { extname, join, normalize, sep } from 'node:path';
+import { extname, join, posix } from 'node:path';
 import { app, protocol } from 'electron';
 import { resolveRepoRoot } from '../../boot/paths.js';
 
@@ -58,19 +58,23 @@ export function decideRoute(requestUrl: string): RouteDecision {
 export function guardStaticPath(pathname: string): string | null {
   const withoutLeadingSlash = pathname.replace(/^\/+/, '');
   const withForwardSlashes = withoutLeadingSlash.replaceAll('\\', '/');
-  const normalized = normalize(withForwardSlashes);
+  // URL paths are POSIX. Windows path.normalize would turn
+  // popout/symbol/NVDA.US into popout\symbol\NVDA.US, which then looks
+  // like a .US file and 404s the chart popout.
+  const normalized = posix.normalize(withForwardSlashes);
 
   if (normalized === '.' || normalized === '') return 'index.html';
-  if (normalized.startsWith('..') || normalized.split(sep).includes('..')) return null;
+  if (normalized.startsWith('..') || normalized.split('/').includes('..')) return null;
   if (normalized.startsWith('/') || /^[A-Za-z]:/.test(normalized)) return null;
 
   return normalized;
 }
 
 export function applySpaFallback(relativePath: string): string {
-  const [firstSegment] = relativePath.split('/');
+  const posixPath = relativePath.replaceAll('\\', '/');
+  const [firstSegment] = posixPath.split('/');
   if (firstSegment === 'popout') return 'index.html';
-  if (extname(relativePath) !== '') return relativePath;
+  if (extname(posixPath) !== '') return posixPath;
   return 'index.html';
 }
 

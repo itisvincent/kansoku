@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { trackFeatureUsed } from '@web/lib/analytics';
 import { errorMessage } from '@web/lib/api';
 import { client } from '@web/lib/client';
+import { loadAnalysisTimeframes } from '@web/features/charts/intraday/timeframes';
 
 export const REASON_TEXT: Record<string, string> = {
   'analyst layer disabled': 'local:cockpitAnalystUnconfigured',
@@ -52,7 +53,10 @@ export function useReassessSymbol(symbol: string): {
 
     try {
       trackFeatureUsed('market_analysis');
-      const data = await client.symbols.reassess({ sym: symbol });
+      const data = await client.symbols.reassess({
+        sym: symbol,
+        timeframes: loadAnalysisTimeframes(),
+      });
       const superseded = tokenRef.current !== token;
       if (superseded) return { ok: false, error: 'local:cockpitCancelled', aborted: true };
       return { ok: true, data };

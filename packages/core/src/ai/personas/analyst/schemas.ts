@@ -2,13 +2,20 @@ import { type Static, Type } from 'typebox';
 
 export const journalSchema = Type.Object({ content: Type.String() });
 
+const analysisTimeframeSchema = Type.Union([
+  Type.Literal('1m'),
+  Type.Literal('m5'),
+  Type.Literal('m15'),
+  Type.Literal('30m'),
+  Type.Literal('h1'),
+  Type.Literal('4h'),
+  Type.Literal('day'),
+  Type.Literal('week'),
+  Type.Literal('month'),
+]);
+
 export const anchorSchema = Type.Object({
-  timeframe: Type.Union([
-    Type.Literal('m5'),
-    Type.Literal('m15'),
-    Type.Literal('h1'),
-    Type.Literal('day'),
-  ]),
+  timeframe: analysisTimeframeSchema,
   time: Type.String(),
   price: Type.Number(),
 });
@@ -65,12 +72,7 @@ export const submitSectionSchema = Type.Object({
   trends: Type.Optional(
     Type.Array(
       Type.Object({
-        timeframe: Type.Union([
-          Type.Literal('m5'),
-          Type.Literal('m15'),
-          Type.Literal('h1'),
-          Type.Literal('day'),
-        ]),
+        timeframe: analysisTimeframeSchema,
         trend: Type.Union([Type.Literal('up'), Type.Literal('down'), Type.Literal('sideways')]),
       }),
       { minItems: 1, maxItems: 4 },

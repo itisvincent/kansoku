@@ -27,6 +27,7 @@ function makePack(overrides: Partial<ReassessPack> = {}): ReassessPack {
   return {
     symbol: 'MU.US',
     as_of: '2026-07-05T15:00:00.000Z',
+    analysis_timeframes: ['m5', 'm15', 'h1'],
     timeframes: {} as ReassessPack['timeframes'],
     flow: [],
     rel_volume: null,

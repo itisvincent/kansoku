@@ -232,7 +232,7 @@ export function SymbolCockpit({ sym }: { sym: string }) {
   const { unread, latestAlert } = useAiUnreadBadge(sym, comments, commentsLoaded, activeTab);
 
   const intradaySidebar = doc?.built.kind === 'intraday' ? doc.built.sidebar : null;
-  const viewTimeframe = useViewTimeframe(sym, intradayTf ?? 'm15', {
+  const viewTimeframe = useViewTimeframe(sym, intradayTf ?? '4h', {
     asOf: live ? undefined : intradaySidebar?.asOf,
     live,
   });

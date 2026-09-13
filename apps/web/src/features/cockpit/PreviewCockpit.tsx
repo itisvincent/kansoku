@@ -155,7 +155,7 @@ export function PreviewCockpit({
   const [activeTab, setActiveTab] = useState('prediction');
   const { comments, error: commentsError, loaded: commentsLoaded } = useCockpitComments(sym);
   const { unread } = useAiUnreadBadge(sym, comments, commentsLoaded, activeTab);
-  const viewTimeframe = useViewTimeframe(sym, intradayTf ?? 'm15', { live: true });
+  const viewTimeframe = useViewTimeframe(sym, intradayTf ?? '4h', { live: true });
   const analystRunStatus = useAnalystRunStatus(sym);
   const analystRunLastEndedRaw = useAnalystRunLastEnded(sym);
   const analystRunLastEnded =

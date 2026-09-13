@@ -15,7 +15,11 @@ import {
 import { DisciplineMissingError, loadAppDiscipline } from '../../runtime/promptPolicy.js';
 import { createDefaultExec } from '../../agents/agentTools/execTool.js';
 import { appendComment as defaultAppendComment } from '../comments.js';
-import { buildReassessPack as defaultBuildReassessPack } from '../../agents/datapack.js';
+import {
+  buildReassessPack as defaultBuildReassessPack,
+  defaultDatapackDeps,
+} from '../../agents/datapack.js';
+import { sanitizeReassessTimeframes } from '../../agents/analysisTimeframes.js';
 import { aiConfig } from '../../runtime/models.js';
 import { emitNotice } from '../notices.js';
 import {
@@ -223,10 +227,21 @@ export function runAnalyst({ symbol, origin, deps }: RunAnalystInput): StartResu
   return { started: true, done };
 }
 
-export async function reassessSymbol(symbol: string): Promise<ReassessResult> {
+export async function reassessSymbol(
+  symbol: string,
+  timeframes?: string[],
+): Promise<ReassessResult> {
   const model = aiConfig().analystModel;
   if (!model) return { started: false, reason: 'analyst layer disabled' };
-  const result = runAnalyst({ symbol, origin: 'manual', deps: { model } });
+  const analysisTfs = sanitizeReassessTimeframes(timeframes);
+  const result = runAnalyst({
+    symbol,
+    origin: 'manual',
+    deps: {
+      model,
+      buildReassessPack: (sym) => defaultBuildReassessPack(sym, defaultDatapackDeps, analysisTfs),
+    },
+  });
   if (result.started) {
     void result.done.catch(() => {});
     return { started: true };

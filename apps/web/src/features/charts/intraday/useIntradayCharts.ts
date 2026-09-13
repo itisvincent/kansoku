@@ -47,7 +47,7 @@ import { PositionBoxPrimitive } from './positionBoxPrimitive';
 import { SessionBgPrimitive } from './sessionPrimitive';
 import { ZhongshuPrimitive } from './zhongshuPrimitive';
 import { filterVisibleOverlayItems, selectVisibleMarkers } from './markerSelection';
-import { bollinger, lineData } from '@kansoku/core/analysis/indicators';
+import { bollinger, lineData, rsi } from '@kansoku/core/analysis/indicators';
 import { seriesPalette, theme } from '@web/lib/theme';
 
 const EMA_COLORS = [
@@ -61,6 +61,7 @@ const EMA_COLORS = [
 interface Handle {
   main: IChartApi;
   macd: IChartApi;
+  rsi: IChartApi;
   candle: ISeriesApi<'Candlestick'>;
   candleMarkers: ISeriesMarkersPluginApi<Time>;
   vol: ISeriesApi<'Histogram'>;
@@ -71,6 +72,7 @@ interface Handle {
   bollMid: ISeriesApi<'Line'>;
   bollUpper: ISeriesApi<'Line'>;
   bollLower: ISeriesApi<'Line'>;
+  rsiLine: ISeriesApi<'Line'>;
   hist: ISeriesApi<'Histogram'>;
   dif: ISeriesApi<'Line'>;
   difMarkers: ISeriesMarkersPluginApi<Time>;
@@ -91,6 +93,10 @@ const VWAP_COLOR = '#c084fc';
 const BOLL_COLOR = '#38bdf8';
 const BOLL_PERIOD = 20;
 const BOLL_K = 2;
+const RSI_COLOR = '#a78bfa';
+const RSI_PERIOD = 14;
+const RSI_OVERBOUGHT = 70;
+const RSI_OVERSOLD = 30;
 const DAY_LEVEL_COLOR = '#8b949e';
 const CALL_WALL_COLOR = '#e3b341';
 const PUT_WALL_COLOR = '#39c5cf';
@@ -176,6 +182,7 @@ export function useIntradayCharts(
   activeTf: ChartTf,
   mainRef: RefObject<HTMLDivElement | null>,
   macdRef: RefObject<HTMLDivElement | null>,
+  rsiRef: RefObject<HTMLDivElement | null>,
   onNearLeftEdge: (() => void) | undefined,
   toggles: Record<IndicatorToggleKey, boolean>,
   markerRange: MarkerRange,
@@ -204,7 +211,8 @@ export function useIntradayCharts(
   useEffect(() => {
     const mainEl = mainRef.current;
     const macdEl = macdRef.current;
-    if (!mainEl || !macdEl) return;
+    const rsiEl = rsiRef.current;
+    if (!mainEl || !macdEl || !rsiEl) return;
 
     const main = baseChart(mainEl, true, true);
     const candle = main.addSeries(CandlestickSeries, {
@@ -288,12 +296,37 @@ export function useIntradayCharts(
       lastValueVisible: true,
     });
 
-    const stopTimeScaleSync = syncTimeScales([main, macd]);
+    const rsiChart = baseChart(rsiEl, true, true);
+    const rsiLine = rsiChart.addSeries(LineSeries, {
+      color: RSI_COLOR,
+      lineWidth: 1,
+      priceLineVisible: false,
+      lastValueVisible: true,
+      autoscaleInfoProvider: () => ({
+        priceRange: { minValue: 0, maxValue: 100 },
+      }),
+    });
+    const rsiGuide = {
+      color: 'rgba(232, 232, 232, 0.28)',
+      lineWidth: 1 as const,
+      lineStyle: LineStyle.Dashed,
+      axisLabelVisible: true,
+      title: '',
+    };
+    rsiLine.createPriceLine({ ...rsiGuide, price: RSI_OVERBOUGHT });
+    rsiLine.createPriceLine({ ...rsiGuide, price: RSI_OVERSOLD });
+
+    const stopTimeScaleSync = syncTimeScales([main, macd, rsiChart]);
     const stopCrosshairSync = syncCrosshair([
       { chart: main, series: candle },
       { chart: macd, series: dif },
+      { chart: rsiChart, series: rsiLine },
     ]);
-    const observers = [observeSize(mainEl, main), observeSize(macdEl, macd)];
+    const observers = [
+      observeSize(mainEl, main),
+      observeSize(macdEl, macd),
+      observeSize(rsiEl, rsiChart),
+    ];
     const mainTip = markerTooltip(main, mainEl);
     const macdTip = markerTooltip(macd, macdEl);
     const fvgTip = fvgTooltip(main, mainEl);
@@ -306,6 +339,7 @@ export function useIntradayCharts(
     handleRef.current = {
       main,
       macd,
+      rsi: rsiChart,
       candle,
       candleMarkers,
       vol,
@@ -316,6 +350,7 @@ export function useIntradayCharts(
       bollMid,
       bollUpper,
       bollLower,
+      rsiLine,
       hist,
       dif,
       difMarkers,
@@ -345,9 +380,10 @@ export function useIntradayCharts(
       stopTimeScaleSync();
       main.remove();
       macd.remove();
+      rsiChart.remove();
       handleRef.current = null;
     };
-  }, [mainRef, macdRef]);
+  }, [mainRef, macdRef, rsiRef]);
 
   useEffect(() => {
     const h = handleRef.current;
@@ -404,6 +440,16 @@ export function useIntradayCharts(
       h.bollMid.setData([]);
       h.bollUpper.setData([]);
       h.bollLower.setData([]);
+    }
+    if (toggles.rsi && d.candles.length > RSI_PERIOD) {
+      const values = rsi(
+        d.candles.map((c) => c.close),
+        RSI_PERIOD,
+      );
+      const times = d.candles.map((c) => c.time);
+      h.rsiLine.setData(padLineData(lineData(times, values), timeline));
+    } else {
+      h.rsiLine.setData([]);
     }
     h.fvg.setData(fvgZones, fvgContext);
     h.fvgTip.setData(fvgZones, fvgContext);

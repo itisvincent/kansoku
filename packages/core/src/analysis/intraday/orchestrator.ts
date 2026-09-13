@@ -28,6 +28,7 @@ import {
   PATTERN_LABEL_SUFFIX,
   PATTERN_STATUS_TEXT,
   SESSIONLESS_PERIODS,
+  MACD_MIN_BARS,
   TIMEFRAME_LABELS,
   TIMEFRAME_ORDER,
 } from './constants.js';
@@ -42,6 +43,7 @@ import {
   type TfOverlay,
 } from './markers.js';
 import { coerceIntradayTimeframe, sanitizeEmaPeriods, type CoercedTimeframe } from './timeframe.js';
+import { aggregateFourHour } from '../../charts/aggregateFourHour.js';
 
 export interface IntradayInput {
   symbol: string;
@@ -280,16 +282,28 @@ export function buildIntraday(input: IntradayInput): { built: IntradayBuilt; met
       st?.triggered_at != null ? new Date(st.triggered_at * 1000).toISOString() : null;
   }
 
-  const timeframes = {} as Record<TimeframeKey, IntradayTfData>;
+  const timeframes = {} as Record<string, IntradayTfData>;
+  const technicals = {} as Record<string, IntradayTfSummary>;
   for (const k of TIMEFRAME_ORDER) {
     timeframes[k] = buildTimeframeView(tfs[k], k, symbol, signalsByTf[k]);
+    technicals[k] = tfs[k].summary;
+  }
+  const extraPeriods: Array<[string, RawBar[] | undefined]> = [
+    ['4h', tfRaw.h1?.length ? aggregateFourHour(tfRaw.h1) : undefined],
+    ['day', input.day_kline],
+  ];
+  for (const [key, bars] of extraPeriods) {
+    if (!bars || bars.length < MACD_MIN_BARS) continue;
+    try {
+      const coerced = coerceIntradayTimeframe(bars, key, emaPeriods);
+      timeframes[key] = buildTimeframeView(coerced, key, symbol);
+      technicals[key] = coerced.summary;
+    } catch {
+      // Optional extra period — skip rather than failing the whole chart.
+    }
   }
 
   const defaultTf: TimeframeKey = anchor?.timeframe ?? 'm15';
-  const technicals = Object.fromEntries(TIMEFRAME_ORDER.map((k) => [k, tfs[k].summary])) as Record<
-    TimeframeKey,
-    IntradayTfSummary
-  >;
   const lastM5 = tfs.m5.candles.at(-1)!;
   const dayContext = buildDayContext(
     input.day_kline ?? [],
@@ -307,7 +321,7 @@ export function buildIntraday(input: IntradayInput): { built: IntradayBuilt; met
 
   const built: IntradayBuilt = {
     kind: 'intraday',
-    timeframes,
+    timeframes: timeframes as Record<TimeframeKey, IntradayTfData>,
     defaultTf,
     entryPlan,
     sidebar: {
@@ -318,7 +332,7 @@ export function buildIntraday(input: IntradayInput): { built: IntradayBuilt; met
       prediction,
       entryPlan,
       position,
-      technicals,
+      technicals: technicals as Record<TimeframeKey, IntradayTfSummary>,
       dayContext,
       optionsLevels: input.options_levels ?? null,
       eventRisk: input.event_risk ?? null,
@@ -333,7 +347,7 @@ export function buildIntraday(input: IntradayInput): { built: IntradayBuilt; met
       TimeframeKey,
       number
     >,
-    technicals,
+    technicals: technicals as Record<TimeframeKey, IntradayTfSummary>,
     day_context: dayContext,
     options_levels: input.options_levels ?? null,
     event_risk: input.event_risk ?? null,

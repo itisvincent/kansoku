@@ -2,9 +2,10 @@ import { useLocale } from '@web/lib/i18n';
 import type { ReactNode } from 'react';
 import { TriangleAlert } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
-import type { IntradayBuilt, TimeframeKey } from '@kansoku/shared/types';
+import type { IntradayBuilt, IntradayTfSummary } from '@kansoku/shared/types';
 import { fmt, signed } from '@web/lib/format';
-import { tfLabel } from '../timeframes';
+import { tfDataOf, tfLabel, type ChartTf } from '../timeframes';
+import { useIntradayControls } from '../controlsContext';
 import { conclusionOutdated, ReassessCta, type ConclusionReassess } from '../ConclusionCard';
 import { DIRECTION_LABEL } from '../directionLabels';
 import {
@@ -22,7 +23,24 @@ const SIGNAL_ICON: Record<string, string> = {
   macd_divergence: '⚡',
   macd_beichi: '🌀',
 };
-const TF_ORDER: TimeframeKey[] = ['m5', 'm15', 'h1'];
+
+function techSummary(built: IntradayBuilt, tf: ChartTf): IntradayTfSummary | undefined {
+  const stored = (built.sidebar.technicals as Record<string, IntradayTfSummary | undefined>)[tf];
+  if (stored) return stored;
+  const data = tfDataOf(built, tf);
+  if (!data) return undefined;
+  return {
+    last_dif: data.macdDif.at(-1)?.value ?? null,
+    last_dea: data.macdDea.at(-1)?.value ?? null,
+    last_hist: data.macdHist.at(-1)?.value ?? null,
+    emas: [],
+    recent_swing_highs: [],
+    recent_swing_lows: [],
+    last_cross: null,
+    divergence_candidates: [],
+    beichi_candidates: [],
+  };
+}
 
 const styles = stylex.create({
   icon: {
@@ -212,7 +230,7 @@ function rrTone(ep: { rr_great: boolean; rr_ok: boolean }): string {
 
 interface PredictionTabProps {
   built: IntradayBuilt;
-  activeTf: TimeframeKey;
+  activeTf: ChartTf;
   predictionUpdatedAt?: string;
   predictionStale?: boolean;
   reassess?: ConclusionReassess;
@@ -228,6 +246,7 @@ export function PredictionTab({
   emptyCta,
 }: PredictionTabProps) {
   const { t: i18n, locale } = useLocale();
+  const { analysisTfs } = useIntradayControls();
   const s = built.sidebar;
   const p = s.prediction;
   const ep = s.entryPlan;
@@ -525,7 +544,7 @@ export function PredictionTab({
       )}
 
       {(() => {
-        const tfData = built.timeframes[activeTf];
+        const tfData = tfDataOf(built, activeTf);
         const patterns123 = tfData?.pattern123 ?? [];
         const autoItems = [
           ...(tfData?.autoDivergence ?? []).map((d) => ({
@@ -558,8 +577,8 @@ export function PredictionTab({
         <>
           <SectionTitle>{i18n('chartTechnicalSummary')}</SectionTitle>
           <div className={`grid2 ${stylex.props(styles.grid).className}`}>
-            {TF_ORDER.map((k) => {
-              const t = s.technicals[k];
+            {analysisTfs.map((k) => {
+              const t = techSummary(built, k);
               if (!t || t.last_dif === null) return null;
               return (
                 <TechRow

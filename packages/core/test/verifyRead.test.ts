@@ -21,6 +21,7 @@ function pack(overrides: Partial<ReassessPack> = {}): ReassessPack {
   return {
     symbol: 'MU.US',
     as_of: '2026-07-13T18:00:00Z',
+    analysis_timeframes: ['m5', 'm15', 'h1'],
     timeframes: {
       m5: {
         bars: [

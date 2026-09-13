@@ -10,10 +10,10 @@ const LIVE_TYPES = new Set(['flow', 'intraday']);
 
 export type ChartDocView = ChartDoc & { prediction_stale?: boolean; sepa_stale?: boolean };
 
+// 本地偏好：未手动选周期时默认看 4h（不再回落到图表锚点周期/15m）。
 export function resolveIntradayTf(built: IntradayBuilt, preferred: ChartTf | null): ChartTf {
   if (preferred && (isViewPeriod(preferred) || preferred in built.timeframes)) return preferred;
-  if (built.defaultTf in built.timeframes) return built.defaultTf;
-  return 'm15';
+  return '4h';
 }
 
 export function useIntradayDoc(id: string | null) {

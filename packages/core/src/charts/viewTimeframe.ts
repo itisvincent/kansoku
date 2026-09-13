@@ -6,6 +6,7 @@ import { coerceIntradayTimeframe } from '../analysis/intraday/timeframe.js';
 import { getProvider } from '../marketdata/registry.js';
 import { marketOf } from '../symbols/symbol.utils.js';
 import { loadViewHistory, type HistoryStatus } from './viewHistory.js';
+import { aggregateFourHour } from './aggregateFourHour.js';
 
 export const VIEW_PERIODS = ['1m', '30m', '4h', 'day', 'week', 'month'] as const;
 export type ViewPeriod = (typeof VIEW_PERIODS)[number];
@@ -43,36 +44,6 @@ function truncateAt(bars: RawBar[], asOf: string | undefined): RawBar[] {
   const cutoff = Date.parse(asOf);
   if (!Number.isFinite(cutoff)) return bars;
   return bars.filter((b) => Date.parse(b.time) <= cutoff);
-}
-
-function aggregateFourHour(bars: RawBar[]): RawBar[] {
-  const result: RawBar[] = [];
-  let group: RawBar[] = [];
-  const flush = () => {
-    if (!group.length) return;
-    result.push({
-      time: group[0].time,
-      open: group[0].open,
-      high: Math.max(...group.map((bar) => Number(bar.high))),
-      low: Math.min(...group.map((bar) => Number(bar.low))),
-      close: group.at(-1)!.close,
-      volume: group.reduce((sum, bar) => sum + Number(bar.volume), 0),
-    });
-    group = [];
-  };
-
-  for (const bar of bars) {
-    const previous = group.at(-1);
-    // A long gap marks a new market session (overnight/weekend). Do not make
-    // a synthetic candle that spans the gap just because the source is 1h.
-    if (previous && Date.parse(bar.time) - Date.parse(previous.time) > 2 * 60 * 60 * 1000) {
-      flush();
-    }
-    group.push(bar);
-    if (group.length === 4) flush();
-  }
-  flush();
-  return result;
 }
 
 export async function buildViewTimeframe(input: {

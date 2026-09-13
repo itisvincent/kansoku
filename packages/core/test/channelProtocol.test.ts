@@ -216,6 +216,7 @@ function makePack(): ReassessPack {
   return {
     symbol: 'CHANNEL.US',
     as_of: '2026-07-16T15:00:00.000Z',
+    analysis_timeframes: ['m5', 'm15', 'h1'],
     timeframes: {} as ReassessPack['timeframes'],
     flow: [],
     rel_volume: null,

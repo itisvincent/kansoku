@@ -39,6 +39,15 @@ if (isMac && process.env.KANSOKU_LOCAL_TEST_BUILD === '1' && existsSync(proNativ
   }
 }
 
+// The local test build runs with the license gate baked open
+// (packages/core/src/license/licenseGate.ts). Name the artifacts so a test
+// build can never be confused with — or shipped as — a normal release.
+if (process.env.KANSOKU_LOCAL_TEST_BUILD === '1') {
+  args.push('--config.artifactName=Kansoku-${version}-local-test-${arch}.${ext}');
+  // electron-builder.yml sets win.artifactName, which shadows the top-level key.
+  args.push('--config.win.artifactName=Kansoku-${version}-local-test-${arch}.${ext}');
+}
+
 const builderCommand = join(
   process.cwd(),
   'node_modules',

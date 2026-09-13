@@ -13,7 +13,6 @@ import type {
   QuoteCell,
   RawBar,
   RelativeVolume,
-  TimeframeKey,
 } from '@kansoku/shared/types';
 import { ClientError } from '../../platform/errors.js';
 import { normalizeQuote } from '../../realtime/quotes.js';
@@ -38,6 +37,12 @@ import { easternDate } from '../../marketdata/session.js';
 import { listCharts, loadChart, type ListFilter } from '../../charts/store.js';
 import { marketOf } from '../../symbols/symbol.utils.js';
 import { listComments } from '../personas/comments.js';
+import {
+  DEFAULT_REASSESS_TFS,
+  fetchAnalysisBars,
+  sanitizeReassessTimeframes,
+  type ReassessTf,
+} from './analysisTimeframes.js';
 
 const KLINE_COUNT = 150;
 const REASSESS_DAY_KLINE_COUNT = 60;
@@ -47,11 +52,6 @@ const DAY_KLINE_COUNT = 10;
 const COMMENT_M5_BARS = 48;
 const REASSESS_TF_BARS = 60;
 const RECENT_COMMENTS = 5;
-const REASSESS_TIMEFRAMES: { key: TimeframeKey; period: string }[] = [
-  { key: 'm5', period: '5m' },
-  { key: 'm15', period: '15m' },
-  { key: 'h1', period: '1h' },
-];
 
 export interface DatapackDeps {
   fetchQuote: (symbol: string) => Promise<QuoteCell>;
@@ -125,7 +125,8 @@ export interface ReassessTimeframe {
 export interface ReassessPack {
   symbol: string;
   as_of: string;
-  timeframes: Record<TimeframeKey, ReassessTimeframe>;
+  analysis_timeframes: ReassessTf[];
+  timeframes: Record<string, ReassessTimeframe>;
   flow: FlowRow[];
   rel_volume: RelativeVolume | null;
   day_levels: DayLevels | null;
@@ -176,7 +177,7 @@ function predictionSummary(doc: ChartDoc | null): PredictionSummary | null {
   };
 }
 
-function summarizeTimeframe(bars: RawBar[], key: TimeframeKey): IntradayTfSummary | null {
+function summarizeTimeframe(bars: RawBar[], key: string): IntradayTfSummary | null {
   try {
     return coerceIntradayTimeframe(bars, key).summary;
   } catch {
@@ -259,10 +260,13 @@ export function buildCommentUpdate(pack: CommentPack, lastBarTime: string | null
 export async function buildReassessPack(
   symbol: string,
   deps: DatapackDeps = defaultDatapackDeps,
+  analysisTfs: readonly string[] = DEFAULT_REASSESS_TFS,
 ): Promise<ReassessPack> {
   const now = deps.now();
+  const keys = sanitizeReassessTimeframes(analysisTfs);
   const [
     barsList,
+    extraM5,
     flow,
     doc,
     positions,
@@ -275,7 +279,10 @@ export async function buildReassessPack(
     eventRisk,
     lessons,
   ] = await Promise.all([
-    Promise.all(REASSESS_TIMEFRAMES.map((tf) => deps.fetchKline(symbol, tf.period, KLINE_COUNT))),
+    Promise.all(keys.map((tf) => fetchAnalysisBars(deps.fetchKline, symbol, tf, KLINE_COUNT))),
+    keys.includes('m5')
+      ? Promise.resolve(null)
+      : deps.fetchKline(symbol, '5m', KLINE_COUNT).catch(() => [] as RawBar[]),
     deps.fetchFlow(symbol),
     findTodayLatestIntradayDoc(symbol, deps),
     deps.fetchPositions().catch(() => [] as RawPosition[]),
@@ -289,19 +296,19 @@ export async function buildReassessPack(
     deps.readLessons().catch(() => [] as string[]),
   ]);
 
-  const timeframes = {} as Record<TimeframeKey, ReassessTimeframe>;
-  REASSESS_TIMEFRAMES.forEach((tf, i) => {
-    const bars = barsList[i];
-    timeframes[tf.key] = {
+  const timeframes: Record<string, ReassessTimeframe> = {};
+  keys.forEach((tf, i) => {
+    const bars = barsList[i] ?? [];
+    timeframes[tf] = {
       bars: bars.slice(-REASSESS_TF_BARS),
-      summary: summarizeTimeframe(bars, tf.key),
+      summary: summarizeTimeframe(bars, tf),
     };
   });
 
   const prediction = (doc?.input.prediction as IntradayPrediction | undefined) ?? null;
   const plan = doc && doc.built.kind === 'intraday' ? doc.built.entryPlan : null;
-  const m5Closes = barsList[0].map((b) => Number(b.close));
-  const last = m5Closes.at(-1);
+  const lastClose = barsList.find((bars) => bars.length)?.at(-1)?.close;
+  const last = lastClose != null ? Number(lastClose) : undefined;
   const position =
     last != null && Number.isFinite(last)
       ? buildCockpitPosition(
@@ -312,10 +319,11 @@ export async function buildReassessPack(
         )
       : null;
 
-  const m5Bars = barsList[0];
+  const m5Bars = keys.includes('m5') ? (barsList[keys.indexOf('m5')] ?? []) : (extraM5 ?? []);
   return {
     symbol,
     as_of: now.toISOString(),
+    analysis_timeframes: keys,
     timeframes,
     flow,
     rel_volume: relvolBars.length ? computeRelativeVolume(relvolBars, now) : null,

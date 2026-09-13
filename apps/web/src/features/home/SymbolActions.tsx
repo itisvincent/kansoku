@@ -5,6 +5,7 @@ import * as stylex from '@stylexjs/stylex';
 import { trackFeatureUsed } from '@web/lib/analytics';
 import { errorMessage } from '@web/lib/api';
 import { client } from '@web/lib/client';
+import { loadAnalysisTimeframes } from '@web/features/charts/intraday/timeframes';
 import { Button, Switch } from '@web/ui';
 import { useFeature } from '@web/features/edition/useFeature';
 import { useSymbolFollow } from '@web/features/quotes/useSymbolFollow';
@@ -162,7 +163,10 @@ export function ReassessButton({ symbol }: { symbol: string }) {
     setState('running');
     try {
       trackFeatureUsed('market_analysis');
-      const res = await client.symbols.reassess({ sym: symbol });
+      const res = await client.symbols.reassess({
+        sym: symbol,
+        timeframes: loadAnalysisTimeframes(),
+      });
       setState(res.started ? 'done' : 'failed');
     } catch (err) {
       console.warn(`reassess ${symbol}: ${errorMessage(err)}`);

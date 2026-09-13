@@ -42,6 +42,38 @@ export function bollinger(
   return { mid, upper, lower };
 }
 
+export function rsi(closes: number[], period = 14): (number | null)[] {
+  const out: (number | null)[] = Array.from({ length: closes.length }, () => null);
+  if (period <= 0 || closes.length <= period) return out;
+
+  let gain = 0;
+  let loss = 0;
+  for (let i = 1; i <= period; i++) {
+    const change = closes[i] - closes[i - 1];
+    if (change > 0) gain += change;
+    else loss -= change;
+  }
+  let avgGain = gain / period;
+  let avgLoss = loss / period;
+  out[period] = rsiFromAverages(avgGain, avgLoss);
+
+  for (let i = period + 1; i < closes.length; i++) {
+    const change = closes[i] - closes[i - 1];
+    const up = change > 0 ? change : 0;
+    const down = change < 0 ? -change : 0;
+    avgGain = (avgGain * (period - 1) + up) / period;
+    avgLoss = (avgLoss * (period - 1) + down) / period;
+    out[i] = rsiFromAverages(avgGain, avgLoss);
+  }
+  return out;
+}
+
+function rsiFromAverages(avgGain: number, avgLoss: number): number {
+  if (avgLoss === 0) return avgGain === 0 ? 50 : 100;
+  if (avgGain === 0) return 0;
+  return 100 - 100 / (1 + avgGain / avgLoss);
+}
+
 export function ema(arr: number[], n: number): (number | null)[] {
   const out: (number | null)[] = [];
   let prev: number | null = null;

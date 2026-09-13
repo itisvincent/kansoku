@@ -82,7 +82,8 @@ export function IntradayTimeframeSwitch({
   const { t: i18n, locale } = useLocale();
   const { visibleTfs } = useIntradayControls();
   useEffect(() => {
-    if (visibleTfs.length && !visibleTfs.includes(activeTf)) onChange(visibleTfs[0]);
+    if (visibleTfs.length && !visibleTfs.includes(activeTf) && !isViewPeriod(activeTf))
+      onChange(visibleTfs[0]);
   }, [visibleTfs, activeTf, onChange]);
   return (
     <div

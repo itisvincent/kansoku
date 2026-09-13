@@ -8,6 +8,11 @@ const desktopDir = fileURLToPath(new URL('.', import.meta.url));
 const overlayRoot = fileURLToPath(new URL('../pro/overlays', import.meta.url));
 const proPresent = process.env.KANSOKU_FORCE_FREE !== '1' && existsSync(overlayRoot);
 const isDev = process.env.KANSOKU_DESKTOP_DEV === '1';
+// Baked into the bundle, not read at runtime: packages/core's licenseGate
+// evaluates this expression at module load to decide whether the packaged
+// build runs unlocked. package:desktop:local sets it to '1'; a normal build
+// bakes an empty string and the packaged license gate stays sealed.
+const localTestBuild = process.env.KANSOKU_LOCAL_TEST_BUILD ?? '';
 
 export const PRO_CHUNK_DIR = '__pro__/';
 
@@ -38,6 +43,7 @@ export default defineConfig({
 
   define: {
     __DESKTOP_DEV__: JSON.stringify(isDev),
+    'process.env.KANSOKU_LOCAL_TEST_BUILD': JSON.stringify(localTestBuild),
   },
   resolve: {
     alias: {

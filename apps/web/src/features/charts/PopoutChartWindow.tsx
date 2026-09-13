@@ -60,7 +60,7 @@ export function PopoutChartWindow({ sym }: { sym: string }) {
   const { built, error, degraded, intradayTf, setIntradayTf } = useIntradayPreview(sym);
   const isDesktop = getShellRpc() !== null;
   useTitle(symLabel);
-  const viewTimeframe = useViewTimeframe(sym, intradayTf ?? 'm15', { live: true });
+  const viewTimeframe = useViewTimeframe(sym, intradayTf ?? '4h', { live: true });
   const activeTf = built ? resolveIntradayTf(built, intradayTf) : null;
   const chartBuilt =
     built && activeTf ? withViewTimeframe(built, activeTf, viewTimeframe.tf) : built;

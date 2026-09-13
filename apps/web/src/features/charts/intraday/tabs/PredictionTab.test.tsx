@@ -1,8 +1,14 @@
 // @vitest-environment jsdom
 import { cleanup, render, screen } from '@testing-library/react';
+import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { IntradayBuilt } from '@kansoku/shared/types';
+import { IntradayControlsProvider } from '../controlsContext';
 import { PredictionTab } from './PredictionTab';
+
+function renderTab(ui: ReactNode) {
+  return render(<IntradayControlsProvider>{ui}</IntradayControlsProvider>);
+}
 
 afterEach(() => {
   cleanup();
@@ -21,7 +27,7 @@ const nullPredictionBuilt = {
 
 describe('PredictionTab null-prediction branch', () => {
   it('renders emptyCta below the preview-mode verdict when prediction is null', () => {
-    render(
+    renderTab(
       <PredictionTab
         built={nullPredictionBuilt}
         activeTf="m5"
@@ -34,7 +40,7 @@ describe('PredictionTab null-prediction branch', () => {
   });
 
   it('renders nothing extra when emptyCta is not passed', () => {
-    render(<PredictionTab built={nullPredictionBuilt} activeTf="m5" />);
+    renderTab(<PredictionTab built={nullPredictionBuilt} activeTf="m5" />);
 
     expect(screen.getByText('👀 预览模式')).toBeTruthy();
     expect(screen.queryByTestId('empty-cta')).toBeNull();

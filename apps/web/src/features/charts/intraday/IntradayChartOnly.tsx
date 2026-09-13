@@ -8,7 +8,7 @@ import type { DrawingsHandle } from '../drawings/useDrawings';
 import { namespacedKey, useIntradayControls } from './controlsContext';
 import { isSessionlessTf, tfDataOf, type ChartTf } from './timeframes';
 import { useLiveBuilt } from './useLiveBuilt';
-import { bollinger } from '@kansoku/core/analysis/indicators';
+import { bollinger, rsi } from '@kansoku/core/analysis/indicators';
 import { useMaSeries } from './useMaLines';
 import { useIntradayCharts, type DrawingChartHandle } from './useIntradayCharts';
 
@@ -16,6 +16,7 @@ const MACD_MIN = 100;
 const MACD_MAX = 340;
 const MACD_DEFAULT = 190;
 const MACD_HEIGHT_KEY = 'intraday-macd-height';
+const RSI_PANE_HEIGHT = 100;
 
 const styles = stylex.create({
   chartsCol: {
@@ -46,6 +47,10 @@ const styles = stylex.create({
     borderBottomStyle: 'none',
     borderBottomWidth: 0,
     minHeight: 0,
+  },
+  rsiChart: {
+    minHeight: 0,
+    overflow: 'hidden',
   },
   resizer: {
     'backgroundColor': colors.backgroundSurface,
@@ -167,10 +172,18 @@ export function IntradayChartOnly({
   const [dragging, setDragging] = useState(false);
   const mainRef = useRef<HTMLDivElement>(null);
   const macdRef = useRef<HTMLDivElement>(null);
+  const rsiRef = useRef<HTMLDivElement>(null);
   const { toggles, markerRange, maLines } = useIntradayControls();
   const [drawingHandle, setDrawingHandle] = useState<DrawingsHandle | null>(null);
   const candles = useMemo(() => tfDataOf(built, activeTf)?.candles ?? [], [built, activeTf]);
   const maSeries = useMaSeries(candles, maLines);
+  const rsiLast = useMemo(() => {
+    if (!toggles.rsi || candles.length < 15) return null;
+    return rsi(
+      candles.map((c) => c.close),
+      14,
+    ).at(-1);
+  }, [toggles.rsi, candles]);
   const bollLast = useMemo(() => {
     if (!toggles.boll || candles.length < 20) return null;
     const bb = bollinger(
@@ -188,6 +201,7 @@ export function IntradayChartOnly({
     activeTf,
     mainRef,
     macdRef,
+    rsiRef,
     onLoadHistory,
     toggles,
     markerRange,
@@ -292,6 +306,18 @@ export function IntradayChartOnly({
           MACD (12,26,9)
         </div>
         <div ref={macdRef} className={`chart-host ${stylex.props(styles.chartHost).className}`} />
+      </div>
+      <div
+        className={`chart-block rsi ${stylex.props(styles.chartBlock, styles.rsiChart).className}`}
+        style={{ flex: `0 0 ${toggles.rsi ? RSI_PANE_HEIGHT : 0}px` }}
+      >
+        {toggles.rsi && (
+          <div className={`chart-label ${stylex.props(styles.chartLabel).className}`}>
+            RSI (14)
+            {typeof rsiLast === 'number' && ` ${rsiLast.toFixed(1)}`}
+          </div>
+        )}
+        <div ref={rsiRef} className={`chart-host ${stylex.props(styles.chartHost).className}`} />
       </div>
     </div>
   );

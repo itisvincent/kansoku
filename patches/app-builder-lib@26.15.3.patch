@@ -549,3 +549,30 @@ index bee12b64d777332cb095efcc700cdec0b64cb0c0..9266ff77a9c7197ec6662cab2ee0f6ee
      }
    },
    "type": "object"
+diff --git a/out/util/electronGet.js b/out/util/electronGet.js
+--- a/out/util/electronGet.js
++++ b/out/util/electronGet.js
+@@ -184,7 +184,20 @@ async function extractArchive(file, dir) {
+             throw new Error(`Extraction of ${path.basename(file)} produced no files`);
+         }
+         await fs.rm(dir, { recursive: true, force: true });
+-        await fs.rename(tmpDir, dir);
++        // Windows AV real-time scanning of freshly extracted binaries can hold
++        // a handle inside tmpDir for a few seconds (EPERM on rename). Retry.
++        for (let attempt = 1; ; attempt++) {
++            try {
++                await fs.rename(tmpDir, dir);
++                break;
++            }
++            catch (e) {
++                if (attempt >= 10 || e.code !== "EPERM")
++                    throw e;
++                builder_util_1.log.warn({ attempt, code: e.code }, "rename locked, retrying in 2s");
++                await new Promise(resolve => setTimeout(resolve, 2000));
++            }
++        }
+     }
+     finally {
+         await release().catch(err => builder_util_1.log.warn({ err }, "failed to release lockfile"));
+     }
+ }

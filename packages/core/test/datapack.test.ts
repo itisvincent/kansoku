@@ -314,6 +314,7 @@ describe('buildReassessPack', () => {
       'MU.US',
       makeDeps({ fetchPositions: async () => positions }),
     );
+    expect(pack.analysis_timeframes).toEqual(['m5', 'm15', 'h1']);
     expect(Object.keys(pack.timeframes)).toEqual(['m5', 'm15', 'h1']);
     expect(pack.timeframes.m5.bars).toHaveLength(60);
     expect(pack.timeframes.m5.summary).not.toBeNull();
@@ -322,6 +323,26 @@ describe('buildReassessPack', () => {
     expect(pack.prediction_chart_id).toBe('2026-07-02-mu');
     expect(pack.position?.symbol).toBe('MU.US');
     expect(pack.position?.shares).toBe(10);
+  });
+
+  it('builds 1h / 4h / daily when those analysis windows are requested', async () => {
+    const periods: string[] = [];
+    const pack = await buildReassessPack(
+      'MU.US',
+      makeDeps({
+        fetchKline: async (_symbol, period, count) => {
+          periods.push(period);
+          return genBars(Math.max(80, count ?? 80));
+        },
+      }),
+      ['h1', '4h', 'day'],
+    );
+    expect(pack.analysis_timeframes).toEqual(['h1', '4h', 'day']);
+    expect(Object.keys(pack.timeframes)).toEqual(['h1', '4h', 'day']);
+    expect(pack.timeframes.m5).toBeUndefined();
+    expect(periods).toContain('1h');
+    expect(periods).toContain('day');
+    expect(periods).toContain('5m');
   });
 
   it('position null when no matching holding, prediction still present', async () => {

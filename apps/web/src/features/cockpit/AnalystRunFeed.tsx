@@ -15,10 +15,15 @@ import { PHASE_LABEL } from './AnalysisRunDetails';
 import { useAnalystRunLastEnded, useAnalystRunStatus } from './analystRunsStore';
 
 const TIMEFRAME_LABEL: Record<string, MessageKey> = {
+  '1m': 'cockpitTf1m',
   m5: 'cockpitTf5m',
   m15: 'cockpitTf15m',
+  '30m': 'cockpitTf30m',
   h1: 'cockpitTf1h',
+  '4h': 'cockpitTf4h',
   day: 'cockpitTfDay',
+  week: 'cockpitTfWeek',
+  month: 'cockpitTfMonth',
 };
 
 const TREND_LABEL: Record<string, MessageKey> = {

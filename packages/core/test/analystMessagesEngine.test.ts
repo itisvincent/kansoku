@@ -9,6 +9,7 @@ import type { ReassessPack } from '../src/ai/agents/datapack.js';
 const pack: ReassessPack = {
   symbol: 'MU.US',
   as_of: '2026-07-14T14:00:00.000Z',
+  analysis_timeframes: ['m5', 'm15', 'h1'],
   timeframes: {} as ReassessPack['timeframes'],
   flow: [],
   rel_volume: null,

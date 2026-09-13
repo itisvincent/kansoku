@@ -20,12 +20,28 @@ try {
 // bypass there — app.isPackaged is the only reliable signal in that host.
 // Outside Electron (the Tsuki server host has no such signal at all), fall
 // back to NODE_ENV!=="production".
+//
+// The one exception for packaged builds: the local test build (packaged via
+// pnpm package:desktop:local, KANSOKU_LOCAL_TEST_BUILD=1). vite bakes this
+// expression into a constant at build time (see vite.main.config.ts define),
+// so a test build is sealed unlocked and a shipped build stays sealed shut —
+// runtime env can never flip it after packaging. Unbundled hosts (Tsuki
+// server, tests) read it at runtime instead, but never reach the
+// isPackaged === true branch, so their behavior is unchanged.
+const localTestBuild = process.env.KANSOKU_LOCAL_TEST_BUILD === '1';
+
+// 暴露给宿主（如 apps/desktop/src/edition/pro.ts）：本地测试构建里可以顶上
+// 社区检测组合等测试用途；开源/正式构建永远 false。
+export function isLocalTestBuildBaked(): boolean {
+  return localTestBuild;
+}
+
 export function isLicenseBypassActive(
   env: NodeJS.ProcessEnv = process.env,
   isPackaged: boolean | null = electronIsPackaged,
 ): boolean {
+  if (isPackaged === true) return localTestBuild;
   if (env.KANSOKU_LICENSE_BYPASS !== '1') return false;
-  if (isPackaged === true) return false;
   if (isPackaged === null && env.NODE_ENV === 'production') return false;
   return true;
 }

@@ -71,7 +71,7 @@ export interface SymbolsApi {
   stopFollow(input: { sym: string }): Promise<SymbolFollowStatus>;
   journal(input: { sym: string }): Promise<JournalListRow[]>;
   journalEntry(input: { sym: string; name: string }): Promise<JournalEntry>;
-  reassess(input: { sym: string }): Promise<ReassessResult>;
+  reassess(input: { sym: string; timeframes?: string[] }): Promise<ReassessResult>;
   reassessStatus(input: { sym: string }): Promise<ReassessStatus>;
   explain(input: { sym: string }): Promise<ExplainResult>;
   note(input: { sym: string }): Promise<NoteResult>;

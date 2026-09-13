@@ -6,6 +6,11 @@ export type ViewPeriod = '1m' | '30m' | '4h' | 'day' | 'week' | 'month';
 export type ChartTf = TimeframeKey | ViewPeriod;
 
 export const ANALYSIS_TFS: TimeframeKey[] = ['m5', 'm15', 'h1'];
+export const MAX_ANALYSIS_TFS = 3;
+
+// 默认可见的周期标签：三个分析周期 + 本地偏好的 4h 视图。
+export const DEFAULT_VISIBLE_TFS: ChartTf[] = [...ANALYSIS_TFS, '4h'];
+export const DEFAULT_ANALYSIS_TFS: ChartTf[] = [...ANALYSIS_TFS];
 
 export interface TfOption {
   key: ChartTf;
@@ -90,6 +95,7 @@ export function withPreviewLevels(
 }
 
 export const TIMEFRAMES_STORAGE_KEY = 'intraday-timeframes';
+export const ANALYSIS_TFS_STORAGE_KEY = 'intraday-analysis-tfs';
 
 export function sanitizeTimeframes(raw: unknown): ChartTf[] {
   const picked = Array.isArray(raw)
@@ -97,30 +103,61 @@ export function sanitizeTimeframes(raw: unknown): ChartTf[] {
     : [];
   const wanted = new Set<ChartTf>(picked);
   const ordered = TF_ORDER.filter((k) => wanted.has(k));
-  return ordered.length ? ordered : [...ANALYSIS_TFS];
+  return ordered.length ? ordered : [...DEFAULT_VISIBLE_TFS];
+}
+
+export function sanitizeAnalysisTimeframes(raw: unknown): ChartTf[] {
+  const picked = Array.isArray(raw)
+    ? raw.filter((k): k is ChartTf => TF_KEYS.has(k as string))
+    : [];
+  const wanted = new Set<ChartTf>(picked);
+  const ordered = TF_ORDER.filter((k) => wanted.has(k)).slice(0, MAX_ANALYSIS_TFS);
+  return ordered.length ? ordered : [...DEFAULT_ANALYSIS_TFS];
 }
 
 function loadStored(storageKey: string): ChartTf[] {
   try {
     const raw = localStorage.getItem(storageKey);
-    if (!raw) return [...ANALYSIS_TFS];
+    if (!raw) return [...DEFAULT_VISIBLE_TFS];
     return sanitizeTimeframes(JSON.parse(raw));
   } catch {
-    return [...ANALYSIS_TFS];
+    return [...DEFAULT_VISIBLE_TFS];
   }
 }
 
 export interface TimeframesApi {
   visibleTfs: ChartTf[];
   toggleTf: (tf: ChartTf) => void;
+  analysisTfs: ChartTf[];
+  toggleAnalysisTf: (tf: ChartTf) => void;
 }
 
-export function useVisibleTimeframes(storageKey: string = TIMEFRAMES_STORAGE_KEY): TimeframesApi {
+export function loadAnalysisTimeframes(
+  storageKey: string = ANALYSIS_TFS_STORAGE_KEY,
+): ChartTf[] {
+  try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return [...DEFAULT_ANALYSIS_TFS];
+    return sanitizeAnalysisTimeframes(JSON.parse(raw));
+  } catch {
+    return [...DEFAULT_ANALYSIS_TFS];
+  }
+}
+
+export function useVisibleTimeframes(
+  storageKey: string = TIMEFRAMES_STORAGE_KEY,
+  analysisStorageKey: string = ANALYSIS_TFS_STORAGE_KEY,
+): TimeframesApi {
   const [visibleTfs, setVisibleTfs] = useState(() => loadStored(storageKey));
+  const [analysisTfs, setAnalysisTfs] = useState(() => loadAnalysisTimeframes(analysisStorageKey));
 
   useEffect(() => {
     localStorage.setItem(storageKey, JSON.stringify(visibleTfs));
   }, [storageKey, visibleTfs]);
+
+  useEffect(() => {
+    localStorage.setItem(analysisStorageKey, JSON.stringify(analysisTfs));
+  }, [analysisStorageKey, analysisTfs]);
 
   const toggleTf = useCallback((tf: ChartTf) => {
     setVisibleTfs((prev) => {
@@ -129,5 +166,18 @@ export function useVisibleTimeframes(storageKey: string = TIMEFRAMES_STORAGE_KEY
     });
   }, []);
 
-  return { visibleTfs, toggleTf };
+  const toggleAnalysisTf = useCallback((tf: ChartTf) => {
+    setAnalysisTfs((prev) => {
+      if (prev.includes(tf)) {
+        const next = prev.filter((k) => k !== tf);
+        return next.length ? next : prev;
+      }
+      if (prev.length >= MAX_ANALYSIS_TFS) return prev;
+      const next = sanitizeAnalysisTimeframes([...prev, tf]);
+      setVisibleTfs((vis) => (vis.includes(tf) ? vis : sanitizeTimeframes([...vis, tf])));
+      return next;
+    });
+  }, []);
+
+  return { visibleTfs, toggleTf, analysisTfs, toggleAnalysisTf };
 }

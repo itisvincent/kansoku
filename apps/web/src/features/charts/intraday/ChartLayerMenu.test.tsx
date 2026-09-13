@@ -52,6 +52,12 @@ it('lists Bollinger Bands with the other reference overlays', () => {
   expect(screen.getByText('布林带')).toBeTruthy();
 });
 
+it('lists RSI with the other reference overlays', () => {
+  renderMenu();
+  openCustomLayers();
+  expect(screen.getByText('相对强弱指标')).toBeTruthy();
+});
+
 it('preserves a changed layer when an open menu switches from English to Chinese', () => {
   render(
     <LocaleProvider>
@@ -140,7 +146,7 @@ describe('ChartLayerMenu pro annotation layer locks', () => {
   it('excludes locked layers from the layer count', () => {
     renderMenu();
 
-    expect(screen.getByText(/^图层 \d+\/15$/)).toBeTruthy();
+    expect(screen.getByText(/^图层 \d+\/16$/)).toBeTruthy();
   });
 
   it('filters locked keys out of preset options so applying a preset cannot enable them', () => {
@@ -151,7 +157,7 @@ describe('ChartLayerMenu pro annotation layer locks', () => {
     );
     fireEvent.click(allPresetInput!);
 
-    expect(screen.getByText(/^图层 8\/15$/)).toBeTruthy();
+    expect(screen.getByText(/^图层 9\/16$/)).toBeTruthy();
   });
 
   it('renders gated layers locked on a public-only build where features are absent', () => {
@@ -162,7 +168,7 @@ describe('ChartLayerMenu pro annotation layer locks', () => {
     expect(screen.getByText(/^SB 结构/).closest('.lp-locked')).toBeTruthy();
     expect(screen.getByText(/^123 结构/).closest('.lp-locked')).toBeTruthy();
     expect(screen.getByText('期权墙').closest('.lp-locked')).toBeTruthy();
-    expect(screen.getByText(/^图层 \d+\/15$/)).toBeTruthy();
+    expect(screen.getByText(/^图层 \d+\/16$/)).toBeTruthy();
   });
 
   it('renders gated layers locked before capabilities load (features undefined)', () => {
@@ -185,7 +191,7 @@ describe('ChartLayerMenu pro annotation layer locks', () => {
         ?.querySelector('input'),
     ).toBeTruthy();
     expect(screen.getByText('期权墙').closest('label')?.querySelector('input')).toBeTruthy();
-    expect(screen.getByText(/^图层 \d+\/21$/)).toBeTruthy();
+    expect(screen.getByText(/^图层 \d+\/22$/)).toBeTruthy();
   });
 
   it('renders inline so the panel sits on the control bar instead of floating over the chart', () => {

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   isBundleKeyEnvAllowed,
   isDevUnlicensedOverride,
@@ -36,6 +36,27 @@ describe('isLicenseBypassActive', () => {
       true,
     );
     expect(isLicenseBypassActive({ KANSOKU_LICENSE_BYPASS: '1' }, null)).toBe(true);
+  });
+});
+
+describe('KANSOKU_LOCAL_TEST_BUILD bake (packaged local test build)', () => {
+  afterEach(() => {
+    delete process.env.KANSOKU_LOCAL_TEST_BUILD;
+    vi.resetModules();
+  });
+
+  it('unlocks a packaged build when baked at build time, ignoring runtime env', async () => {
+    process.env.KANSOKU_LOCAL_TEST_BUILD = '1';
+    vi.resetModules();
+    const gate = await import('../src/license/licenseGate.js');
+    expect(gate.isLicenseBypassActive({}, true)).toBe(true);
+    expect(gate.isLicenseBypassActive({ KANSOKU_LICENSE_BYPASS: '1' }, true)).toBe(true);
+  });
+
+  it('keeps a packaged build sealed when the build was not baked', async () => {
+    vi.resetModules();
+    const gate = await import('../src/license/licenseGate.js');
+    expect(gate.isLicenseBypassActive({ KANSOKU_LICENSE_BYPASS: '1' }, true)).toBe(false);
   });
 });
 

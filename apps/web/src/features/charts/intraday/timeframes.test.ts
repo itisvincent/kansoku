@@ -4,11 +4,14 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { IntradayBuilt, IntradayTfData } from '@kansoku/shared/types';
 import {
   isViewPeriod,
+  sanitizeAnalysisTimeframes,
   sanitizeTimeframes,
   tfDataOf,
   useVisibleTimeframes,
   withViewTimeframe,
   ANALYSIS_TFS,
+  DEFAULT_ANALYSIS_TFS,
+  DEFAULT_VISIBLE_TFS,
 } from './timeframes';
 
 const built = {
@@ -19,9 +22,9 @@ const built = {
 const viewTf = { candles: [{ time: 9 }] } as unknown as IntradayTfData;
 
 describe('sanitizeTimeframes', () => {
-  it('falls back to analysis timeframes only when nothing valid is stored', () => {
-    expect(sanitizeTimeframes([])).toEqual(ANALYSIS_TFS);
-    expect(sanitizeTimeframes(null)).toEqual(ANALYSIS_TFS);
+  it('falls back to the default visible set when nothing valid is stored', () => {
+    expect(sanitizeTimeframes([])).toEqual(DEFAULT_VISIBLE_TFS);
+    expect(sanitizeTimeframes(null)).toEqual(DEFAULT_VISIBLE_TFS);
   });
 
   it('keeps a custom set such as 1h / 4h / daily without forcing 5m and 15m', () => {
@@ -61,24 +64,37 @@ describe('withViewTimeframe', () => {
   });
 });
 
+describe('sanitizeAnalysisTimeframes', () => {
+  it('falls back to 5m / 15m / 1h when nothing valid is stored', () => {
+    expect(sanitizeAnalysisTimeframes([])).toEqual(DEFAULT_ANALYSIS_TFS);
+    expect(sanitizeAnalysisTimeframes(null)).toEqual(DEFAULT_ANALYSIS_TFS);
+  });
+
+  it('accepts 1h / 4h / daily and drops extras past 3', () => {
+    expect(sanitizeAnalysisTimeframes(['day', 'h1', '4h', 'week'])).toEqual(['h1', '4h', 'day']);
+  });
+});
+
 describe('useVisibleTimeframes', () => {
   afterEach(() => localStorage.clear());
 
   it('defaults to the analysis timeframes and persists toggles', () => {
     const { result } = renderHook(() => useVisibleTimeframes());
-    expect(result.current.visibleTfs).toEqual(ANALYSIS_TFS);
+    expect(result.current.visibleTfs).toEqual(DEFAULT_VISIBLE_TFS);
+    expect(result.current.analysisTfs).toEqual(ANALYSIS_TFS);
 
     act(() => result.current.toggleTf('30m'));
-    expect(result.current.visibleTfs).toEqual(['m5', 'm15', '30m', 'h1']);
+    expect(result.current.visibleTfs).toEqual(['m5', 'm15', '30m', 'h1', '4h']);
     expect(JSON.parse(localStorage.getItem('intraday-timeframes')!)).toEqual([
       'm5',
       'm15',
       '30m',
       'h1',
+      '4h',
     ]);
 
     act(() => result.current.toggleTf('30m'));
-    expect(result.current.visibleTfs).toEqual(ANALYSIS_TFS);
+    expect(result.current.visibleTfs).toEqual(DEFAULT_VISIBLE_TFS);
   });
 
   it('lets you hide 5m / 15m and keep 1h, 4h and daily', () => {
@@ -86,10 +102,21 @@ describe('useVisibleTimeframes', () => {
 
     act(() => result.current.toggleTf('m5'));
     act(() => result.current.toggleTf('m15'));
-    act(() => result.current.toggleTf('4h'));
     act(() => result.current.toggleTf('day'));
 
     expect(result.current.visibleTfs).toEqual(['h1', '4h', 'day']);
+  });
+
+  it('lets you retarget analysis windows to 1h / 4h / daily', () => {
+    const { result } = renderHook(() => useVisibleTimeframes());
+
+    act(() => result.current.toggleAnalysisTf('m5'));
+    act(() => result.current.toggleAnalysisTf('m15'));
+    act(() => result.current.toggleAnalysisTf('4h'));
+    act(() => result.current.toggleAnalysisTf('day'));
+
+    expect(result.current.analysisTfs).toEqual(['h1', '4h', 'day']);
+    expect(JSON.parse(localStorage.getItem('intraday-analysis-tfs')!)).toEqual(['h1', '4h', 'day']);
   });
 
   it('refuses to hide the last remaining timeframe', () => {

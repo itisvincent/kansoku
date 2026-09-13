@@ -16,6 +16,7 @@ export type IndicatorToggleKey =
   | 'ema'
   | 'vwap'
   | 'boll'
+  | 'rsi'
   | 'daylevel'
   | 'optwall'
   | 'chanFenxing'
@@ -30,6 +31,7 @@ const BASE_TOGGLE_ORDER: IndicatorToggleKey[] = [
   'ema',
   'vwap',
   'boll',
+  'rsi',
   'levels',
   'daylevel',
   'fvg',
@@ -75,6 +77,7 @@ export const INDICATOR_TOGGLE_LABELS: Record<IndicatorToggleKey, MessageKey> = {
   ema: 'indicatorEma',
   vwap: 'indicatorVwap',
   boll: 'indicatorBoll',
+  rsi: 'indicatorRsi',
   daylevel: 'indicatorDay',
   optwall: 'indicatorOptions',
   chanFenxing: 'indicatorFractal',
@@ -90,6 +93,7 @@ export const INDICATOR_TOGGLE_COLORS: Record<IndicatorToggleKey, string> = {
   ema: theme.accent,
   vwap: theme.up,
   boll: '#38bdf8',
+  rsi: '#a78bfa',
   levels: theme.textSecondary,
   daylevel: theme.textPrimary,
   fvg: theme.up,

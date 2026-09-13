@@ -1,8 +1,18 @@
 import { encodeKlineText, type SessionFilter } from '@kansoku/shared/klineText';
-import type { RawBar, TimeframeKey } from '@kansoku/shared/types';
+import type { RawBar } from '@kansoku/shared/types';
 import type { CommentPack, CommentUpdate, ReassessPack } from './datapack.js';
 
-const TIMEFRAME_PERIOD: Record<TimeframeKey, string> = { m5: '5m', m15: '15m', h1: '1h' };
+const TIMEFRAME_PERIOD: Record<string, string> = {
+  '1m': '1m',
+  m5: '5m',
+  m15: '15m',
+  '30m': '30m',
+  h1: '1h',
+  '4h': '4h',
+  day: 'day',
+  week: 'week',
+  month: 'month',
+};
 
 // The tables stay outside the JSON so their newlines are not escaped: embedding a
 // 700-line table as a JSON string value costs an extra byte per line and hands the
@@ -51,7 +61,7 @@ export function reassessPackPromptText(pack: ReassessPack): string {
   if (!timeframes) return JSON.stringify(pack);
   const summaries: Record<string, unknown> = {};
   const tables: string[] = [];
-  for (const key of Object.keys(timeframes) as TimeframeKey[]) {
+  for (const key of Object.keys(timeframes)) {
     const frame = timeframes[key];
     summaries[key] = { summary: frame.summary };
     tables.push(klineTable(pack.symbol, TIMEFRAME_PERIOD[key] ?? key, frame.bars));

@@ -1,7 +1,12 @@
 import { createContext, use, type ReactNode } from 'react';
 import { INDICATOR_STORAGE_KEY, useIndicatorToggles } from './useIndicatorToggles';
 import { MA_LINES_STORAGE_KEY, useMaLines, type MaLinesApi } from './useMaLines';
-import { TIMEFRAMES_STORAGE_KEY, useVisibleTimeframes, type TimeframesApi } from './timeframes';
+import {
+  ANALYSIS_TFS_STORAGE_KEY,
+  TIMEFRAMES_STORAGE_KEY,
+  useVisibleTimeframes,
+  type TimeframesApi,
+} from './timeframes';
 
 type IntradayControls = ReturnType<typeof useIndicatorToggles> & MaLinesApi & TimeframesApi;
 
@@ -20,7 +25,10 @@ export function IntradayControlsProvider({
 }) {
   const indicators = useIndicatorToggles(namespacedKey(INDICATOR_STORAGE_KEY, storageNamespace));
   const ma = useMaLines(namespacedKey(MA_LINES_STORAGE_KEY, storageNamespace));
-  const timeframes = useVisibleTimeframes(namespacedKey(TIMEFRAMES_STORAGE_KEY, storageNamespace));
+  const timeframes = useVisibleTimeframes(
+    namespacedKey(TIMEFRAMES_STORAGE_KEY, storageNamespace),
+    namespacedKey(ANALYSIS_TFS_STORAGE_KEY, storageNamespace),
+  );
   return (
     <ControlsContext value={{ ...indicators, ...ma, ...timeframes }}>{children}</ControlsContext>
   );

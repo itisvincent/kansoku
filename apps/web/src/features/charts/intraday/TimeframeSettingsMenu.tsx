@@ -6,7 +6,7 @@ import { Settings2 } from 'lucide-react';
 import { Checkbox } from '@web/ui';
 import { colors, fontSizes, radii } from '../../../theme/tokens.stylex';
 import { useIntradayControls } from './controlsContext';
-import { TF_OPTIONS, tfLabel } from './timeframes';
+import { MAX_ANALYSIS_TFS, TF_OPTIONS, tfLabel } from './timeframes';
 
 const styles = stylex.create({
   trigger: {
@@ -60,9 +60,24 @@ const styles = stylex.create({
     cursor: 'default',
   },
   tag: {
+    backgroundColor: 'transparent',
+    borderColor: colors.border,
+    borderRadius: radii.default,
+    borderStyle: 'solid',
+    borderWidth: '1px',
     color: colors.textMuted,
+    cursor: 'pointer',
     fontSize: fontSizes.xs,
     marginLeft: 'auto',
+    padding: '0 5px',
+  },
+  tagOn: {
+    borderColor: colors.accent,
+    color: colors.accent,
+  },
+  tagDisabled: {
+    cursor: 'default',
+    opacity: 0.45,
   },
   foot: {
     borderTopColor: colors.border,
@@ -77,9 +92,10 @@ const styles = stylex.create({
 
 export function TimeframeSettingsMenu() {
   const { t: i18n, locale } = useLocale();
-  const { visibleTfs, toggleTf } = useIntradayControls();
+  const { visibleTfs, toggleTf, analysisTfs, toggleAnalysisTf } = useIntradayControls();
   const [open, setOpen] = useState(false);
   const shown = new Set(visibleTfs);
+  const analysis = new Set(analysisTfs);
 
   return (
     <Popover.Root open={open} onOpenChange={setOpen}>
@@ -104,25 +120,36 @@ export function TimeframeSettingsMenu() {
             <div className={`tf-settings-title ${stylex.props(styles.title).className}`}>
               {i18n('chartTfVisible')}
             </div>
-            {TF_OPTIONS.map((option) => (
-              <label
-                key={option.key}
-                className={`tf-settings-row ${stylex.props(styles.row).className}`}
-              >
-                <Checkbox
-                  size="sm"
-                  checked={shown.has(option.key)}
-                  disabled={shown.has(option.key) && shown.size === 1}
-                  onCheckedChange={() => toggleTf(option.key)}
-                />
-                {tfLabel(option.key, locale)}
-                {option.analysis && (
-                  <span className={`tf-settings-tag ${stylex.props(styles.tag).className}`}>
+            {TF_OPTIONS.map((option) => {
+              const isAnalysis = analysis.has(option.key);
+              const analysisLocked =
+                (isAnalysis && analysis.size === 1) ||
+                (!isAnalysis && analysis.size >= MAX_ANALYSIS_TFS);
+              return (
+                <div
+                  key={option.key}
+                  className={`tf-settings-row ${stylex.props(styles.row).className}`}
+                >
+                  <Checkbox
+                    size="sm"
+                    checked={shown.has(option.key)}
+                    disabled={shown.has(option.key) && shown.size === 1}
+                    onCheckedChange={() => toggleTf(option.key)}
+                  />
+                  {tfLabel(option.key, locale)}
+                  <button
+                    type="button"
+                    className={`tf-settings-tag ${stylex.props(styles.tag, isAnalysis && styles.tagOn, analysisLocked && styles.tagDisabled).className}`}
+                    aria-pressed={isAnalysis}
+                    disabled={analysisLocked}
+                    title={i18n('chartTfAnalysisHint')}
+                    onClick={() => toggleAnalysisTf(option.key)}
+                  >
                     {i18n('chartTfAnalysis')}
-                  </span>
-                )}
-              </label>
-            ))}
+                  </button>
+                </div>
+              );
+            })}
             <div className={`tf-settings-foot ${stylex.props(styles.foot).className}`}>
               {i18n('chartTfHelp')}
             </div>
