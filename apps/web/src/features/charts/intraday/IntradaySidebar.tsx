@@ -30,6 +30,18 @@ const styles = stylex.create({
     minHeight: 0,
     overflowY: 'auto',
     padding: 16,
+    scrollbarWidth: 'auto',
+    scrollbarColor: `${colors.borderStrong} ${colors.backgroundSurface}`,
+    '::-webkit-scrollbar': {
+      width: '10px',
+    },
+    '::-webkit-scrollbar-track': {
+      backgroundColor: colors.backgroundSurface,
+    },
+    '::-webkit-scrollbar-thumb': {
+      backgroundColor: colors.borderStrong,
+      borderRadius: '5px',
+    },
   },
   header: {
     borderBottomColor: colors.border,
