@@ -3,6 +3,7 @@ import type { OverlayGroup, SeriesMarker } from '@kansoku/shared/types';
 import type { IndicatorToggleKey, MarkerRange } from './useIndicatorToggles';
 
 const GROUP_TOGGLE: Record<OverlayGroup, IndicatorToggleKey> = {
+  'indicator': 'crosses',
   'ai': 'ai',
   'divergence': 'divergence',
   'macdBeichi': 'macdBeichi',

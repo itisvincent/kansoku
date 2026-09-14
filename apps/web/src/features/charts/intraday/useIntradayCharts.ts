@@ -47,6 +47,7 @@ import { PositionBoxPrimitive } from './positionBoxPrimitive';
 import { SessionBgPrimitive } from './sessionPrimitive';
 import { ZhongshuPrimitive } from './zhongshuPrimitive';
 import { filterVisibleOverlayItems, selectVisibleMarkers } from './markerSelection';
+import { bollingerSignalMarkers, rsiSignalMarkers } from './indicatorSignals';
 import { bollinger, lineData, rsi } from '@kansoku/core/analysis/indicators';
 import { seriesPalette, theme } from '@web/lib/theme';
 
@@ -73,12 +74,14 @@ interface Handle {
   bollUpper: ISeriesApi<'Line'>;
   bollLower: ISeriesApi<'Line'>;
   rsiLine: ISeriesApi<'Line'>;
+  rsiMarkers: ISeriesMarkersPluginApi<Time>;
   hist: ISeriesApi<'Histogram'>;
   dif: ISeriesApi<'Line'>;
   difMarkers: ISeriesMarkersPluginApi<Time>;
   dea: ISeriesApi<'Line'>;
   mainTip: MarkerTooltipHandle;
   macdTip: MarkerTooltipHandle;
+  rsiTip: MarkerTooltipHandle;
   dynamic: { chart: IChartApi; series: ISeriesApi<'Line'> }[];
   planLines: ReturnType<typeof addPriceLine>[];
   fvg: FvgPrimitive;
@@ -97,6 +100,7 @@ const RSI_COLOR = '#a78bfa';
 const RSI_PERIOD = 14;
 const RSI_OVERBOUGHT = 70;
 const RSI_OVERSOLD = 30;
+const RSI_MIDLINE = 50;
 const DAY_LEVEL_COLOR = '#8b949e';
 const CALL_WALL_COLOR = '#e3b341';
 const PUT_WALL_COLOR = '#39c5cf';
@@ -306,6 +310,7 @@ export function useIntradayCharts(
         priceRange: { minValue: 0, maxValue: 100 },
       }),
     });
+    const rsiMarkers = attachMarkers(rsiLine);
     const rsiGuide = {
       color: 'rgba(232, 232, 232, 0.28)',
       lineWidth: 1 as const,
@@ -315,6 +320,11 @@ export function useIntradayCharts(
     };
     rsiLine.createPriceLine({ ...rsiGuide, price: RSI_OVERBOUGHT });
     rsiLine.createPriceLine({ ...rsiGuide, price: RSI_OVERSOLD });
+    rsiLine.createPriceLine({
+      ...rsiGuide,
+      price: RSI_MIDLINE,
+      color: 'rgba(232, 232, 232, 0.16)',
+    });
 
     const stopTimeScaleSync = syncTimeScales([main, macd, rsiChart]);
     const stopCrosshairSync = syncCrosshair([
@@ -329,6 +339,7 @@ export function useIntradayCharts(
     ];
     const mainTip = markerTooltip(main, mainEl);
     const macdTip = markerTooltip(macd, macdEl);
+    const rsiTip = markerTooltip(rsiChart, rsiEl);
     const fvgTip = fvgTooltip(main, mainEl);
 
     const onRangeChange = (range: LogicalRange | null) => {
@@ -351,12 +362,14 @@ export function useIntradayCharts(
       bollUpper,
       bollLower,
       rsiLine,
+      rsiMarkers,
       hist,
       dif,
       difMarkers,
       dea,
       mainTip,
       macdTip,
+      rsiTip,
       dynamic: [],
       planLines: [],
       fvg,
@@ -374,6 +387,7 @@ export function useIntradayCharts(
       main.timeScale().unsubscribeVisibleLogicalRangeChange(onRangeChange);
       mainTip.destroy();
       macdTip.destroy();
+      rsiTip.destroy();
       fvgTip.destroy();
       observers.forEach((ro) => ro.disconnect());
       stopCrosshairSync();
@@ -400,6 +414,14 @@ export function useIntradayCharts(
     h.dynamic = [];
 
     const timeline = d.candles.map((c) => c.time);
+    const signalCopy = {
+      rsiOverbought: tr('chartRsiOverbought'),
+      rsiOversold: tr('chartRsiOversold'),
+      rsiCrossUp: tr('chartRsiCrossUp'),
+      rsiCrossDown: tr('chartRsiCrossDown'),
+      bollBreakUp: tr('chartBollBreakUp'),
+      bollBreakDown: tr('chartBollBreakDown'),
+    };
     const prevRange = h.main.timeScale().getVisibleLogicalRange();
     const wasAtRight = prevRange === null || prevRange.to >= barCountRef.current - 2;
 
@@ -426,16 +448,23 @@ export function useIntradayCharts(
       locale,
     };
     h.vwapSeries.setData(toggles.vwap && d.vwap ? padLineData(d.vwap, timeline) : []);
+    let bollMarkers: SeriesMarker[] = [];
     if (toggles.boll && d.candles.length >= BOLL_PERIOD) {
       const bb = bollinger(
         d.candles.map((c) => c.close),
         BOLL_PERIOD,
         BOLL_K,
       );
-      const times = d.candles.map((c) => c.time);
-      h.bollMid.setData(padLineData(lineData(times, bb.mid), timeline));
-      h.bollUpper.setData(padLineData(lineData(times, bb.upper), timeline));
-      h.bollLower.setData(padLineData(lineData(times, bb.lower), timeline));
+      h.bollMid.setData(padLineData(lineData(timeline, bb.mid), timeline));
+      h.bollUpper.setData(padLineData(lineData(timeline, bb.upper), timeline));
+      h.bollLower.setData(padLineData(lineData(timeline, bb.lower), timeline));
+      bollMarkers = bollingerSignalMarkers(
+        timeline,
+        d.candles.map((c) => c.close),
+        bb.upper,
+        bb.lower,
+        signalCopy,
+      );
     } else {
       h.bollMid.setData([]);
       h.bollUpper.setData([]);
@@ -446,10 +475,14 @@ export function useIntradayCharts(
         d.candles.map((c) => c.close),
         RSI_PERIOD,
       );
-      const times = d.candles.map((c) => c.time);
-      h.rsiLine.setData(padLineData(lineData(times, values), timeline));
+      h.rsiLine.setData(padLineData(lineData(timeline, values), timeline));
+      const signals = toggles.crosses ? rsiSignalMarkers(timeline, values, signalCopy) : [];
+      h.rsiMarkers.setMarkers(toMarkers(signals));
+      h.rsiTip.setMarkers(signals);
     } else {
       h.rsiLine.setData([]);
+      h.rsiMarkers.setMarkers([]);
+      h.rsiTip.setMarkers([]);
     }
     h.fvg.setData(fvgZones, fvgContext);
     h.fvgTip.setData(fvgZones, fvgContext);
@@ -477,7 +510,7 @@ export function useIntradayCharts(
         : (d.secondBreakouts ?? []).slice(-RECENT_SB_COUNT);
     const sbMarkers = toggles.sb ? secondBreakoutMarkers(sbSource, tr) : [];
     const markers = selectVisibleMarkers(
-      [...d.markers.map((m) => localizeDetectorMarker(m, locale)), ...sbMarkers],
+      [...d.markers.map((m) => localizeDetectorMarker(m, locale)), ...sbMarkers, ...bollMarkers],
       toggles,
       markerRange,
     );

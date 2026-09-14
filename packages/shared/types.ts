@@ -29,6 +29,7 @@ export interface Candle {
 export type MarkerPosition = 'aboveBar' | 'belowBar' | 'inBar';
 export type MarkerShape = 'circle' | 'arrowUp' | 'arrowDown' | 'square';
 export type OverlayGroup =
+  | 'indicator'
   | 'ai'
   | 'divergence'
   | 'macdBeichi'
