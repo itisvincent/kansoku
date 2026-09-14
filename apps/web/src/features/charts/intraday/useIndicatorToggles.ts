@@ -16,6 +16,7 @@ export type IndicatorToggleKey =
   | 'ema'
   | 'vwap'
   | 'boll'
+  | 'macd'
   | 'rsi'
   | 'daylevel'
   | 'optwall'
@@ -31,6 +32,7 @@ const BASE_TOGGLE_ORDER: IndicatorToggleKey[] = [
   'ema',
   'vwap',
   'boll',
+  'macd',
   'rsi',
   'levels',
   'daylevel',
@@ -77,6 +79,7 @@ export const INDICATOR_TOGGLE_LABELS: Record<IndicatorToggleKey, MessageKey> = {
   ema: 'indicatorEma',
   vwap: 'indicatorVwap',
   boll: 'indicatorBoll',
+  macd: 'indicatorMacd',
   rsi: 'indicatorRsi',
   daylevel: 'indicatorDay',
   optwall: 'indicatorOptions',
@@ -93,6 +96,7 @@ export const INDICATOR_TOGGLE_COLORS: Record<IndicatorToggleKey, string> = {
   ema: theme.accent,
   vwap: theme.up,
   boll: '#38bdf8',
+  macd: theme.accent,
   rsi: '#a78bfa',
   levels: theme.textSecondary,
   daylevel: theme.textPrimary,
@@ -134,14 +138,18 @@ export interface IndicatorPreset {
 }
 
 export const INDICATOR_PRESETS: IndicatorPreset[] = [
-  { key: 'lean', label: 'indicatorLean', on: ['ema', 'vwap', 'levels', 'daylevel'] },
-  { key: 'std', label: 'indicatorStandard', on: ['ema', 'vwap', 'levels', 'daylevel', 'sb'] },
+  { key: 'lean', label: 'indicatorLean', on: ['ema', 'vwap', 'macd', 'levels', 'daylevel'] },
+  {
+    key: 'std',
+    label: 'indicatorStandard',
+    on: ['ema', 'vwap', 'macd', 'levels', 'daylevel', 'sb'],
+  },
   { key: 'all', label: 'layerAll', on: [...BASE_TOGGLE_ORDER] },
 ];
 
 export const INDICATOR_STORAGE_KEY = 'intraday-indicators';
 
-const DEFAULT_ON = new Set<IndicatorToggleKey>(['ema', 'vwap', 'levels', 'daylevel', 'sb']);
+const DEFAULT_ON = new Set<IndicatorToggleKey>(['ema', 'vwap', 'macd', 'levels', 'daylevel', 'sb']);
 
 function defaultToggles(): Record<IndicatorToggleKey, boolean> {
   return Object.fromEntries(INDICATOR_TOGGLE_KEYS.map((k) => [k, DEFAULT_ON.has(k)])) as Record<

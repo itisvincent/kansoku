@@ -3,7 +3,7 @@ import { Component, lazy, Suspense, useMemo, useRef, useState, type ReactNode } 
 import * as stylex from '@stylexjs/stylex';
 import type { IntradayBuilt } from '@kansoku/shared/types';
 import { fmt } from '@web/lib/format';
-import { colors, fontSizes, radii } from '../../../theme/tokens.stylex';
+import { colors, fontSizes } from '../../../theme/tokens.stylex';
 import type { DrawingsHandle } from '../drawings/useDrawings';
 import { namespacedKey, useIntradayControls } from './controlsContext';
 import { isSessionlessTf, tfDataOf, type ChartTf } from './timeframes';
@@ -11,12 +11,7 @@ import { useLiveBuilt } from './useLiveBuilt';
 import { bollinger, rsi } from '@kansoku/core/analysis/indicators';
 import { useMaSeries } from './useMaLines';
 import { useIntradayCharts, type DrawingChartHandle } from './useIntradayCharts';
-
-const MACD_MIN = 100;
-const MACD_MAX = 340;
-const MACD_DEFAULT = 190;
-const MACD_HEIGHT_KEY = 'intraday-macd-height';
-const RSI_PANE_HEIGHT = 100;
+import { IndicatorPane } from './IndicatorPane';
 
 const styles = stylex.create({
   chartsCol: {
@@ -39,8 +34,8 @@ const styles = stylex.create({
     position: 'relative',
   },
   mainChart: {
-    flex: '1 1 auto',
-    minHeight: 0,
+    flex: '1 1 0px',
+    minHeight: 'min(120px, 30%)',
   },
   macdChart: {
     borderBottomColor: colors.textPrimary,
@@ -51,37 +46,6 @@ const styles = stylex.create({
   rsiChart: {
     minHeight: 0,
     overflow: 'hidden',
-  },
-  resizer: {
-    'backgroundColor': colors.backgroundSurface,
-    'cursor': 'row-resize',
-    'flex': '0 0 6px',
-    'position': 'relative',
-    'touchAction': 'none',
-    'zIndex': 11,
-    '::after': {
-      backgroundColor: colors.borderStrong,
-      borderRadius: radii.default,
-      content: '""',
-      height: '2px',
-      left: '50%',
-      marginLeft: '-18px',
-      position: 'absolute',
-      top: '2px',
-      width: '36px',
-    },
-    ':hover': {
-      backgroundColor: colors.backgroundHover,
-    },
-    ':hover::after': {
-      backgroundColor: colors.accent,
-    },
-  },
-  resizerDragging: {
-    'backgroundColor': colors.backgroundHover,
-    '::after': {
-      backgroundColor: colors.accent,
-    },
   },
   chartHost: {
     height: '100%',
@@ -120,8 +84,6 @@ const styles = stylex.create({
     width: '10px',
   },
 });
-
-const clampMacdHeight = (h: number) => Math.min(MACD_MAX, Math.max(MACD_MIN, h));
 
 const DrawingsLayer = lazy(() =>
   import('./DrawingsLayer').then((m) => ({ default: m.DrawingsLayer })),
@@ -166,12 +128,7 @@ export function IntradayChartOnly({
 }: IntradayChartOnlyProps) {
   const { t: i18n } = useLocale();
   const built = useLiveBuilt(frozenBuilt, activeTf, symbol, live);
-  const macdHeightKey = namespacedKey(MACD_HEIGHT_KEY, storageNamespace);
-  const [macdHeight, setMacdHeight] = useState(() => {
-    const saved = Number(localStorage.getItem(macdHeightKey));
-    return Number.isFinite(saved) && saved > 0 ? clampMacdHeight(saved) : MACD_DEFAULT;
-  });
-  const [dragging, setDragging] = useState(false);
+  const mainBlockRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
   const macdRef = useRef<HTMLDivElement>(null);
   const rsiRef = useRef<HTMLDivElement>(null);
@@ -215,32 +172,14 @@ export function IntradayChartOnly({
   );
   const barTimes = useMemo(() => candles.map((c) => c.time), [candles]);
 
-  const onResizeStart = (e: React.PointerEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    const startY = e.clientY;
-    const startH = macdHeight;
-    setDragging(true);
-    const onMove = (ev: PointerEvent) => {
-      setMacdHeight(clampMacdHeight(startH + (startY - ev.clientY)));
-    };
-    const onUp = () => {
-      window.removeEventListener('pointermove', onMove, true);
-      window.removeEventListener('pointerup', onUp, true);
-      setDragging(false);
-      setMacdHeight((h) => {
-        localStorage.setItem(macdHeightKey, String(h));
-        return h;
-      });
-    };
-    window.addEventListener('pointermove', onMove, true);
-    window.addEventListener('pointerup', onUp, true);
-  };
-
   return (
     <div
       className={`charts-col${className ? ` ${className}` : ''} ${stylex.props(styles.chartsCol, popout && styles.popoutChartsCol).className}`}
     >
-      <div className={`chart-block ${stylex.props(styles.chartBlock, styles.mainChart).className}`}>
+      <div
+        ref={mainBlockRef}
+        className={`chart-block ${stylex.props(styles.chartBlock, styles.mainChart).className}`}
+      >
         <div className={`chart-label ${stylex.props(styles.chartLabel).className}`}>
           {i18n('chartCandlesVolume')}
         </div>
@@ -295,23 +234,30 @@ export function IntradayChartOnly({
         )}
         <div ref={mainRef} className={`chart-host ${stylex.props(styles.chartHost).className}`} />
       </div>
-      <div
-        className={`pane-resizer ${stylex.props(styles.resizer, dragging && styles.resizerDragging).className}`}
-        title={i18n('chartResizeMacd')}
-        onPointerDown={onResizeStart}
-      />
-      <div
+      <IndicatorPane
+        visible={toggles.macd}
+        defaultHeight={190}
+        minHeight={100}
+        storageKey={namespacedKey('intraday-macd-height', storageNamespace)}
+        label={i18n('chartResizeMacd')}
+        help={i18n('chartResizePaneHelp', { indicator: i18n('indicatorMacd') })}
+        mainRef={mainBlockRef}
         className={`chart-block macd ${stylex.props(styles.chartBlock, styles.macdChart).className}`}
-        style={{ flex: `0 0 ${macdHeight}px` }}
       >
         <div className={`chart-label ${stylex.props(styles.chartLabel).className}`}>
           MACD (12,26,9)
         </div>
         <div ref={macdRef} className={`chart-host ${stylex.props(styles.chartHost).className}`} />
-      </div>
-      <div
+      </IndicatorPane>
+      <IndicatorPane
+        visible={toggles.rsi}
+        defaultHeight={100}
+        minHeight={80}
+        storageKey={namespacedKey('intraday-rsi-height', storageNamespace)}
+        label={i18n('chartResizeRsi')}
+        help={i18n('chartResizePaneHelp', { indicator: i18n('indicatorRsi') })}
+        mainRef={mainBlockRef}
         className={`chart-block rsi ${stylex.props(styles.chartBlock, styles.rsiChart).className}`}
-        style={{ flex: `0 0 ${toggles.rsi ? RSI_PANE_HEIGHT : 0}px` }}
       >
         {toggles.rsi && (
           <div className={`chart-label ${stylex.props(styles.chartLabel).className}`}>
@@ -320,7 +266,7 @@ export function IntradayChartOnly({
           </div>
         )}
         <div ref={rsiRef} className={`chart-host ${stylex.props(styles.chartHost).className}`} />
-      </div>
+      </IndicatorPane>
     </div>
   );
 }
