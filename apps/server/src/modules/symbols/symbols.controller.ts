@@ -1,4 +1,4 @@
-import { Controller, ContextParam, Delete, Get, Param, Post, Query } from '@tsuki-hono/common';
+import { Body, Controller, ContextParam, Delete, Get, Param, Post, Query } from '@tsuki-hono/common';
 import type { Context } from 'hono';
 import { symbolsService } from '@kansoku/core/symbols/symbols.service';
 import { ClientError } from '@kansoku/core/platform/errors';
@@ -84,8 +84,14 @@ export class SymbolsController {
   }
 
   @Post('/:sym/reassess')
-  async reassess(@Param('sym') sym: string) {
-    const data = await symbolsService.reassess({ sym });
+  async reassess(
+    @Param('sym') sym: string,
+    @Body() body: { timeframes?: unknown } | null,
+  ) {
+    const timeframes = Array.isArray(body?.timeframes)
+      ? body.timeframes.filter((tf): tf is string => typeof tf === 'string')
+      : undefined;
+    const data = await symbolsService.reassess({ sym, timeframes });
     return { ok: true, data };
   }
 
