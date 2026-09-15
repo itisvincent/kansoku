@@ -158,6 +158,14 @@ export function ProviderAuthRow({
       <div className={`settings-provider-meta ${stylex.props(styles.meta).className}`}>
         {credentialMeta(credential, t)}
       </div>
+      {provider.id === 'ollama-cloud' ? (
+        <div {...stylex.props(styles.controls)}>
+          <a href="https://ollama.com/settings/keys" target="_blank" rel="noreferrer">
+            {t('ollamaGetKey')}
+          </a>
+          <span {...stylex.props(styles.meta)}>{t('ollamaCloudSubscription')}</span>
+        </div>
+      ) : null}
       {onLogin ? (
         <div {...stylex.props(styles.controls)}>
           <Button onClick={onLogin} disabled={busy}>

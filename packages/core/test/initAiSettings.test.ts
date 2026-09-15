@@ -51,6 +51,7 @@ describe('runEnvImport', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    db.$client.close();
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -236,6 +237,7 @@ describe('initAiSettings', () => {
     setActiveSettingsStore(null);
     setModelsRuntimeForTests(null);
     resetProviderOverridesForTests();
+    db.$client.close();
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -287,6 +289,7 @@ describe('runPrimaryModelMigration', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    db.$client.close();
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -415,6 +418,7 @@ describe('runMemoryRoleRemoval', () => {
   });
 
   afterEach(() => {
+    db.$client.close();
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -461,6 +465,7 @@ describe('runTitleModelMigration', () => {
   });
 
   afterEach(() => {
+    db.$client.close();
     rmSync(dir, { recursive: true, force: true });
   });
 

@@ -1168,6 +1168,8 @@ const zhCN = {
   customEndpoint: '已自定义',
   xaiLogin: '登录 xAI / Grok',
   xaiSubscription: '使用 SuperGrok 或 X Premium 登录，也可填写 API key',
+  ollamaGetKey: '获取 Ollama API key',
+  ollamaCloudSubscription: '用 API key 连接 Ollama 账号，使用额度按你的云端套餐计算。',
   xaiLoginDescription:
     '在 xAI 官方页面登录，并在需要时输入下方验证码。可用模型和额度取决于你的账户。',
   xaiLoginCancelled: '登录已取消，请关闭窗口后重试。',

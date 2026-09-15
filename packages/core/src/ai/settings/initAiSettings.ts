@@ -12,6 +12,7 @@ import { WebApiLobeHubCloudGateway } from '../lobehub/gateway/client.js';
 import { createLobeHubProvider } from '../lobehub/provider.js';
 import { LOBEHUB_PROVIDER, type LobeHubCloudGateway } from '../lobehub/types.js';
 import { initModelsRuntime, SINGLE_KEY_PROVIDERS } from '../runtime/modelsRuntime.js';
+import { createOllamaCloudProvider, OLLAMA_CLOUD_PROVIDER } from '../runtime/ollamaCloud.js';
 import { parseModelRef } from '../runtime/models.js';
 import { applyBaseUrlOverride } from '../runtime/providerOverrides.js';
 import { createSecretBox, type SecretBox } from './secretBox.js';
@@ -57,6 +58,7 @@ const MEMORY_MODEL_MARKER_KEY = 'memory_model_v1';
 const TITLE_MODEL_MARKER_KEY = 'title_model_v1';
 
 const catalog = builtinModels();
+catalog.setProvider(createOllamaCloudProvider());
 
 export function runEnvImport(db: Db, secretBox: SecretBox, env: NodeJS.ProcessEnv): void {
   const marker = db.select().from(appMeta).where(eq(appMeta.key, ENV_IMPORT_MARKER_KEY)).get();
@@ -109,7 +111,10 @@ export function runEnvImport(db: Db, secretBox: SecretBox, env: NodeJS.ProcessEn
 
     for (const provider of importedProviders) {
       if (!SINGLE_KEY_PROVIDERS.has(provider)) continue;
-      const key = getEnvApiKey(provider, env as Record<string, string>);
+      const key =
+        provider === OLLAMA_CLOUD_PROVIDER
+          ? env.OLLAMA_API_KEY
+          : getEnvApiKey(provider, env as Record<string, string>);
       if (!key || key === '<authenticated>') continue;
       const secret = secretBox.encrypt(provider, JSON.stringify({ type: 'api_key', key }));
       tx.insert(providerCredentials)

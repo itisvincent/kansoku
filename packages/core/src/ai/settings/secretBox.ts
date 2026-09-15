@@ -18,7 +18,12 @@ function statusOf(keyPath: string): MasterKeyStatus {
   }
   if (!stats.isFile()) return 'invalid';
   if (stats.size !== KEY_BYTES) return 'invalid';
-  if ((stats.mode & 0o777) !== 0o600) return 'invalid';
+  // Windows does not expose NTFS ACLs as POSIX mode bits. Node reports
+  // regular files as 0666 there even when openSync receives 0600, so a mode
+  // check would reject every key created on Windows. Packaged Electron builds
+  // use safeStorage; this fallback relies on the user-data directory ACL on
+  // Windows and keeps the strict mode check on POSIX hosts.
+  if (process.platform !== 'win32' && (stats.mode & 0o777) !== 0o600) return 'invalid';
   return 'ready';
 }
 

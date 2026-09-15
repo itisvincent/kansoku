@@ -1201,6 +1201,9 @@ const enUS = {
   customEndpoint: 'Custom endpoint',
   xaiLogin: 'Sign in to xAI / Grok',
   xaiSubscription: 'Sign in with SuperGrok or X Premium, or use an API key',
+  ollamaGetKey: 'Get an Ollama API key',
+  ollamaCloudSubscription:
+    'Connect your Ollama account with an API key. Usage follows your cloud plan.',
   xaiLoginDescription:
     'Sign in on the official xAI page and enter the code below if asked. Available models and usage depend on your account.',
   xaiLoginCancelled: 'Sign-in cancelled. Close this dialog and try again.',

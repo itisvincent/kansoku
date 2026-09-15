@@ -495,6 +495,7 @@ export function ProviderCredentialsSection({
       provider.id === CODEX_PROVIDER ||
       provider.id === LOBEHUB_PROVIDER ||
       provider.id === 'xai' ||
+      provider.id === 'ollama-cloud' ||
       credentials.has(provider.id) ||
       usedProviders.has(provider.id),
   );
@@ -502,6 +503,7 @@ export function ProviderCredentialsSection({
     (provider) =>
       provider.auth.kind === 'api_key' &&
       provider.id !== 'xai' &&
+      provider.id !== 'ollama-cloud' &&
       !credentials.has(provider.id) &&
       !usedProviders.has(provider.id),
   );

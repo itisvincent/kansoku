@@ -8,6 +8,7 @@ import { registerBunOAuthFlows } from '@earendil-works/pi-ai/bun-oauth';
 import { getEnvApiKey } from '@earendil-works/pi-ai/compat';
 import { builtinModels } from '@earendil-works/pi-ai/providers/all';
 import { createCodexModelCatalog } from '../settings/codexModelCatalog.js';
+import { createOllamaCloudProvider, OLLAMA_CLOUD_PROVIDER } from './ollamaCloud.js';
 
 const CODEX_PROVIDER = 'openai-codex';
 
@@ -29,6 +30,7 @@ export const SINGLE_KEY_PROVIDERS: ReadonlySet<string> = new Set([
   'zai',
   'nvidia',
   'opencode',
+  OLLAMA_CLOUD_PROVIDER,
 ]);
 
 const isolatedAuthContext: AuthContext = {
@@ -76,6 +78,7 @@ export function initModelsRuntime(credentials: CredentialStore): MutableModels {
   }
   const models = builtinModels({ credentials, authContext: isolatedAuthContext });
   installCodexProviderOverrides(models);
+  models.setProvider(createOllamaCloudProvider());
   singleton = models;
   return singleton;
 }
@@ -94,10 +97,14 @@ export function setModelsRuntimeForTests(models: MutableModels | null): void {
 function envCredentialStore(): CredentialStore {
   const read = async (provider: string) => {
     if (provider === CODEX_PROVIDER) {
-      const { readCodexCredential, defaultCodexAuthPath } = await import('../settings/credentialStore.js');
+      const { readCodexCredential, defaultCodexAuthPath } =
+        await import('../settings/credentialStore.js');
       return readCodexCredential(defaultCodexAuthPath());
     }
-    const key = getEnvApiKey(provider, process.env as Record<string, string>);
+    const key =
+      provider === OLLAMA_CLOUD_PROVIDER
+        ? process.env.OLLAMA_API_KEY
+        : getEnvApiKey(provider, process.env as Record<string, string>);
     return key && key !== '<authenticated>' ? { type: 'api_key' as const, key } : undefined;
   };
   const list = async (): Promise<readonly CredentialInfo[]> => {

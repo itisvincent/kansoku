@@ -50,7 +50,7 @@ describe('secretBox', () => {
     expect(existsSync(keyPath)).toBe(true);
     const stats = statSync(keyPath);
     expect(stats.size).toBe(32);
-    expect(stats.mode & 0o777).toBe(0o600);
+    if (process.platform !== 'win32') expect(stats.mode & 0o777).toBe(0o600);
   });
 
   it("reports status based on the key file's presence, size, and permissions", () => {
@@ -64,24 +64,28 @@ describe('secretBox', () => {
     writeFileSync(keyPath, Buffer.alloc(31, 1), { mode: 0o600 });
     expect(box.status()).toBe('invalid');
 
-    rmSync(keyPath);
-    writeFileSync(keyPath, Buffer.alloc(32, 1), { mode: 0o600 });
-    chmodSync(keyPath, 0o644);
-    expect(box.status()).toBe('invalid');
+    if (process.platform !== 'win32') {
+      rmSync(keyPath);
+      writeFileSync(keyPath, Buffer.alloc(32, 1), { mode: 0o600 });
+      chmodSync(keyPath, 0o644);
+      expect(box.status()).toBe('invalid');
+    }
   });
 
   it('encrypt with an invalid key file throws, and resetKey recovers while invalidating old envelopes', () => {
     const box = createSecretBox(keyPath);
     const envelope = box.encrypt('anthropic', 'sk-live-abc123');
 
-    chmodSync(keyPath, 0o644);
-    expect(box.status()).toBe('invalid');
-    expect(() => box.encrypt('anthropic', 'sk-live-new')).toThrow(SecretBoxError);
+    if (process.platform !== 'win32') {
+      chmodSync(keyPath, 0o644);
+      expect(box.status()).toBe('invalid');
+      expect(() => box.encrypt('anthropic', 'sk-live-new')).toThrow(SecretBoxError);
+    }
 
     box.resetKey();
     expect(box.status()).toBe('ready');
     const stats = statSync(keyPath);
-    expect(stats.mode & 0o777).toBe(0o600);
+    if (process.platform !== 'win32') expect(stats.mode & 0o777).toBe(0o600);
 
     const newEnvelope = box.encrypt('anthropic', 'sk-live-new');
     expect(box.decrypt('anthropic', newEnvelope)).toBe('sk-live-new');

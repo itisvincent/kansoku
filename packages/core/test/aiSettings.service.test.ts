@@ -4,7 +4,10 @@ import { join } from 'node:path';
 import { builtinModels } from '@earendil-works/pi-ai/providers/all';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { resetProviderOverridesForTests } from '../src/ai/runtime/providerOverrides.js';
-import { createCredentialStore, type AppCredentialStore } from '../src/ai/settings/credentialStore.js';
+import {
+  createCredentialStore,
+  type AppCredentialStore,
+} from '../src/ai/settings/credentialStore.js';
 import { createSecretBox, type SecretBox } from '../src/ai/settings/secretBox.js';
 import { createSettingsStore } from '../src/ai/settings/settingsStore.js';
 import { createDb, type Db } from '../src/db/index.js';
@@ -46,6 +49,7 @@ describe('aiSettingsService', () => {
   afterEach(() => {
     setSettingsDepsForTests(null);
     resetProviderOverridesForTests();
+    db.$client.close();
     rmSync(dir, { recursive: true, force: true });
   });
 
@@ -127,7 +131,9 @@ describe('aiSettingsService', () => {
 
       const out = await aiSettingsService.getAi();
 
-      expect(out.endpoints).toEqual([{ provider: 'openai', baseUrl: 'https://relay.example.com/v1' }]);
+      expect(out.endpoints).toEqual([
+        { provider: 'openai', baseUrl: 'https://relay.example.com/v1' },
+      ]);
     });
   });
 

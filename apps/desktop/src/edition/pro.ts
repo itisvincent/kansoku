@@ -8,5 +8,16 @@ export async function loadProComposition(): Promise<DesktopProComposition | null
   // 开源/正式构建保持 null —— absent 语义不变；pro overlay 在位时会投影替换本文件，
   // 真实 pro 组合天然优先。别把本改动推到上游，是否开源这些是项目维护者的决定。
   if (!isLocalTestBuildBaked()) return null;
-  return { ipcServices: [], realtimeChannels: [], detectors: communityDetectors() };
+  const [{ LocalTrainerIpc }, { localTrainingFillChannel }, { disposeLocalTrainer }] =
+    await Promise.all([
+      import('../training/ipc.js'),
+      import('../training/channel.js'),
+      import('../training/instance.js'),
+    ]);
+  return {
+    ipcServices: [LocalTrainerIpc],
+    realtimeChannels: [localTrainingFillChannel],
+    detectors: communityDetectors(),
+    dispose: disposeLocalTrainer,
+  };
 }
