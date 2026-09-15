@@ -9,11 +9,7 @@ import {
 } from '@web/features/charts/intraday/IntradayDashboard';
 import { ChartLayerMenu } from '@web/features/charts/intraday/ChartLayerMenu';
 import { MaLinesMenu } from '@web/features/charts/intraday/MaLinesMenu';
-import {
-  isViewPeriod,
-  withPreviewLevels,
-  withViewTimeframe,
-} from '@web/features/charts/intraday/timeframes';
+import { withPreviewLevels, withViewTimeframe } from '@web/features/charts/intraday/timeframes';
 import { useViewTimeframe } from '@web/features/charts/intraday/useViewTimeframe';
 import { IntradayControlsProvider } from '@web/features/charts/intraday/controlsContext';
 import { PredictionTab } from '@web/features/charts/intraday/tabs/PredictionTab';
@@ -189,7 +185,6 @@ export function PreviewCockpit({
     withViewTimeframe(built, activeIntradayTf, viewTimeframe.tf),
     previewLevels,
   );
-  const sidebarTf = isViewPeriod(activeIntradayTf) ? built.defaultTf : activeIntradayTf;
 
   const sidebarTabs: SidebarTab[] = [
     {
@@ -198,8 +193,8 @@ export function PreviewCockpit({
       content: built.sidebar.prediction ? (
         <>
           <PredictionTab
-            built={built}
-            activeTf={sidebarTf}
+            built={chartBuilt}
+            activeTf={activeIntradayTf}
             predictionUpdatedAt={predictionUpdatedAt}
             predictionStale={predictionStale}
           />

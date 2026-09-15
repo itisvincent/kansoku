@@ -2,14 +2,20 @@
 import { cleanup, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { ReactNode } from 'react';
-import type { IntradayBuilt, SymbolAnalysisRow } from '@kansoku/shared/types';
+import type {
+  IntradayBuilt,
+  IntradayTfData,
+  Pattern123,
+  SymbolAnalysisRow,
+} from '@kansoku/shared/types';
+import type { ChartTf } from '../charts/intraday/timeframes';
 import type { AnalystRunLastEnded, RunningReassessStatus } from './analystRunsStore';
 
 let previewState: {
   built: IntradayBuilt | null;
   error: string | null;
   degraded: boolean;
-  intradayTf: null;
+  intradayTf: ChartTf | null;
   setIntradayTf: () => void;
   predictionUpdatedAt: string | undefined;
   predictionStale: boolean | undefined;
@@ -18,6 +24,7 @@ let previewState: {
 let analystRunStatus: RunningReassessStatus | null = null;
 let analystRunLastEnded: AnalystRunLastEnded | null = null;
 let capturedBuilt: IntradayBuilt | null = null;
+let viewTf: IntradayTfData | null = null;
 
 vi.mock('@web/features/charts/intraday/useIntradayPreview', () => ({
   useIntradayPreview: () => previewState,
@@ -30,7 +37,10 @@ vi.mock('./AnalystRunFeed', () => ({
   AnalystRunFeed: () => <div data-testid="analyst-run-feed" />,
 }));
 vi.mock('@web/features/charts/intraday/useIntradayDoc', () => ({
-  resolveIntradayTf: () => 'm5',
+  resolveIntradayTf: (_built: IntradayBuilt, preferred: ChartTf | null) => preferred ?? 'm5',
+}));
+vi.mock('@web/features/charts/intraday/useViewTimeframe', () => ({
+  useViewTimeframe: () => ({ tf: viewTf, error: null, loading: false }),
 }));
 vi.mock('./useCockpitEnv', () => ({
   useCockpitEnv: () => ({
@@ -89,6 +99,7 @@ afterEach(() => {
   analystRunStatus = null;
   analystRunLastEnded = null;
   capturedBuilt = null;
+  viewTf = null;
 });
 
 const technicalLevels = [
@@ -108,6 +119,71 @@ const baseBuilt = {
 } as unknown as IntradayBuilt;
 
 describe('PreviewCockpit prediction tab', () => {
+  it('shows the selected 4h signal data instead of the saved 15m signals', () => {
+    const pattern = (label: string, price: number): Pattern123 => ({
+      kind: 'bullish',
+      status: 'forming',
+      label,
+      implication: label,
+      p1: { time: 1789470000, price },
+      p2: { time: 1789484400, price: price + 2 },
+      p3: { time: 1789498800, price: price + 1 },
+      trigger: price + 2,
+      invalidation: price,
+      confirm: null,
+    });
+    viewTf = {
+      candles: [],
+      pattern123: [pattern('fresh 4h signal', 640)],
+    } as unknown as IntradayTfData;
+    previewState = {
+      built: {
+        ...baseBuilt,
+        defaultTf: 'm15',
+        sidebar: {
+          ...baseBuilt.sidebar,
+          prediction: { direction: 'long', scenarios: [], signals: [] },
+        },
+        timeframes: {
+          'm15': { candles: [], pattern123: [pattern('saved 15m signal', 570)] },
+          '4h': { candles: [], pattern123: [pattern('older 4h signal', 600)] },
+        },
+      } as unknown as IntradayBuilt,
+      error: null,
+      degraded: false,
+      intradayTf: '4h',
+      setIntradayTf: () => {},
+      predictionUpdatedAt: undefined,
+      predictionStale: undefined,
+    };
+    const { container, rerender } = render(
+      <PreviewCockpit
+        sym="META.US"
+        analysesRows={[]}
+        onLive={() => {}}
+        onSelectAnalysis={() => {}}
+      />,
+    );
+    expect(container.textContent).toContain('4 小时');
+    expect(container.textContent).toContain('fresh 4h signal');
+    expect(container.textContent).toContain('$640.00');
+    expect(container.textContent).not.toContain('saved 15m signal');
+    expect(container.textContent).not.toContain('older 4h signal');
+
+    previewState = { ...previewState, intradayTf: 'm15' };
+    rerender(
+      <PreviewCockpit
+        sym="META.US"
+        analysesRows={[]}
+        onLive={() => {}}
+        onSelectAnalysis={() => {}}
+      />,
+    );
+    expect(container.textContent).toContain('15 分钟');
+    expect(container.textContent).toContain('saved 15m signal');
+    expect(container.textContent).not.toContain('fresh 4h signal');
+  });
+
   it('shows a CTA card when the symbol has no analyses at all', () => {
     previewState = {
       built: baseBuilt,

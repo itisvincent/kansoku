@@ -5,7 +5,7 @@ import * as stylex from '@stylexjs/stylex';
 import { IntradayDashboard, IntradayTimeframeSwitch } from '../charts/intraday/IntradayDashboard';
 import { ChartLayerMenu } from '../charts/intraday/ChartLayerMenu';
 import { MaLinesMenu } from '../charts/intraday/MaLinesMenu';
-import { isViewPeriod, withViewTimeframe } from '../charts/intraday/timeframes';
+import { withViewTimeframe } from '../charts/intraday/timeframes';
 import { useViewTimeframe } from '../charts/intraday/useViewTimeframe';
 import { IntradayControlsProvider } from '../charts/intraday/controlsContext';
 import { resolveIntradayTf, useIntradayDoc } from '../charts/intraday/useIntradayDoc';
@@ -321,7 +321,6 @@ export function SymbolCockpit({ sym }: { sym: string }) {
 
   const activeIntradayTf = resolveIntradayTf(doc.built, intradayTf);
   const chartBuilt = withViewTimeframe(doc.built, activeIntradayTf, viewTimeframe.tf);
-  const sidebarTf = isViewPeriod(activeIntradayTf) ? doc.built.defaultTf : activeIntradayTf;
   const analysesRows = analyses;
 
   const sidebarTabs: SidebarTab[] = [
@@ -332,8 +331,8 @@ export function SymbolCockpit({ sym }: { sym: string }) {
         <>
           <ReanalyzeStrip sym={sym} />
           <PredictionTab
-            built={doc.built}
-            activeTf={sidebarTf}
+            built={chartBuilt}
+            activeTf={activeIntradayTf}
             predictionUpdatedAt={doc.prediction_updated_at}
             predictionStale={doc.prediction_stale}
             reassess={conclusionReassess}

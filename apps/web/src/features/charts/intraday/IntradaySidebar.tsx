@@ -2,7 +2,8 @@ import { useLocale } from '@web/lib/i18n';
 import { useState, type ReactNode } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { TriangleAlert } from 'lucide-react';
-import type { IntradayBuilt, QuoteCell, TimeframeKey } from '@kansoku/shared/types';
+import type { IntradayBuilt, QuoteCell } from '@kansoku/shared/types';
+import type { ChartTf } from './timeframes';
 import { useLiveQuote } from '@web/features/quotes/useLiveQuote';
 import { fmt } from '@web/lib/format';
 import { marketOfSymbol } from '@web/lib/market';
@@ -88,7 +89,7 @@ const styles = stylex.create({
 
 interface IntradaySidebarProps {
   built: IntradayBuilt;
-  activeTf: TimeframeKey;
+  activeTf: ChartTf;
   predictionUpdatedAt?: string;
   predictionStale?: boolean;
   conclusionReassess?: ConclusionReassess;

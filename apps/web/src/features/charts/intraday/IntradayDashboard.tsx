@@ -132,7 +132,6 @@ export function IntradayDashboard({
   dock,
   live,
 }: IntradayDashboardProps) {
-  const sidebarTf = isViewPeriod(activeTf) ? built.defaultTf : activeTf;
   return (
     <div className={`layout ${stylex.props(styles.layout).className}`}>
       <IntradayChartOnly
@@ -154,7 +153,7 @@ export function IntradayDashboard({
       >
         <IntradaySidebar
           built={built}
-          activeTf={sidebarTf}
+          activeTf={activeTf}
           predictionUpdatedAt={predictionUpdatedAt}
           predictionStale={predictionStale}
           conclusionReassess={conclusionReassess}
