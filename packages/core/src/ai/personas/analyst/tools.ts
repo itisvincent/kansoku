@@ -136,6 +136,8 @@ export interface SubmitPredictionHooks {
   createChart: CreateChart;
   appendComment: (comment: CockpitComment) => Promise<void>;
   isDone: () => boolean;
+  /** Timeframes selected for this run; the prediction anchor must come from one of them. */
+  allowedTimeframes?: readonly string[];
   reportProgress?: (phase: ReassessPhase, activity: string) => void;
   onSubmitted?: (chartId: string, params: PredictionParams) => void;
 }
@@ -155,6 +157,14 @@ export function buildSubmitPredictionTool(
       if (!Check(predictionSchema, params)) {
         return textResult(
           'prediction has an invalid structure. Add direction and scenarios; long and short also require entry_plan. Then retry.',
+        );
+      }
+      if (
+        hooks.allowedTimeframes?.length &&
+        !hooks.allowedTimeframes.includes(params.anchor.timeframe)
+      ) {
+        return textResult(
+          `prediction anchor timeframe must be one of the selected analysis timeframes: ${hooks.allowedTimeframes.join(', ')}`,
         );
       }
       const issues = validatePrediction(params as unknown as IntradayPrediction);
@@ -242,6 +252,7 @@ export async function buildTools(
     exec: ExecFn;
     now: () => number;
     skillIndex: SkillMeta[];
+    analysisTimeframes?: readonly string[];
   },
   state: RunState,
   isDone: () => boolean,
@@ -291,6 +302,7 @@ export async function buildTools(
     createChart: deps.createChart,
     appendComment: deps.appendComment,
     isDone,
+    allowedTimeframes: deps.analysisTimeframes,
     reportProgress,
     onSubmitted: (chartId) => {
       state.chartId = chartId;

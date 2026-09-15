@@ -121,6 +121,7 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
         exec: deps.exec ?? createDefaultExec(repoRoot),
         now,
         skillIndex,
+        analysisTimeframes: dataPack.analysis_timeframes,
       },
       state,
       () => session?.isDone() ?? false,
