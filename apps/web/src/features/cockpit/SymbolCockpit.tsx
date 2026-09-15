@@ -21,7 +21,7 @@ import { AnalysisRunDetails } from './AnalysisRunDetails';
 import { CockpitSkeleton } from './CockpitSkeleton';
 import { AnalysisTimeline } from './AnalysisTimeline';
 import { ChatDock } from './chat/ChatDock';
-import { GenerateAnalysisCta } from './GenerateAnalysisCta';
+import { GenerateAnalysis } from './GenerateAnalysis';
 import { PreviewCockpit } from './PreviewCockpit';
 import { ReanalyzeStrip } from './ReanalyzeStrip';
 import { conclusionOutdated } from '../charts/intraday/ConclusionCard';
@@ -336,14 +336,8 @@ export function SymbolCockpit({ sym }: { sym: string }) {
             predictionUpdatedAt={doc.prediction_updated_at}
             predictionStale={doc.prediction_stale}
             reassess={conclusionReassess}
-            emptyCta={
-              <GenerateAnalysisCta
-                sym={sym}
-                title={i18n('cockpitNoPrediction')}
-                desc={i18n('cockpitNoPredictionHelp')}
-              />
-            }
           />
+          <GenerateAnalysis sym={sym} />
         </>
       ),
     },
