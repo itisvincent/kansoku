@@ -101,7 +101,7 @@ export interface AnalystActivity {
 }
 
 export interface TechnicalSectionTrend {
-  timeframe: 'm5' | 'm15' | 'h1' | 'day';
+  timeframe: '1m' | 'm5' | 'm15' | '30m' | 'h1' | '4h' | 'day' | 'week' | 'month';
   trend: 'up' | 'down' | 'sideways';
 }
 
