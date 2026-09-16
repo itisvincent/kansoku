@@ -70,9 +70,8 @@ vi.mock('./useAiUnreadBadge', () => ({
 vi.mock('@web/features/events/EventCanvasHost', () => ({
   EventCanvasHost: ({ children }: { children: ReactNode }) => children,
 }));
-vi.mock('./sharedSidebarTabs', () => ({
-  buildSharedSidebarTabs: () => [],
-}));
+vi.mock('./AiTab', () => ({ AiTab: () => <div>commentary</div> }));
+vi.mock('./ReviewTab', () => ({ ReviewTab: () => <div>review</div> }));
 vi.mock('./GenerateAnalysis', () => ({
   GenerateAnalysis: () => <div data-testid="generate-analysis" />,
 }));
@@ -312,7 +311,7 @@ describe('PreviewCockpit prediction tab', () => {
     );
 
     expect(screen.getByTestId('analyst-run-feed')).toBeTruthy();
-    expect(screen.queryByTestId('generate-analysis')).toBeNull();
+    expect(screen.getByTestId('generate-analysis')).toBeTruthy();
     expect(screen.queryByText('还没有 AI 分析')).toBeNull();
   });
 

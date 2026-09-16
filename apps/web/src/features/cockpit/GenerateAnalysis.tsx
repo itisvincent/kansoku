@@ -1,4 +1,4 @@
-import { useLocale } from '@web/lib/i18n';
+import { useLocale, type MessageKey } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import { Button, Spinner } from '@web/ui';
 import { colors, fontSizes } from '../../theme/tokens.stylex';
@@ -45,9 +45,11 @@ type GenerateAnalysisVariant = 'default' | 'preview';
 export function GenerateAnalysis({
   sym,
   variant = 'default',
+  label = 'cockpitGenerate',
 }: {
   sym: string;
   variant?: GenerateAnalysisVariant;
+  label?: MessageKey;
 }) {
   const { t: i18n } = useLocale();
   const run = useAnalystRun(sym);
@@ -66,7 +68,7 @@ export function GenerateAnalysis({
           disabled={run.pending || run.running}
         >
           {run.running && <Spinner />}
-          {run.running ? i18n('cockpitAiRunning') : i18n('cockpitGenerate')}
+          {run.running ? i18n('cockpitAiRunning') : i18n(label)}
         </Button>
         {run.hint && (
           <span className={`ai-hint ${stylex.props(styles.hint).className}`}>{run.hint}</span>

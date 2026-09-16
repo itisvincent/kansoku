@@ -15,7 +15,6 @@ import { IntradayControlsProvider } from '@web/features/charts/intraday/controls
 import { PredictionTab } from '@web/features/charts/intraday/tabs/PredictionTab';
 import { resolveIntradayTf } from '@web/features/charts/intraday/useIntradayDoc';
 import { useIntradayPreview } from '@web/features/charts/intraday/useIntradayPreview';
-import type { SidebarTab } from '@web/features/charts/SidebarTabs';
 import { TopbarQuote } from '@web/features/quotes/QuoteBar';
 import { Dot, Empty, ErrorBox } from '@web/ui';
 import { useTitle } from '@web/lib/useTitle';
@@ -24,8 +23,7 @@ import { AnalystRunFeed } from './AnalystRunFeed';
 import { AnalysisTimeline } from './AnalysisTimeline';
 import { useAnalystRunLastEnded, useAnalystRunStatus } from './analystRunsStore';
 import { CockpitSkeleton } from './CockpitSkeleton';
-import { GenerateAnalysis } from './GenerateAnalysis';
-import { GenerateAnalysisCta } from './GenerateAnalysisCta';
+import type { AnalysisSection } from './AnalysisTab';
 import { EventCanvasHost } from '@web/features/events/EventCanvasHost';
 import { buildSharedSidebarTabs } from './sharedSidebarTabs';
 import { useAiUnreadBadge } from './useAiUnreadBadge';
@@ -148,9 +146,15 @@ export function PreviewCockpit({
     selectedJournal,
     setSelectedJournal,
   } = useCockpitReviewState(sym);
-  const [activeTab, setActiveTab] = useState('prediction');
+  const [activeTab, setActiveTab] = useState('analysis');
+  const [analysisSection, setAnalysisSection] = useState<AnalysisSection>('prediction');
   const { comments, error: commentsError, loaded: commentsLoaded } = useCockpitComments(sym);
-  const { unread } = useAiUnreadBadge(sym, comments, commentsLoaded, activeTab);
+  const { unread } = useAiUnreadBadge(
+    sym,
+    comments,
+    commentsLoaded,
+    activeTab === 'analysis' && analysisSection === 'commentary' ? 'ai' : activeTab,
+  );
   const viewTimeframe = useViewTimeframe(sym, intradayTf ?? '4h', { live: true });
   const analystRunStatus = useAnalystRunStatus(sym);
   const analystRunLastEndedRaw = useAnalystRunLastEnded(sym);
@@ -186,55 +190,45 @@ export function PreviewCockpit({
     previewLevels,
   );
 
-  const sidebarTabs: SidebarTab[] = [
-    {
-      key: 'prediction',
-      label: i18n('cockpitPrediction'),
-      content: built.sidebar.prediction ? (
-        <>
-          <PredictionTab
-            built={chartBuilt}
-            activeTf={activeIntradayTf}
-            predictionUpdatedAt={predictionUpdatedAt}
-            predictionStale={predictionStale}
-          />
-          <GenerateAnalysis sym={sym} />
-        </>
-      ) : analystRunStatus ? (
-        <AnalystRunFeed sym={sym} />
-      ) : analystRunLastEnded ? (
-        <>
-          <AnalystRunFeed sym={sym} />
-          <GenerateAnalysis sym={sym} />
-        </>
-      ) : analysesRows.length > 0 ? (
-        <>
-          <Empty>{i18n('cockpitLiveHelp')}</Empty>
-          <GenerateAnalysis sym={sym} />
-        </>
-      ) : (
-        <GenerateAnalysisCta sym={sym} title={i18n('cockpitNoAi')} desc={i18n('cockpitNoAiHelp')} />
-      ),
-    },
-    ...buildSharedSidebarTabs({
-      locale,
-      sym,
-      sidebar: built.sidebar,
-      env,
-      analysesRows,
-      latestId: null,
-      journalEntries,
-      reloadJournal,
-      reviewSection,
-      setReviewSection,
-      selectedJournal,
-      setSelectedJournal,
-      comments,
-      commentsError,
-      commentsLoaded,
-      unread,
-    }),
-  ];
+  const sidebarTabs = buildSharedSidebarTabs({
+    locale,
+    sym,
+    sidebar: built.sidebar,
+    env,
+    analysesRows,
+    latestId: null,
+    journalEntries,
+    reloadJournal,
+    reviewSection,
+    setReviewSection,
+    selectedJournal,
+    setSelectedJournal,
+    comments,
+    commentsError,
+    commentsLoaded,
+    unread,
+    analysisSection,
+    setAnalysisSection,
+    prediction: built.sidebar.prediction ? (
+      <PredictionTab
+        built={chartBuilt}
+        activeTf={activeIntradayTf}
+        predictionUpdatedAt={predictionUpdatedAt}
+        predictionStale={predictionStale}
+      />
+    ) : analystRunStatus ? (
+      <AnalystRunFeed sym={sym} />
+    ) : analystRunLastEnded ? (
+      <AnalystRunFeed sym={sym} />
+    ) : analysesRows.length > 0 ? (
+      <Empty>{i18n('cockpitLiveHelp')}</Empty>
+    ) : (
+      <Empty>
+        <strong>{i18n('cockpitNoAi')}</strong>
+        <p>{i18n('cockpitNoAiHelp')}</p>
+      </Empty>
+    ),
+  });
 
   return (
     <EventCanvasHost>

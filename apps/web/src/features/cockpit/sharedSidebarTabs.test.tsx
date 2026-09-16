@@ -39,6 +39,9 @@ function tabs(sym = 'MU.US') {
     commentsError: null,
     commentsLoaded: true,
     unread: 0,
+    prediction: <div>prediction</div>,
+    analysisSection: 'prediction',
+    setAnalysisSection: () => {},
   });
 }
 
@@ -48,7 +51,7 @@ describe('buildSharedSidebarTabs', () => {
   it('adds an events tab without dropping the existing ones', () => {
     const keys = tabs().map((tab) => tab.key);
     expect(keys).toContain('events');
-    expect(keys).toEqual(expect.arrayContaining(['env', 'news', 'review', 'ai']));
+    expect(keys).toEqual(['analysis', 'env', 'news', 'events']);
   });
 
   it('labels the events tab and filters it to the open symbol', () => {

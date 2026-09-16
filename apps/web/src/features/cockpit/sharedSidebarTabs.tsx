@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { translate, type Locale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
 import type { CockpitComment, IntradaySidebar, SymbolAnalysisRow } from '@kansoku/shared/types';
@@ -5,6 +6,7 @@ import type { SidebarTab } from '@web/features/charts/SidebarTabs';
 import { NewsTab } from '@web/features/charts/intraday/tabs/NewsTab';
 import { SymbolEventsTab } from '@web/features/events/SymbolEventsTab';
 import { Badge } from '@web/ui';
+import { AnalysisTab, type AnalysisSection } from './AnalysisTab';
 import { AiTab } from './AiTab';
 import type { CockpitEnvState } from './useCockpitEnv';
 import { EnvTab } from './EnvTab';
@@ -34,6 +36,9 @@ export function buildSharedSidebarTabs(params: {
   commentsError: string | null;
   commentsLoaded: boolean;
   unread: number;
+  prediction: ReactNode;
+  analysisSection: AnalysisSection;
+  setAnalysisSection: (section: AnalysisSection) => void;
 }): SidebarTab[] {
   const {
     sym,
@@ -51,12 +56,61 @@ export function buildSharedSidebarTabs(params: {
     commentsError,
     commentsLoaded,
     unread,
+    prediction,
+    analysisSection,
+    setAnalysisSection,
   } = params;
   const i18n = (key: Parameters<typeof translate>[1]) => translate(params.locale ?? 'zh-CN', key);
   const hasNews =
     Boolean(sidebar.context?.news?.length) || Boolean(sidebar.news?.length) || Boolean(sym);
 
   return [
+    {
+      key: 'analysis',
+      label: (
+        <>
+          {i18n('cockpitTabAnalysis')}
+          {unread > 0 && (
+            <Badge tone="down" className={stylex.props(styles.unreadBadge).className}>
+              {unread}
+            </Badge>
+          )}
+        </>
+      ),
+      content: (
+        <AnalysisTab
+          sym={sym}
+          section={analysisSection}
+          onSectionChange={setAnalysisSection}
+          unread={unread}
+          prediction={prediction}
+          commentary={
+            <AiTab
+              showRunControl={false}
+              symbol={sym}
+              comments={comments}
+              error={commentsError}
+              loaded={commentsLoaded}
+              analysisRevision={analysesRows[0]?.id ?? latestId ?? undefined}
+            />
+          }
+          review={
+            <ReviewTab
+              showRunControl={false}
+              symbol={sym}
+              rows={analysesRows}
+              currentId={latestId}
+              journal={journalEntries}
+              section={reviewSection}
+              onSectionChange={setReviewSection}
+              selectedJournal={selectedJournal}
+              onSelectJournal={setSelectedJournal}
+              reloadJournal={reloadJournal}
+            />
+          }
+        />
+      ),
+    },
     {
       key: 'env',
       label: i18n('cockpitTabEnv'),
@@ -83,45 +137,6 @@ export function buildSharedSidebarTabs(params: {
       key: 'events',
       label: i18n('cockpitTabEvents'),
       content: <SymbolEventsTab symbol={sym} />,
-    },
-    {
-      key: 'review',
-      label: i18n('cockpitTabReview'),
-      content: (
-        <ReviewTab
-          symbol={sym}
-          rows={analysesRows}
-          currentId={latestId}
-          journal={journalEntries}
-          section={reviewSection}
-          onSectionChange={setReviewSection}
-          selectedJournal={selectedJournal}
-          onSelectJournal={setSelectedJournal}
-          reloadJournal={reloadJournal}
-        />
-      ),
-    },
-    {
-      key: 'ai',
-      label: (
-        <>
-          {i18n('cockpitTabAi')}
-          {unread > 0 && (
-            <Badge tone="down" className={stylex.props(styles.unreadBadge).className}>
-              {unread}
-            </Badge>
-          )}
-        </>
-      ),
-      content: (
-        <AiTab
-          symbol={sym}
-          comments={comments}
-          error={commentsError}
-          loaded={commentsLoaded}
-          analysisRevision={analysesRows[0]?.id ?? latestId ?? undefined}
-        />
-      ),
     },
   ];
 }

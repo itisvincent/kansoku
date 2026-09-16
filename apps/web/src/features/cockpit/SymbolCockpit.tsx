@@ -9,7 +9,6 @@ import { withViewTimeframe } from '../charts/intraday/timeframes';
 import { useViewTimeframe } from '../charts/intraday/useViewTimeframe';
 import { IntradayControlsProvider } from '../charts/intraday/controlsContext';
 import { resolveIntradayTf, useIntradayDoc } from '../charts/intraday/useIntradayDoc';
-import type { SidebarTab } from '../charts/SidebarTabs';
 import { SepaCockpit, type SepaDocView } from '../charts/sepa/SepaCockpit';
 import { TopbarQuote } from '../quotes/QuoteBar';
 import { marketOfSymbol } from '../../lib/market';
@@ -21,7 +20,7 @@ import { AnalysisRunDetails } from './AnalysisRunDetails';
 import { CockpitSkeleton } from './CockpitSkeleton';
 import { AnalysisTimeline } from './AnalysisTimeline';
 import { ChatDock } from './chat/ChatDock';
-import { GenerateAnalysis } from './GenerateAnalysis';
+import type { AnalysisSection } from './AnalysisTab';
 import { PreviewCockpit } from './PreviewCockpit';
 import { ReanalyzeStrip } from './ReanalyzeStrip';
 import { conclusionOutdated } from '../charts/intraday/ConclusionCard';
@@ -227,9 +226,15 @@ export function SymbolCockpit({ sym }: { sym: string }) {
     setSelectedJournal,
   } = useCockpitReviewState(sym);
 
-  const [activeTab, setActiveTab] = useState('prediction');
+  const [activeTab, setActiveTab] = useState('analysis');
+  const [analysisSection, setAnalysisSection] = useState<AnalysisSection>('prediction');
   const { comments, error: commentsError, loaded: commentsLoaded } = useCockpitComments(sym);
-  const { unread, latestAlert } = useAiUnreadBadge(sym, comments, commentsLoaded, activeTab);
+  const { unread, latestAlert } = useAiUnreadBadge(
+    sym,
+    comments,
+    commentsLoaded,
+    activeTab === 'analysis' && analysisSection === 'commentary' ? 'ai' : activeTab,
+  );
 
   const intradaySidebar = doc?.built.kind === 'intraday' ? doc.built.sidebar : null;
   const viewTimeframe = useViewTimeframe(sym, intradayTf ?? '4h', {
@@ -323,43 +328,37 @@ export function SymbolCockpit({ sym }: { sym: string }) {
   const chartBuilt = withViewTimeframe(doc.built, activeIntradayTf, viewTimeframe.tf);
   const analysesRows = analyses;
 
-  const sidebarTabs: SidebarTab[] = [
-    {
-      key: 'prediction',
-      label: i18n('cockpitPrediction'),
-      content: (
-        <>
-          <ReanalyzeStrip sym={sym} />
-          <PredictionTab
-            built={chartBuilt}
-            activeTf={activeIntradayTf}
-            predictionUpdatedAt={doc.prediction_updated_at}
-            predictionStale={doc.prediction_stale}
-            reassess={conclusionReassess}
-          />
-          <GenerateAnalysis sym={sym} />
-        </>
-      ),
-    },
-    ...buildSharedSidebarTabs({
-      locale,
-      sym,
-      sidebar: doc.built.sidebar,
-      env,
-      analysesRows,
-      latestId,
-      journalEntries,
-      reloadJournal,
-      reviewSection,
-      setReviewSection,
-      selectedJournal,
-      setSelectedJournal,
-      comments,
-      commentsError,
-      commentsLoaded,
-      unread,
-    }),
-  ];
+  const sidebarTabs = buildSharedSidebarTabs({
+    locale,
+    sym,
+    sidebar: doc.built.sidebar,
+    env,
+    analysesRows,
+    latestId,
+    journalEntries,
+    reloadJournal,
+    reviewSection,
+    setReviewSection,
+    selectedJournal,
+    setSelectedJournal,
+    comments,
+    commentsError,
+    commentsLoaded,
+    unread,
+    analysisSection,
+    setAnalysisSection,
+    prediction: (
+      <>
+        <ReanalyzeStrip sym={sym} />
+        <PredictionTab
+          built={chartBuilt}
+          activeTf={activeIntradayTf}
+          predictionUpdatedAt={doc.prediction_updated_at}
+          predictionStale={doc.prediction_stale}
+        />
+      </>
+    ),
+  });
 
   return (
     <EventCanvasHost>
@@ -457,7 +456,10 @@ export function SymbolCockpit({ sym }: { sym: string }) {
                 >
                   <button
                     className={`badge badge--${latestAlert.level === 'alert' ? 'down' : 'accent'} alert-badge alert-badge--icon ${stylex.props(styles.alertBadge, styles.alertBadgeIcon).className}`}
-                    onClick={() => setActiveTab('ai')}
+                    onClick={() => {
+                      setActiveTab('analysis');
+                      setAnalysisSection('commentary');
+                    }}
                     aria-label={i18n('cockpitAiAlert', {
                       level: i18n(
                         latestAlert.level === 'alert' ? 'cockpitAlert' : 'cockpitReminder',

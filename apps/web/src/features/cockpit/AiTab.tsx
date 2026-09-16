@@ -79,6 +79,7 @@ export function AiTab({
   readOnly = false,
   loaded = true,
   analysisRevision,
+  showRunControl = true,
 }: {
   symbol: string;
   comments: CockpitComment[];
@@ -86,10 +87,11 @@ export function AiTab({
   readOnly?: boolean;
   loaded?: boolean;
   analysisRevision?: string;
+  showRunControl?: boolean;
 }) {
   const { t } = useLocale();
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
-  const run = useAnalystRun(symbol, !readOnly);
+  const run = useAnalystRun(symbol, !readOnly && showRunControl);
 
   const today = marketDate();
   const { data: dates } = useQuery<string[]>(
@@ -134,11 +136,13 @@ export function AiTab({
       {!readOnly && (
         <div className={`ai-run-control ${stylex.props(styles.runControl).className}`}>
           <div className={`ai-reassess ${stylex.props(styles.reassess).className}`}>
-            <Button onClick={run.start} disabled={run.pending || run.running}>
-              {run.running && <Spinner />}
-              {run.running ? t('reassessing') : t('reanalyze')}
-            </Button>
-            {run.hint && (
+            {showRunControl && (
+              <Button onClick={run.start} disabled={run.pending || run.running}>
+                {run.running && <Spinner />}
+                {run.running ? t('reassessing') : t('reanalyze')}
+              </Button>
+            )}
+            {showRunControl && run.hint && (
               <span className={`ai-hint ${stylex.props(styles.hint).className}`}>{run.hint}</span>
             )}
             <ExplainAction symbol={symbol} />
@@ -159,7 +163,10 @@ export function AiTab({
               </div>
             )}
           </div>
-          {run.status && <AnalysisRunDetails status={run.status} />}
+          {showRunControl && run.status && <AnalysisRunDetails status={run.status} />}
+          {!showRunControl && (
+            <p {...stylex.props(styles.note)}>{t('cockpitCommentaryOnlyHelp')}</p>
+          )}
         </div>
       )}
 

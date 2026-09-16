@@ -50,7 +50,13 @@ vi.mock('./FollowAction', () => ({
 const { AiTab } = await import('./AiTab');
 
 const liveComments: CockpitComment[] = [
-  { ts: '2026-07-24T14:00:00.000Z', symbol: 'MU.US', level: 'info', text: '今天有点评', source: 'analyst' },
+  {
+    ts: '2026-07-24T14:00:00.000Z',
+    symbol: 'MU.US',
+    level: 'info',
+    text: '今天有点评',
+    source: 'analyst',
+  },
 ];
 
 afterEach(() => {
@@ -73,6 +79,22 @@ describe('AiTab header wiring', () => {
     expect(screen.getByText('重新分析')).toBeTruthy();
     expect(screen.getByTestId('explain-action').textContent).toBe('MU.US');
     expect(screen.getByTestId('alive-line').textContent).toBe('MU.US');
+  });
+
+  it('keeps commentary actions and monitoring while the shared panel owns analysis', () => {
+    render(
+      <AiTab
+        symbol="MU.US"
+        comments={liveComments}
+        error={null}
+        analysisRevision="rev1"
+        showRunControl={false}
+      />,
+    );
+    expect(screen.queryByText('重新分析')).toBeNull();
+    expect(screen.getByTestId('explain-action')).toBeTruthy();
+    expect(screen.getByTestId('follow-action')).toBeTruthy();
+    expect(screen.getByTestId('alive-line')).toBeTruthy();
   });
 
   it('hides the explain CTA and the alive line in read-only mode', () => {

@@ -59,6 +59,7 @@ export function ReviewTab({
   selectedJournal,
   onSelectJournal,
   reloadJournal,
+  showRunControl = true,
 }: {
   symbol: string;
   rows: SymbolAnalysisRow[];
@@ -69,6 +70,7 @@ export function ReviewTab({
   selectedJournal: string | null;
   onSelectJournal: (name: string | null) => void;
   reloadJournal: () => void;
+  showRunControl?: boolean;
 }) {
   const { t: i18n } = useLocale();
   const journalByDate = new Map(journal.map((e) => [e.date, e.name] as [string, string]));
@@ -111,6 +113,7 @@ export function ReviewTab({
           selected={selectedJournal}
           onSelect={onSelectJournal}
           reloadJournal={reloadJournal}
+          showRunControl={showRunControl}
         />
       )}
       {section === 'note' && <NoteTab symbol={symbol} />}

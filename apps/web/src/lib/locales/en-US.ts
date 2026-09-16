@@ -768,6 +768,14 @@ const enUS = {
   cockpitTabNews: 'News',
   cockpitTabEvents: 'Events',
   cockpitTabReview: 'Review',
+  cockpitTabAnalysis: 'Analysis',
+  cockpitCommentary: 'Commentary',
+  cockpitAnalysisSections: 'Analysis sections',
+  cockpitAnalysisPeriods: 'Analysis periods: {periods}',
+  cockpitAnalysisHelp:
+    'One run updates the prediction, adds commentary, and saves a journal entry. Past reports stay unchanged.',
+  cockpitCommentaryOnlyHelp:
+    'Interpret current market adds a quick comment only. Use Run analysis above to update the prediction and journal.',
   cockpitTabAi: 'AI commentary',
   chatToolCommand: 'Run data command',
   chatToolQuotes: 'Fetch live quotes',

@@ -87,12 +87,14 @@ export function JournalSection({
   selected,
   onSelect,
   reloadJournal,
+  showRunControl = true,
 }: {
   symbol: string;
   entries: JournalEntryMeta[];
   selected: string | null;
   onSelect: (name: string | null) => void;
   reloadJournal: () => void;
+  showRunControl?: boolean;
 }) {
   const { t: i18n } = useLocale();
   const [loadingName, setLoadingName] = useState<string | null>(null);
@@ -101,15 +103,15 @@ export function JournalSection({
   const wasRunningRef = useRef(false);
 
   useEffect(() => {
-    if (!run.running) return;
+    if (!showRunControl || !run.running) return;
     const timer = window.setInterval(reloadJournal, RUN_POLL_MS);
     return () => window.clearInterval(timer);
-  }, [run.running, reloadJournal]);
+  }, [showRunControl, run.running, reloadJournal]);
 
   useEffect(() => {
-    if (wasRunningRef.current && !run.running) reloadJournal();
+    if (showRunControl && wasRunningRef.current && !run.running) reloadJournal();
     wasRunningRef.current = run.running;
-  }, [run.running, reloadJournal]);
+  }, [showRunControl, run.running, reloadJournal]);
 
   useEffect(() => {
     if (!selected) return;
@@ -141,18 +143,20 @@ export function JournalSection({
 
   return (
     <div className={`journal-section ${stylex.props(styles.section).className}`}>
-      <div className={`ai-run-control ${stylex.props(styles.control).className}`}>
-        <div className={`ai-reassess ${stylex.props(styles.reassess).className}`}>
-          <Button onClick={run.start} disabled={run.pending || run.running}>
-            {run.running && <Spinner />}
-            {run.running ? i18n('cockpitAnalyzing') : i18n('cockpitRunAnalysis')}
-          </Button>
-          {run.hint && (
-            <span className={`ai-hint ${stylex.props(styles.hint).className}`}>{run.hint}</span>
-          )}
+      {showRunControl && (
+        <div className={`ai-run-control ${stylex.props(styles.control).className}`}>
+          <div className={`ai-reassess ${stylex.props(styles.reassess).className}`}>
+            <Button onClick={run.start} disabled={run.pending || run.running}>
+              {run.running && <Spinner />}
+              {run.running ? i18n('cockpitAnalyzing') : i18n('cockpitRunAnalysis')}
+            </Button>
+            {run.hint && (
+              <span className={`ai-hint ${stylex.props(styles.hint).className}`}>{run.hint}</span>
+            )}
+          </div>
+          {run.status && <AnalysisRunDetails status={run.status} />}
         </div>
-        {run.status && <AnalysisRunDetails status={run.status} />}
-      </div>
+      )}
       {entries.length === 0 ? (
         <p className={`note-block ${stylex.props(styles.note).className}`}>
           {i18n('cockpitNoJournal')}
