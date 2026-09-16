@@ -71,6 +71,7 @@ export function AnalysisTab({
   commentary,
   review,
   unread,
+  anchorTf,
 }: {
   sym: string;
   section: AnalysisSection;
@@ -79,6 +80,7 @@ export function AnalysisTab({
   commentary: ReactNode;
   review: ReactNode;
   unread: number;
+  anchorTf?: string;
 }) {
   const { t, locale } = useLocale();
   const { analysisTfs } = useIntradayControls();
@@ -94,7 +96,7 @@ export function AnalysisTab({
           })}
         </p>
         <p {...stylex.props(styles.help)}>{t('cockpitAnalysisHelp')}</p>
-        <GenerateAnalysis sym={sym} label="cockpitRunAnalysis" />
+        <GenerateAnalysis sym={sym} label="cockpitRunAnalysis" anchorTf={anchorTf} />
       </div>
       <div role="tablist" aria-label={t('cockpitAnalysisSections')} {...stylex.props(styles.tabs)}>
         {sections.map((item, index) => (

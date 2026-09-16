@@ -211,6 +211,16 @@ describe('analyst tools', () => {
   it('submit_prediction creates the chart, terminates and returns the chartId', async () => {
     let res: Awaited<ReturnType<Tools[number]['execute']>> | undefined;
     const { deps, comments, createCalls } = harness(async (tools) => {
+      await tool(tools, 'submit_section').execute('c0', {
+        kind: 'technical',
+        trends: [
+          { timeframe: 'm5', trend: 'up' },
+          { timeframe: 'm15', trend: 'up' },
+          { timeframe: 'h1', trend: 'up' },
+        ],
+        levels: [{ price: 100, label: 'support' }],
+        summary: 'All periods rise.',
+      });
       res = await tool(tools, 'submit_prediction').execute('c1', validPrediction);
     });
     await executeAnalystRun('MU.US', deps);
@@ -275,6 +285,18 @@ describe('analyst tools', () => {
     let turns = 0;
     const { deps, comments } = harness(async (tools) => {
       turns += 1;
+      if (turns === 1) {
+        await tool(tools, 'submit_section').execute('c0', {
+          kind: 'technical',
+          trends: [
+            { timeframe: 'm5', trend: 'up' },
+            { timeframe: 'm15', trend: 'up' },
+            { timeframe: 'h1', trend: 'up' },
+          ],
+          levels: [{ price: 100, label: 'support' }],
+          summary: 'All periods rise.',
+        });
+      }
       if (turns === 2) await tool(tools, 'submit_prediction').execute('c1', validPrediction);
     });
     await executeAnalystRun('MU.US', deps);
@@ -312,6 +334,47 @@ describe('analyst tools', () => {
 });
 
 describe('analyst message pipeline', () => {
+  it('requires every selected period before publishing a prediction', async () => {
+    const results: string[] = [];
+    const writes: number[] = [];
+    let ran = false;
+    const { deps, createCalls, engineeredMessages } = harness(async (tools) => {
+      if (ran) return;
+      ran = true;
+      const prediction = { ...validPrediction, anchor: { ...validPrediction.anchor, timeframe: 'h1' } };
+      const execute = async (name: string, params: unknown) => {
+        const result = await tool(tools, name).execute('timeframes', params);
+        results.push((result.content[0] as { text: string }).text);
+        writes.push(createCalls.length);
+      };
+      await execute('submit_prediction', prediction);
+      await execute('submit_section', {
+        kind: 'technical',
+        trends: [{ timeframe: 'h1', trend: 'up' }, { timeframe: 'day', trend: 'up' }],
+        levels: [{ price: 100, label: 'support' }],
+        summary: 'Hourly and daily trends rise above 100.',
+      });
+      await execute('submit_prediction', prediction);
+      await execute('submit_section', {
+        kind: 'technical',
+        trends: ['h1', '4h', 'day'].map((timeframe) => ({ timeframe, trend: 'up' })),
+        levels: [{ price: 100, label: 'support' }],
+        summary: 'All three selected periods rise above 100.',
+      });
+      await execute('submit_prediction', prediction);
+    }, { pack: makePack({ analysis_timeframes: ['h1', '4h', 'day'] }) });
+
+    await executeAnalystRun('MU.US', deps);
+    expect(writes).toEqual([0, 0, 0, 0, 1]);
+    expect(results[0]).toContain('submit_section');
+    expect(results[1]).toContain('4h');
+    expect(results[3]).toContain('recorded');
+    expect(createCalls[0].prediction).toMatchObject({ analysis_timeframes: ['h1', '4h', 'day'] });
+    const context = messageText(engineeredMessages[0][1]);
+    expect(context).toContain('Selected analysis timeframes for this run: h1, 4h, day');
+    expect(context).toContain('Override the skill');
+  });
+
   it('keeps the system prompt stable and injects skills before the task', async () => {
     const { deps, engineeredMessages, sessionIds, systemPrompts } = harness(async () => {});
     await executeAnalystRun('MU.US', deps);
@@ -466,6 +529,16 @@ describe('runAnalyst gating', () => {
       observed.push(analystRunStatus(symbol));
       await tool(tools, 'write_journal').execute('c2', { content: '## 阶段状态测试' });
       observed.push(analystRunStatus(symbol));
+      await tool(tools, 'submit_section').execute('c2b', {
+        kind: 'technical',
+        trends: [
+          { timeframe: 'm5', trend: 'up' },
+          { timeframe: 'm15', trend: 'up' },
+          { timeframe: 'h1', trend: 'up' },
+        ],
+        levels: [{ price: 100, label: 'support' }],
+        summary: 'All periods rise.',
+      });
       await tool(tools, 'submit_prediction').execute('c3', validPrediction);
       observed.push(analystRunStatus(symbol));
     });

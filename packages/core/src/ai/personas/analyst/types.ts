@@ -16,6 +16,7 @@ export interface AnalystDeps {
   fetchNews?: (symbol: string) => Promise<NewsItem[]>;
   fetchKline?: (symbol: string, period: string, count: number) => Promise<RawBar[]>;
   createChart?: CreateChart;
+  anchorTimeframe?: string;
   appendComment?: (comment: CockpitComment) => Promise<void>;
   timeoutMs?: number;
   now?: () => number;

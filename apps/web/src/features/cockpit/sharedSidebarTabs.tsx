@@ -39,6 +39,7 @@ export function buildSharedSidebarTabs(params: {
   prediction: ReactNode;
   analysisSection: AnalysisSection;
   setAnalysisSection: (section: AnalysisSection) => void;
+  anchorTf?: string;
 }): SidebarTab[] {
   const {
     sym,
@@ -59,6 +60,7 @@ export function buildSharedSidebarTabs(params: {
     prediction,
     analysisSection,
     setAnalysisSection,
+    anchorTf,
   } = params;
   const i18n = (key: Parameters<typeof translate>[1]) => translate(params.locale ?? 'zh-CN', key);
   const hasNews =
@@ -83,6 +85,7 @@ export function buildSharedSidebarTabs(params: {
           section={analysisSection}
           onSectionChange={setAnalysisSection}
           unread={unread}
+          anchorTf={anchorTf}
           prediction={prediction}
           commentary={
             <AiTab

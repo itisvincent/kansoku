@@ -533,6 +533,8 @@ export interface RangeBoundPlan {
 
 export interface IntradayPrediction {
   direction: 'long' | 'short' | 'neutral';
+  /** Analysis windows this prediction was generated from (set by the analyst run). */
+  analysis_timeframes?: string[];
   anchor?: { timeframe: TimeframeKey; time: string; price: number };
   scenarios?: PredictionScenario[];
   range_bound_plan?: RangeBoundPlan;

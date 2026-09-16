@@ -199,7 +199,7 @@ export const symbolsService: SymbolsApi = withFeatureGates(symbolsRoutes, {
   },
 
   async reassess(input) {
-    return reassessSymbol(normalizeSymbol(input.sym), input.timeframes);
+    return reassessSymbol(normalizeSymbol(input.sym), input.timeframes, input.anchorTf);
   },
 
   async reassessStatus(input) {

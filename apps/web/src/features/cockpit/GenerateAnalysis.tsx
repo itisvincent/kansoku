@@ -46,13 +46,15 @@ export function GenerateAnalysis({
   sym,
   variant = 'default',
   label = 'cockpitGenerate',
+  anchorTf,
 }: {
   sym: string;
   variant?: GenerateAnalysisVariant;
   label?: MessageKey;
+  anchorTf?: string;
 }) {
   const { t: i18n } = useLocale();
-  const run = useAnalystRun(sym);
+  const run = useAnalystRun(sym, true, anchorTf);
   const isPreview = variant === 'preview';
 
   return (

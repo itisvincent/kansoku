@@ -22,11 +22,15 @@ export interface AnalystRunController {
   status: RunningReassessStatus | null;
 }
 
-export function useAnalystRun(symbol: string, enabled = true): AnalystRunController {
+export function useAnalystRun(
+  symbol: string,
+  enabled = true,
+  anchorTf?: string,
+): AnalystRunController {
   const { locale } = useLocale();
   const [optimisticStartedAt, setOptimisticStartedAt] = useState<number | null>(null);
   const [hint, setHint] = useState<string | null>(null);
-  const { pending, reassess } = useReassessSymbol(symbol);
+  const { pending, reassess } = useReassessSymbol(symbol, anchorTf);
   const serverStatus = useAnalystRunStatus(symbol, enabled);
   const serverRunning = serverStatus !== null;
   const reconcileTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

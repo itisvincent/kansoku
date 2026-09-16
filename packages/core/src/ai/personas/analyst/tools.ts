@@ -138,6 +138,10 @@ export interface SubmitPredictionHooks {
   isDone: () => boolean;
   /** Timeframes selected for this run; the prediction anchor must come from one of them. */
   allowedTimeframes?: readonly string[];
+  /** Timeframes the technical section must cover before a prediction may be submitted. */
+  requiredTimeframes?: readonly string[];
+  /** Trend timeframes already recorded by submit_section in this run. */
+  getTechnicalTrends?: () => string[];
   reportProgress?: (phase: ReassessPhase, activity: string) => void;
   onSubmitted?: (chartId: string, params: PredictionParams) => void;
 }
@@ -173,7 +177,20 @@ export function buildSubmitPredictionTool(
           `prediction failed validation: ${issues.join('; ')}. Correct it and call submit_prediction again.`,
         );
       }
+      const required = hooks.requiredTimeframes ?? hooks.allowedTimeframes;
+      if (required?.length) {
+        const covered = new Set(hooks.getTechnicalTrends?.() ?? []);
+        const missing = required.filter((tf) => !covered.has(tf));
+        if (missing.length) {
+          return textResult(
+            `prediction rejected: submit_section first with a technical section whose trends cover every selected analysis timeframe (${required.join(', ')}); missing ${missing.join(', ')}. Then call submit_prediction again.`,
+          );
+        }
+      }
       const { comment, ...prediction } = params;
+      if (hooks.allowedTimeframes?.length) {
+        (prediction as IntradayPrediction).analysis_timeframes = [...hooks.allowedTimeframes];
+      }
       hooks.reportProgress?.('finalizing', '正在生成图表并提交最终结论');
       const chart = await hooks.createChart({
         type: 'intraday',
@@ -198,6 +215,9 @@ export function buildSubmitPredictionTool(
 
 export interface SubmitSectionHooks {
   now: () => number;
+  onTrends?: (timeframes: string[]) => void;
+  /** Timeframes the technical trends must cover; reject the section otherwise. */
+  requiredTimeframes?: readonly string[];
 }
 
 export function buildSubmitSectionTool(
@@ -221,6 +241,18 @@ export function buildSubmitSectionTool(
         return textResult(
           `section rejected: ${issues.join('; ')}. Correct it and call submit_section again.`,
         );
+      }
+      if (params.kind === 'technical' && hooks.requiredTimeframes?.length) {
+        const covered = new Set<string>((params.trends ?? []).map((t) => t.timeframe));
+        const missing = hooks.requiredTimeframes.filter((tf) => !covered.has(tf));
+        if (missing.length) {
+          return textResult(
+            `technical section rejected: trends must cover every selected analysis timeframe (${hooks.requiredTimeframes.join(', ')}); missing ${missing.join(', ')}. Add them and call submit_section again.`,
+          );
+        }
+      }
+      if (params.kind === 'technical' && params.trends?.length) {
+        hooks.onTrends?.(params.trends.map((t) => t.timeframe));
       }
       setAnalystSection(
         symbol,
@@ -253,6 +285,7 @@ export async function buildTools(
     now: () => number;
     skillIndex: SkillMeta[];
     analysisTimeframes?: readonly string[];
+    anchorTimeframe?: string;
   },
   state: RunState,
   isDone: () => boolean,
@@ -298,11 +331,17 @@ export async function buildTools(
     },
   };
 
+  const coveredTrends = new Set<string>();
+
   const submitPrediction = buildSubmitPredictionTool(symbol, {
     createChart: deps.createChart,
     appendComment: deps.appendComment,
     isDone,
-    allowedTimeframes: deps.analysisTimeframes,
+    allowedTimeframes: deps.anchorTimeframe
+      ? [deps.anchorTimeframe]
+      : deps.analysisTimeframes,
+    requiredTimeframes: deps.analysisTimeframes,
+    getTechnicalTrends: () => [...coveredTrends],
     reportProgress,
     onSubmitted: (chartId) => {
       state.chartId = chartId;
@@ -310,7 +349,11 @@ export async function buildTools(
     },
   });
 
-  const submitSection = buildSubmitSectionTool(symbol, { now: deps.now });
+  const submitSection = buildSubmitSectionTool(symbol, {
+    now: deps.now,
+    onTrends: (tfs) => tfs.forEach((tf) => coveredTrends.add(tf)),
+    requiredTimeframes: deps.analysisTimeframes,
+  });
 
   const researchTools = (
     await buildResearchTools({

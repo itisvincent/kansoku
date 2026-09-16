@@ -149,6 +149,16 @@ describe('analyst activity wiring', () => {
           for (const event of events) {
             for (const listener of listeners) listener(event);
           }
+          await findTool(tools, 'submit_section').execute('c0', {
+            kind: 'technical',
+            trends: [
+              { timeframe: 'm5', trend: 'up' },
+              { timeframe: 'm15', trend: 'up' },
+              { timeframe: 'h1', trend: 'up' },
+            ],
+            levels: [{ price: 100, label: 'support' }],
+            summary: 'All periods rise.',
+          });
           await findTool(tools, 'submit_prediction').execute('c1', validPrediction);
           captured =
             analystRunStatus(symbol).running === true

@@ -36,6 +36,7 @@ const validTechnical: SubmitSectionParams = {
   kind: 'technical',
   trends: [
     { timeframe: 'm5', trend: 'up' },
+    { timeframe: 'm15', trend: 'up' },
     { timeframe: 'h1', trend: 'sideways' },
   ],
   levels: [{ price: 100, label: '前高' }],

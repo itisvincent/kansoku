@@ -25,16 +25,18 @@ export function GenerateAnalysisCta({
   sym,
   title,
   desc,
+  anchorTf,
 }: {
   sym: string;
   title: string;
   desc: string;
+  anchorTf?: string;
 }) {
   return (
     <div className={`preview-cta ${stylex.props(styles.root).className}`}>
       <h3 className={`preview-cta-title ${stylex.props(styles.title).className}`}>{title}</h3>
       <p className={`preview-cta-desc ${stylex.props(styles.description).className}`}>{desc}</p>
-      <GenerateAnalysis sym={sym} variant="preview" />
+      <GenerateAnalysis sym={sym} variant="preview" anchorTf={anchorTf} />
     </div>
   );
 }

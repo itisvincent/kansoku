@@ -177,16 +177,18 @@ timeframe data + Step 3's numbers, decide:
 
 1. **Direction + anchor** — `long` / `short` / `neutral`, anchored to a specific
    timeframe + time + price (never a bare directional call with no anchor).
-   **Timeframe roles（周期分工）**: 日线定背景（`day_context.daily_trend` +
-   关键参照位——顺日线的短线判断成功率天然更高，逆日线要单独说明理由）,
-   h1 定趋势方向, m15 定结构与入场, m5 只做触发与微调。
+   **Timeframe roles（周期分工）**: 本跑分析档以数据包里的 `analysis_timeframes`
+   为准（不是固定的 5m/15m/1h）。通用分工：最长的周期定背景与趋势，中间周期
+   定结构与入场，最短周期只做触发与微调；`day_context.daily_trend` 存在时，
+   日线背景照旧优先参照——顺日线的短线判断成功率天然更高，逆日线要单独说明理由。
    **位置参照（必做）**: 方向判断必须对照 VWAP 与日内参照位说话——价格在
    VWAP 上方还是下方、离昨高/昨低/盘前高低/开盘区间哪条最近、是攻还是守。
    "突破"类情景的 trigger 应指向具体参照位（如"放量站上昨高"），而不是
-   凭感觉画的价位。**The anchor lives on m15 by default** — `anchor.timeframe` also sets
-   the dashboard's default tab. Anchor on m5 only for a pure scalp call, on h1
-   only for a swing-level statement. Align `anchor.time` to a bar boundary of its
-   timeframe (m15 → :00/:15/:30/:45).
+   凭感觉画的价位。**The anchor must live on one of the selected
+   `analysis_timeframes`**（本次运行的 anchor 请求会单独指定，默认取本次选中的
+   中间周期）— `anchor.timeframe` also sets the dashboard's default tab. Align
+   `anchor.time` to a bar boundary of its timeframe (15 分钟级 → :00/:15/:30/:45,
+   小时级 → 整点).
 2. **Scenarios** — 2 to 4, by real structure（通常是上破/震荡/下破三个，不要为
    凑数硬编一个 5% 的情景）, probabilities summing to ~100%, each with a `path`
    (what the K-line likely does) and a `trigger` (what confirms it). Reuse the
@@ -241,8 +243,8 @@ timeframe data + Step 3's numbers, decide:
 6. **Trade management（入场后）** — write the management leg into
    `entry_plan.note` / the report: at T1 take half off and move the stop to
    breakeven（推保本）; time stop — **~6 bars of the anchor timeframe**
-   (m5 锚点 ≈30min、m15 锚点 ≈1.5h、h1 锚点 ≈6h——波段级判断不该被日内级的
-   时间止损误杀), if the trade hasn't moved by then the thesis is stale, exit
+   （按 anchor 周期折算：分钟级锚点≈6 根、小时级锚点≈6 小时、日线锚点≈6 个交易日——
+   波段级判断不该被日内级的时间止损误杀）, if the trade hasn't moved by then the thesis is stale, exit
    flat; stopped out = stay out, no revenge re-entry unless a _new_ structure
    signal forms.
 7. **Existing position（若用户已持仓）** — the read must end with an explicit

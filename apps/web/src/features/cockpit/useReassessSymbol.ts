@@ -20,7 +20,10 @@ interface ReassessResponse {
 export type ReassessOutcome =
   { ok: true; data: ReassessResponse } | { ok: false; error: string; aborted: boolean };
 
-export function useReassessSymbol(symbol: string): {
+export function useReassessSymbol(
+  symbol: string,
+  anchorTf?: string,
+): {
   pending: boolean;
   error: string | null;
   reassess: () => Promise<ReassessOutcome>;
@@ -56,6 +59,7 @@ export function useReassessSymbol(symbol: string): {
       const data = await client.symbols.reassess({
         sym: symbol,
         timeframes: loadAnalysisTimeframes(),
+        ...(anchorTf ? { anchorTf } : {}),
       });
       const superseded = tokenRef.current !== token;
       if (superseded) return { ok: false, error: 'local:cockpitCancelled', aborted: true };
@@ -71,7 +75,7 @@ export function useReassessSymbol(symbol: string): {
         setPending(false);
       }
     }
-  }, [symbol]);
+  }, [symbol, anchorTf]);
 
   return { pending, error: localizeStatusMessage(error, locale), reassess };
 }

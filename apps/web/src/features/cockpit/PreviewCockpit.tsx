@@ -194,6 +194,7 @@ export function PreviewCockpit({
     locale,
     sym,
     sidebar: built.sidebar,
+    anchorTf: activeIntradayTf,
     env,
     analysesRows,
     latestId: null,

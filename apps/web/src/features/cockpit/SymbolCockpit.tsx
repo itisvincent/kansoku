@@ -332,6 +332,7 @@ export function SymbolCockpit({ sym }: { sym: string }) {
     locale,
     sym,
     sidebar: doc.built.sidebar,
+    anchorTf: activeIntradayTf,
     env,
     analysesRows,
     latestId,

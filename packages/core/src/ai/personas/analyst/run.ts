@@ -19,7 +19,7 @@ import {
   buildReassessPack as defaultBuildReassessPack,
   defaultDatapackDeps,
 } from '../../agents/datapack.js';
-import { sanitizeReassessTimeframes } from '../../agents/analysisTimeframes.js';
+import { sanitizeReassessTimeframes, type ReassessTf } from '../../agents/analysisTimeframes.js';
 import { aiConfig } from '../../runtime/models.js';
 import { emitNotice } from '../notices.js';
 import {
@@ -122,6 +122,7 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
         now,
         skillIndex,
         analysisTimeframes: dataPack.analysis_timeframes,
+        anchorTimeframe: deps.anchorTimeframe,
       },
       state,
       () => session?.isDone() ?? false,
@@ -231,15 +232,21 @@ export function runAnalyst({ symbol, origin, deps }: RunAnalystInput): StartResu
 export async function reassessSymbol(
   symbol: string,
   timeframes?: string[],
+  anchorTimeframe?: string,
 ): Promise<ReassessResult> {
   const model = aiConfig().analystModel;
   if (!model) return { started: false, reason: 'analyst layer disabled' };
   const analysisTfs = sanitizeReassessTimeframes(timeframes);
+  const anchor =
+    anchorTimeframe && analysisTfs.includes(anchorTimeframe as ReassessTf)
+      ? anchorTimeframe
+      : undefined;
   const result = runAnalyst({
     symbol,
     origin: 'manual',
     deps: {
       model,
+      anchorTimeframe: anchor,
       buildReassessPack: (sym) => defaultBuildReassessPack(sym, defaultDatapackDeps, analysisTfs),
     },
   });
