@@ -1,5 +1,5 @@
 import { useLocale } from '@web/lib/i18n';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { ArrowLeft, Bell, ChevronsRight, TriangleAlert } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
 import { IntradayDashboard, IntradayTimeframeSwitch } from '../charts/intraday/IntradayDashboard';
@@ -17,6 +17,7 @@ import { Dot, ErrorBox, MarketTime, Tooltip } from '../../ui';
 import { useTitle } from '../../lib/useTitle';
 import { isDesktopRealtime } from '../../lib/portTransport';
 import { AnalysisRunDetails } from './AnalysisRunDetails';
+import { useAnalystRunLastEnded } from './analystRunsStore';
 import { CockpitSkeleton } from './CockpitSkeleton';
 import { AnalysisTimeline } from './AnalysisTimeline';
 import { ChatDock } from './chat/ChatDock';
@@ -211,6 +212,17 @@ export function SymbolCockpit({ sym }: { sym: string }) {
   } = useIntradayDoc(mode === 'live' ? null : latestId);
 
   useTitle(doc ? doc.title || symLabel : latestChecked && !latestId ? symLabel : undefined);
+
+  // A finished run creates a new frozen snapshot; open it so the Prediction
+  // panel shows the fresh result instead of the previously selected analysis.
+  const runLastEnded = useAnalystRunLastEnded(sym);
+  const handledRunEndRef = useRef(runLastEnded?.endedAt ?? null);
+  useEffect(() => {
+    const endedAt = runLastEnded?.endedAt ?? null;
+    if (!endedAt || handledRunEndRef.current === endedAt) return;
+    handledRunEndRef.current = endedAt;
+    jumpToLatest();
+  }, [runLastEnded, jumpToLatest]);
 
   useEffect(() => {
     if (doc || (latestChecked && !latestId && !latestError)) recordRecentSymbol(sym);
