@@ -177,6 +177,14 @@ const validPrediction = {
     { label: '震荡', probability: 30 },
     { label: '下破', probability: 20 },
   ],
+  eps_pe_plan: {
+    anchor_year: 'FY2026',
+    scenarios: [
+      { kind: 'bear' as const, eps: 4, pe: 20, target: 80 },
+      { kind: 'base' as const, eps: 5, pe: 22, target: 110 },
+      { kind: 'bull' as const, eps: 6, pe: 25, target: 150 },
+    ],
+  },
   comment: '多头结构完好，站上 100 看 104。',
 };
 
@@ -257,6 +265,18 @@ describe('analyst tools', () => {
     expect(analyst[0].level).toBe('warn');
     expect(analyst[0].text).toBe('量能背离');
     expect(analyst[0].chartId).toBe('old-chart');
+  });
+
+  it('submit_prediction rejects a plan that omits the Darren EPS × PE section', async () => {
+    let text: string | undefined;
+    const { deps, createCalls } = harness(async (tools) => {
+      const { eps_pe_plan: _omit, ...rest } = validPrediction;
+      const res = await tool(tools, 'submit_prediction').execute('c1', rest);
+      text = (res.content[0] as { text: string }).text;
+    });
+    await executeAnalystRun('MU.US', deps);
+    expect(text).toContain('eps_pe_plan');
+    expect(createCalls).toHaveLength(0);
   });
 
   it('submit_prediction rejects an incoherent plan without creating a chart', async () => {

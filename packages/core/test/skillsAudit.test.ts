@@ -38,6 +38,7 @@ describe('skills audit', () => {
   it.each([
     'trading-discipline',
     'intraday-signal',
+    'eps-pe-scenario-stock-analysis',
     'stock-deep-dive',
     'korea-market',
     'twitter-reader',

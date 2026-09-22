@@ -29,9 +29,11 @@ export function auditSkills(repoRoot: string = PROJECT_ROOT): SkillAudit {
   const index = loadSkillIndex(dirs, { repoRoot, runtime: 'app' });
   const agentOnly = loadSkillsPolicy(repoRoot).agentOnly;
 
+  const repoRel = (abs: string) => path.relative(repoRoot, abs).split(path.sep).join('/');
+
   const rows: SkillAuditRow[] = index.map((skill) => ({
     name: skill.name,
-    root: path.relative(repoRoot, path.dirname(skill.dir)),
+    root: repoRel(path.dirname(skill.dir)),
     appVisible: true,
     appChapters: (skill.references ?? []).map((file) => path.basename(file)),
   }));
@@ -43,7 +45,7 @@ export function auditSkills(repoRoot: string = PROJECT_ROOT): SkillAudit {
     if (!dir) continue;
     rows.push({
       name,
-      root: path.relative(repoRoot, path.dirname(dir)),
+      root: repoRel(path.dirname(dir)),
       appVisible: false,
       appChapters: [],
     });

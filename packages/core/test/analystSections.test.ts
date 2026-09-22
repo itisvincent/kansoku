@@ -29,6 +29,13 @@ const validPrediction = {
     { label: '震荡', probability: 30 },
     { label: '下破', probability: 20 },
   ],
+  eps_pe_plan: {
+    scenarios: [
+      { kind: 'bear' as const, eps: 4, pe: 20, target: 80 },
+      { kind: 'base' as const, eps: 5, pe: 22, target: 110 },
+      { kind: 'bull' as const, eps: 6, pe: 25, target: 150 },
+    ],
+  },
   comment: '多头结构完好，站上 100 看 104。',
 };
 

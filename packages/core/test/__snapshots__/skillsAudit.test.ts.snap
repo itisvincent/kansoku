@@ -7,6 +7,7 @@ exports[`skills audit > matches the recorded app-visible skill set 1`] = `
   "company-valuation @ .claude/skills",
   "earnings-preview @ .claude/skills",
   "earnings-recap @ .claude/skills",
+  "eps-pe-scenario-stock-analysis @ .claude/skills",
   "estimate-analysis @ .claude/skills",
   "etf-premium @ .claude/skills",
   "fred @ .claude/skills",

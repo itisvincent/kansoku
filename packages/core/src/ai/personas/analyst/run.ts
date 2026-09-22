@@ -36,6 +36,7 @@ import {
   buildAnalystSkillContexts,
   buildTools,
   defaultCreateChart,
+  EPS_PE_SKILL_NAME,
   SKILL_NAME,
   usSessionDate,
   type RunState,
@@ -135,7 +136,24 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
         marketDate: usSessionDate(runStartedAt),
         origin: deps.origin,
         runtimeAdapter: ANALYST_ADAPTER_PROMPT,
-        skills: buildAnalystSkillContexts(skillIndex, skillText, disciplineText),
+        skills: buildAnalystSkillContexts(
+          skillIndex,
+          skillText,
+          disciplineText,
+          (() => {
+            const epsPeText = readSkill(skillIndex, EPS_PE_SKILL_NAME);
+            return epsPeText
+              ? [
+                  {
+                    name: EPS_PE_SKILL_NAME,
+                    content: epsPeText,
+                    fallbackDescription:
+                      "Vincent's Darren-style EPS × PE scenario valuation: bear/base/bull targets, PEG, digestion, add/trim bands.",
+                  },
+                ]
+              : [];
+          })(),
+        ),
         startedAt: new Date(runStartedAt).toISOString(),
         symbol,
       },

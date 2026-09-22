@@ -410,16 +410,22 @@ export function PredictionTab({
         </>
       )}
 
+      <SectionTitle>
+        {i18n('chartEpsPe')}
+        {p?.eps_pe_plan?.anchor_year ? ` · ${p.eps_pe_plan.anchor_year}` : ''}
+      </SectionTitle>
       {(() => {
         const plan = p?.eps_pe_plan;
-        if (!p || !plan?.scenarios?.length) return null;
+        if (!plan?.scenarios?.length) {
+          return (
+            <div className={`note-block ${stylex.props(styles.note).className}`}>
+              {i18n('chartEpsPeEmpty')}
+            </div>
+          );
+        }
         const current = s.last;
         return (
           <>
-            <SectionTitle>
-              {i18n('chartEpsPe')}
-              {plan.anchor_year ? ` · ${plan.anchor_year}` : ''}
-            </SectionTitle>
             {plan.scenarios.map((sc) => {
               const upside =
                 sc.upside_pct != null && Number.isFinite(Number(sc.upside_pct))

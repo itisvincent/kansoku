@@ -4,6 +4,11 @@
 发版 CI（desktop-release.yml）会提取对应版本的段落作为 GitHub Release 的说明，
 段落缺失会直接让发版失败——先写说明，再发版。
 
+## 0.43.14 — 2026-09-22
+
+- 预测面板「震荡应对」下方的 EPS × PE 情景改为始终显示：旧快照没有该字段时给出说明，不再整段隐藏。
+- 分析员强制提交 `eps_pe_plan`（悲观/中性/乐观三档），并激活 Darren 技能。
+
 ## 0.43.13 — 2026-09-22
 
 - 集成 Darren 式 EPS × PE 情景分析法（eps-pe-scenario-stock-analysis 技能已装入应用技能库）。

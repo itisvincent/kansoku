@@ -39,6 +39,7 @@ import { setAnalystSection } from './runState.js';
 import type { AnalystDeps, CreateChart } from './types.js';
 
 export const SKILL_NAME = 'intraday-signal';
+export const EPS_PE_SKILL_NAME = 'eps-pe-scenario-stock-analysis';
 
 export function usSessionDate(epochMs: number): string {
   return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/New_York' }).format(
@@ -93,6 +94,11 @@ export function buildAnalystSkillContexts(
   skillIndex: SkillMeta[],
   skillText: string,
   disciplineText: string,
+  extraActivated: ReadonlyArray<{
+    name: string;
+    content: string;
+    fallbackDescription: string;
+  }> = [],
 ): AnalystSkillContext[] {
   const activated = new Map<string, { content: string; fallbackDescription: string }>([
     [
@@ -110,6 +116,13 @@ export function buildAnalystSkillContexts(
           'Multi-period direction, scenarios, and trade-plan analysis for one symbol across intraday to several trading days.',
       },
     ],
+    ...extraActivated.map(
+      (entry) =>
+        [entry.name, { content: entry.content, fallbackDescription: entry.fallbackDescription }] as [
+          string,
+          { content: string; fallbackDescription: string },
+        ],
+    ),
   ]);
   const skills: AnalystSkillContext[] = skillIndex.map((skill) => ({
     activated: activated.has(skill.name),
@@ -128,7 +141,8 @@ export function buildAnalystSkillContexts(
       name,
     });
   }
-  const priority = (name: string) => (name === DISCIPLINE_SKILL ? 0 : name === SKILL_NAME ? 1 : 2);
+  const priority = (name: string) =>
+    name === DISCIPLINE_SKILL ? 0 : name === SKILL_NAME ? 1 : name === EPS_PE_SKILL_NAME ? 2 : 3;
   return skills.sort((a, b) => priority(a.name) - priority(b.name) || a.name.localeCompare(b.name));
 }
 
@@ -154,13 +168,19 @@ export function buildSubmitPredictionTool(
     name: 'submit_prediction',
     label: 'Submit Prediction',
     description:
-      'Submit the complete conclusion and create the chart. Call exactly once after research is complete. For growth stocks where you sourced consensus forward EPS / PE / PEG (e.g. via the eps-pe-scenario-stock-analysis skill or web research), also include the optional eps_pe_plan with bear/base/bull EPS × PE targets, PEG, blended target, black-swan thesis-break, valuation-digestion rows, and add/trim bands.',
+      'Submit the complete conclusion and create the chart. Call exactly once after research is complete. Always include eps_pe_plan: three bear/base/bull EPS × PE scenarios (eps, pe, target), plus PEG, blended target, black-swan thesis-break, valuation-digestion rows, and add/trim bands, following the eps-pe-scenario-stock-analysis skill.',
     parameters: predictionSchema,
     execute: async (_id, params: PredictionParams) => {
       if (hooks.isDone()) return textResult('skipped', true);
       if (!Check(predictionSchema, params)) {
         return textResult(
           'prediction has an invalid structure. Add direction and scenarios; long and short also require entry_plan. Then retry.',
+        );
+      }
+      const epsKinds = new Set(params.eps_pe_plan?.scenarios?.map((row) => row.kind) ?? []);
+      if (!epsKinds.has('bear') || !epsKinds.has('base') || !epsKinds.has('bull')) {
+        return textResult(
+          'prediction rejected: include eps_pe_plan with exactly three scenarios (kind bear, base, bull), each with eps, pe, and target. Follow the eps-pe-scenario-stock-analysis skill, then call submit_prediction again.',
         );
       }
       if (

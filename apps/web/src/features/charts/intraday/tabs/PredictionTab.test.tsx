@@ -48,6 +48,15 @@ describe('PredictionTab null-prediction branch', () => {
 });
 
 describe('PredictionTab Darren EPS × PE section', () => {
+  it('always shows the EPS × PE heading, with an empty note when the plan is missing', () => {
+    renderTab(<PredictionTab built={nullPredictionBuilt} activeTf="m5" />);
+
+    expect(screen.getByText('EPS × PE 情景（Darren）')).toBeTruthy();
+    expect(
+      screen.getByText(/当前快照还没有 Darren EPS × PE 情景/),
+    ).toBeTruthy();
+  });
+
   it('renders the eps_pe_plan scenario cards below the range plan', () => {
     const built = {
       kind: 'intraday',

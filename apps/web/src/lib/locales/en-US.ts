@@ -650,6 +650,8 @@ const enUS = {
   chartTrigger: ' · Trigger: {trigger}',
   chartRangePlan: 'Range trading plan',
   chartEpsPe: 'EPS × PE scenarios (Darren)',
+  chartEpsPeEmpty:
+    'This snapshot has no Darren EPS × PE plan yet. Run analysis to generate bear / base / bull targets, PEG, and add/trim bands.',
   chartEpsPeBear: 'Bear',
   chartEpsPeBase: 'Base',
   chartEpsPeBull: 'Bull',
