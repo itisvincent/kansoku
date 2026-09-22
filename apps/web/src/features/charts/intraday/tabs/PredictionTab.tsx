@@ -436,7 +436,7 @@ export function PredictionTab({
               return (
                 <div
                   key={sc.kind}
-                  className={`epspe-card ${stylex.props(styles.zoneMeta, styles.zoneMetaMd, styles.zoneMetaAfter).className}`}
+                  className={`epspe-card ${stylex.props(styles.zoneItem).className}`}
                 >
                   <div className={`epspe-head ${stylex.props(styles.verdictLabel).className}`}>
                     {i18n(
@@ -516,31 +516,51 @@ export function PredictionTab({
               </div>
             )}
             {plan.digestion && plan.digestion.length > 0 && (
-              <div className={`grid2 ${stylex.props(styles.grid).className}`}>
+              <div className={`epspe-digest ${stylex.props(styles.zoneItem).className}`}>
                 {plan.digestion.map((row) => (
-                  <span key={row.years}>
-                    {i18n('chartEpsPeDigestion', { years: String(row.years) })}:{' '}
-                    {fmt(Number(row.pe))}x
-                  </span>
+                  <div
+                    key={row.years}
+                    className={stylex.props(styles.zoneHead).className}
+                  >
+                    <span className={stylex.props(styles.gridKey).className}>
+                      {i18n('chartEpsPeDigestion', { years: String(row.years) })}
+                    </span>
+                    <span className={stylex.props(styles.gridValue).className}>
+                      {fmt(Number(row.pe))}x
+                    </span>
+                  </div>
                 ))}
               </div>
             )}
             {plan.bands && plan.bands.length > 0 && (
               <>
                 <SectionTitle>{i18n('chartEpsPeBands')}</SectionTitle>
-                <div className={`grid2 ${stylex.props(styles.grid).className}`}>
-                  {plan.bands.map((band) => (
-                    <span key={`${band.label}-${band.price}`}>
-                      {band.label} ${fmt(Number(band.price))}
-                      {band.note ? ` · ${band.note}` : ''}
-                    </span>
-                  ))}
-                </div>
+                {plan.bands.map((band) => (
+                  <div
+                    key={`${band.label}-${band.price}`}
+                    className={`epspe-band ${stylex.props(styles.zoneItem).className}`}
+                  >
+                    <div className={stylex.props(styles.zoneHead).className}>
+                      <span className={stylex.props(styles.zoneLabelPlain).className}>
+                        {band.label}
+                      </span>
+                      <span className={stylex.props(styles.zoneRange).className}>
+                        ${fmt(Number(band.price))}
+                      </span>
+                    </div>
+                    {band.note && (
+                      <div className={stylex.props(styles.zoneMeta).className}>{band.note}</div>
+                    )}
+                  </div>
+                ))}
               </>
             )}
             {plan.sources && plan.sources.length > 0 && (
               <div className={`note-block ${stylex.props(styles.note).className}`}>
-                {i18n('chartEpsPeSources')}: {plan.sources.join(' · ')}
+                <div>{i18n('chartEpsPeSources')}</div>
+                {plan.sources.map((source) => (
+                  <div key={source}>{source}</div>
+                ))}
               </div>
             )}
           </>
