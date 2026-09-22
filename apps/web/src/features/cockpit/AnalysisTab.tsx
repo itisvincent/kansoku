@@ -1,4 +1,4 @@
-import { useId, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import { useIntradayControls } from '../charts/intraday/controlsContext';
 import { tfLabel } from '../charts/intraday/timeframes';
@@ -8,6 +8,13 @@ import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
 import { GenerateAnalysis } from './GenerateAnalysis';
 
 export type AnalysisSection = 'prediction' | 'commentary' | 'review';
+
+export const ANCHOR_CHOICE_KEY = 'cockpit-anchor-choice';
+
+export function resolveAnchorChoice(choice: string, viewedTf: string | undefined): string | undefined {
+  if (choice !== 'auto') return choice;
+  return viewedTf;
+}
 
 const sections: { key: AnalysisSection; label: MessageKey }[] = [
   { key: 'prediction', label: 'cockpitPrediction' },
@@ -61,6 +68,20 @@ const styles = stylex.create({
     backgroundColor: colors.backgroundHover,
     borderColor: colors.accent,
   },
+  runRow: {
+    alignItems: 'center',
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '10px',
+  },
+  anchorPicker: {
+    'alignItems': 'center',
+    'color': colors.textSecondary,
+    'display': 'inline-flex',
+    'fontSize': fontSizes.control,
+    'gap': '6px',
+    ':hover': { color: colors.textPrimary },
+  },
 });
 
 export function AnalysisTab({
@@ -85,6 +106,9 @@ export function AnalysisTab({
   const { t, locale } = useLocale();
   const { analysisTfs } = useIntradayControls();
   const id = useId();
+  const [anchorChoice, setAnchorChoice] = useState(
+    () => localStorage.getItem(ANCHOR_CHOICE_KEY) ?? 'auto',
+  );
   const content = { prediction, commentary, review };
 
   return (
@@ -96,7 +120,35 @@ export function AnalysisTab({
           })}
         </p>
         <p {...stylex.props(styles.help)}>{t('cockpitAnalysisHelp')}</p>
-        <GenerateAnalysis sym={sym} label="cockpitRunAnalysis" anchorTf={anchorTf} />
+        <div
+          className={`analysis-run-row ${stylex.props(styles.runRow).className}`}
+        >
+          <label
+            className={`analysis-anchor-picker ${stylex.props(styles.anchorPicker).className}`}
+            title={t('cockpitAnchorPickerHint')}
+          >
+            {t('cockpitAnchorPicker')}
+            <select
+              value={anchorChoice}
+              onChange={(event) => {
+                setAnchorChoice(event.target.value);
+                localStorage.setItem(ANCHOR_CHOICE_KEY, event.target.value);
+              }}
+            >
+              <option value="auto">{t('cockpitAnchorAuto')}</option>
+              {analysisTfs.map((tf) => (
+                <option key={tf} value={tf}>
+                  {tfLabel(tf, locale)}
+                </option>
+              ))}
+            </select>
+          </label>
+          <GenerateAnalysis
+            sym={sym}
+            label="cockpitRunAnalysis"
+            anchorTf={resolveAnchorChoice(anchorChoice, anchorTf)}
+          />
+        </div>
       </div>
       <div role="tablist" aria-label={t('cockpitAnalysisSections')} {...stylex.props(styles.tabs)}>
         {sections.map((item, index) => (

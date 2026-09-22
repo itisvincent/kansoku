@@ -772,6 +772,9 @@ const enUS = {
   cockpitCommentary: 'Commentary',
   cockpitAnalysisSections: 'Analysis sections',
   cockpitAnalysisPeriods: 'Analysis periods: {periods}',
+  cockpitAnchorPicker: 'Anchor',
+  cockpitAnchorPickerHint: 'Which timeframe the prediction anchor uses: follow the chart tab you are viewing, or pin one',
+  cockpitAnchorAuto: 'Follow chart',
   cockpitAnalysisHelp:
     'One run updates the prediction, adds commentary, and saves a journal entry. Past reports stay unchanged.',
   cockpitCommentaryOnlyHelp:

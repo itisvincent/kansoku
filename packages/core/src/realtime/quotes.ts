@@ -100,6 +100,7 @@ async function refreshBaseSymbols(): Promise<void> {
 }
 
 const listeners = new Set<(env: string) => void>();
+const updateListeners = new Set<(cell: QuoteCell) => void>();
 const dedup = new Set<string>();
 let coalesceTimer: ReturnType<typeof setTimeout> | null = null;
 let listenerHandles: Array<() => void> | null = null;
@@ -150,8 +151,24 @@ function scheduleFlush(symbol: string): void {
 function ensureListener(): void {
   if (listenerHandles) return;
   listenerHandles = distinctStreams().map((stream) =>
-    stream.onUpdate((cell) => scheduleFlush(cell.symbol)),
+    stream.onUpdate((cell) => {
+      scheduleFlush(cell.symbol);
+      for (const listener of updateListeners) {
+        try {
+          listener(cell);
+        } catch {
+          continue;
+        }
+      }
+    }),
   );
+}
+
+export function onAnyQuoteUpdate(listener: (cell: QuoteCell) => void): () => void {
+  updateListeners.add(listener);
+  return () => {
+    updateListeners.delete(listener);
+  };
 }
 
 async function ensureBase(): Promise<void> {

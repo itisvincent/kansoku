@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron';
 import { handleConnection } from '@kansoku/core/realtime/channelProtocol';
+import { initPredictionAlerts } from '@kansoku/core/ai/personas/predictionAlerts';
 import type { Connection } from '@kansoku/core/realtime/connection';
 
 const HANDSHAKE_CHANNEL = 'desktop-rt-connect';
@@ -30,6 +31,7 @@ export function wrapMessagePort(port: PortLike): Connection {
 }
 
 export function attachRealtimeBridge(): void {
+  initPredictionAlerts();
   ipcMain.on(HANDSHAKE_CHANNEL, (event) => {
     const port = event.ports[0] as unknown as PortLike | undefined;
     if (!port) return;
