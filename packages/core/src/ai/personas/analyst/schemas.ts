@@ -50,12 +50,71 @@ export const rangePlanSchema = Type.Object({
   high: Type.Optional(Type.Number({ description: 'Upper bound of the range; required for neutral.' })),
 });
 
+const epsPeScenarioSchema = Type.Object({
+  kind: Type.Union([
+    Type.Literal('bear'),
+    Type.Literal('base'),
+    Type.Literal('bull'),
+  ]),
+  eps: Type.Number({ description: 'Forward EPS for this scenario' }),
+  pe: Type.Number({ description: 'Chosen forward PE for this scenario' }),
+  target: Type.Number({ description: 'Target price = EPS × PE' }),
+  peg: Type.Optional(Type.Number({ description: 'Scenario PE / forward EPS CAGR %' })),
+  upside_pct: Type.Optional(
+    Type.Number({ description: 'Target price / current price - 1, in percent' }),
+  ),
+  rationale: Type.Optional(Type.String({ description: 'What must happen for this scenario' })),
+});
+
+export const epsPePlanSchema = Type.Object({
+  anchor_year: Type.Optional(
+    Type.String({ description: 'The fiscal year the market is actually pricing, e.g. FY2028' }),
+  ),
+  eps_growth_note: Type.Optional(Type.String()),
+  scenarios: Type.Array(epsPeScenarioSchema, { minItems: 3, maxItems: 3 }),
+  blended_target: Type.Optional(
+    Type.Number({ description: '25/50/25 probability-weighted blended target' }),
+  ),
+  wall_street_target: Type.Optional(Type.Number()),
+  black_swan: Type.Optional(
+    Type.Object({
+      eps: Type.Number(),
+      pe: Type.Number(),
+      target: Type.Number(),
+      triggers: Type.Optional(Type.String()),
+    }),
+  ),
+  digestion: Type.Optional(
+    Type.Array(
+      Type.Object({
+        years: Type.Number(),
+        eps: Type.Number(),
+        pe: Type.Number({ description: 'Forward PE at flat price' }),
+      }),
+      { description: 'Valuation-digestion test rows' },
+    ),
+  ),
+  bands: Type.Optional(
+    Type.Array(
+      Type.Object({
+        label: Type.String({ description: 'Starter buy / Add / Trim / Thesis stop' }),
+        price: Type.Number(),
+        note: Type.Optional(Type.String()),
+      }),
+    ),
+  ),
+  sources: Type.Optional(
+    Type.Array(Type.String(), { description: 'Where consensus EPS/PE numbers came from' }),
+  ),
+});
+
 export const predictionSchema = Type.Object({
   direction: Type.Union([Type.Literal('long'), Type.Literal('short'), Type.Literal('neutral')]),
   anchor: anchorSchema,
   entry_plan: Type.Optional(entryPlanSchema),
   scenarios: Type.Array(scenarioSchema, { minItems: 2, maxItems: 4 }),
   range_plan: Type.Optional(rangePlanSchema),
+  eps_pe_plan: Type.Optional(epsPePlanSchema),
   comment: Type.String({ description: 'A one-sentence plain-language conclusion to store as a comment.' }),
 });
 

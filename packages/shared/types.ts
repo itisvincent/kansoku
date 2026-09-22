@@ -531,10 +531,40 @@ export interface RangeBoundPlan {
   high?: number;
 }
 
+export interface EpsPeScenario {
+  kind: 'bear' | 'base' | 'bull';
+  eps: number;
+  pe: number;
+  target: number;
+  peg?: number;
+  upside_pct?: number;
+  rationale?: string;
+}
+
+export interface EpsPeBand {
+  label: string;
+  price: number;
+  note?: string;
+}
+
+export interface EpsPePlan {
+  anchor_year?: string;
+  eps_growth_note?: string;
+  scenarios: EpsPeScenario[];
+  blended_target?: number;
+  wall_street_target?: number;
+  black_swan?: { eps: number; pe: number; target: number; triggers?: string };
+  digestion?: { years: number; eps: number; pe: number }[];
+  bands?: EpsPeBand[];
+  sources?: string[];
+}
+
 export interface IntradayPrediction {
   direction: 'long' | 'short' | 'neutral';
   /** Analysis windows this prediction was generated from (set by the analyst run). */
   analysis_timeframes?: string[];
+  /** Darren-style EPS × PE scenario plan (bear/base/bull targets, PEG, bands). */
+  eps_pe_plan?: EpsPePlan;
   anchor?: { timeframe: TimeframeKey; time: string; price: number };
   scenarios?: PredictionScenario[];
   range_bound_plan?: RangeBoundPlan;

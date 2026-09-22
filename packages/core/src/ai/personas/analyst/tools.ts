@@ -154,7 +154,7 @@ export function buildSubmitPredictionTool(
     name: 'submit_prediction',
     label: 'Submit Prediction',
     description:
-      'Submit the complete conclusion and create the chart. Call exactly once after research is complete.',
+      'Submit the complete conclusion and create the chart. Call exactly once after research is complete. For growth stocks where you sourced consensus forward EPS / PE / PEG (e.g. via the eps-pe-scenario-stock-analysis skill or web research), also include the optional eps_pe_plan with bear/base/bull EPS × PE targets, PEG, blended target, black-swan thesis-break, valuation-digestion rows, and add/trim bands.',
     parameters: predictionSchema,
     execute: async (_id, params: PredictionParams) => {
       if (hooks.isDone()) return textResult('skipped', true);

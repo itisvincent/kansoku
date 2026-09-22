@@ -410,6 +410,137 @@ export function PredictionTab({
         </>
       )}
 
+      {(() => {
+        const plan = p?.eps_pe_plan;
+        if (!p || !plan?.scenarios?.length) return null;
+        const current = s.last;
+        return (
+          <>
+            <SectionTitle>
+              {i18n('chartEpsPe')}
+              {plan.anchor_year ? ` · ${plan.anchor_year}` : ''}
+            </SectionTitle>
+            {plan.scenarios.map((sc) => {
+              const upside =
+                sc.upside_pct != null && Number.isFinite(Number(sc.upside_pct))
+                  ? Number(sc.upside_pct)
+                  : current != null && Number(sc.target) > 0
+                    ? (Number(sc.target) / Number(current) - 1) * 100
+                    : null;
+              return (
+                <div
+                  key={sc.kind}
+                  className={`epspe-card ${stylex.props(styles.zoneMeta, styles.zoneMetaMd, styles.zoneMetaAfter).className}`}
+                >
+                  <div className={`epspe-head ${stylex.props(styles.verdictLabel).className}`}>
+                    {i18n(
+                      sc.kind === 'bull'
+                        ? 'chartEpsPeBull'
+                        : sc.kind === 'bear'
+                          ? 'chartEpsPeBear'
+                          : 'chartEpsPeBase',
+                    )}
+                  </div>
+                  <div className={`epspe-target ${stylex.props(styles.zoneRangeAccent).className}`}>
+                    ${fmt(Number(sc.target))}
+                    {upside != null && (
+                      <span
+                        className={stylex.props(upside >= 0 ? styles.toneUp : styles.toneDown).className}
+                      >
+                        {' '}
+                        {upside >= 0 ? '+' : ''}
+                        {upside.toFixed(1)}%
+                      </span>
+                    )}
+                  </div>
+                  <div className={`grid2 ${stylex.props(styles.grid).className}`}>
+                    <div className={`k ${stylex.props(styles.gridKey).className}`}>EPS</div>
+                    <div className={`v ${stylex.props(styles.gridValue).className}`}>
+                      ${fmt(Number(sc.eps))}
+                    </div>
+                    <div className={`k ${stylex.props(styles.gridKey).className}`}>PE</div>
+                    <div className={`v ${stylex.props(styles.gridValue).className}`}>
+                      {fmt(Number(sc.pe))}x
+                    </div>
+                    {sc.peg != null && (
+                      <>
+                        <div className={`k ${stylex.props(styles.gridKey).className}`}>PEG</div>
+                        <div className={`v ${stylex.props(styles.gridValue).className}`}>
+                          {fmt(Number(sc.peg))}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  {sc.rationale && (
+                    <div className={stylex.props(styles.zoneMeta).className}>{sc.rationale}</div>
+                  )}
+                </div>
+              );
+            })}
+            {(plan.blended_target != null || plan.wall_street_target != null) && (
+              <div className={`grid2 ${stylex.props(styles.grid).className}`}>
+                {plan.blended_target != null && (
+                  <>
+                    <div className={`k ${stylex.props(styles.gridKey).className}`}>
+                      {i18n('chartEpsPeBlended')}
+                    </div>
+                    <div className={`v ${stylex.props(styles.gridValue).className}`}>
+                      ${fmt(Number(plan.blended_target))}
+                    </div>
+                  </>
+                )}
+                {plan.wall_street_target != null && (
+                  <>
+                    <div className={`k ${stylex.props(styles.gridKey).className}`}>
+                      {i18n('chartEpsPeWallStreet')}
+                    </div>
+                    <div className={`v ${stylex.props(styles.gridValue).className}`}>
+                      ${fmt(Number(plan.wall_street_target))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {plan.black_swan && (
+              <div
+                className={`note-block ${stylex.props(styles.note).className} ${stylex.props(styles.toneDown).className}`}
+              >
+                {i18n('chartEpsPeBlackSwan')} ${fmt(Number(plan.black_swan.target))}
+                {plan.black_swan.triggers ? ` · ${plan.black_swan.triggers}` : ''}
+              </div>
+            )}
+            {plan.digestion && plan.digestion.length > 0 && (
+              <div className={`grid2 ${stylex.props(styles.grid).className}`}>
+                {plan.digestion.map((row) => (
+                  <span key={row.years}>
+                    {i18n('chartEpsPeDigestion', { years: String(row.years) })}:{' '}
+                    {fmt(Number(row.pe))}x
+                  </span>
+                ))}
+              </div>
+            )}
+            {plan.bands && plan.bands.length > 0 && (
+              <>
+                <SectionTitle>{i18n('chartEpsPeBands')}</SectionTitle>
+                <div className={`grid2 ${stylex.props(styles.grid).className}`}>
+                  {plan.bands.map((band) => (
+                    <span key={`${band.label}-${band.price}`}>
+                      {band.label} ${fmt(Number(band.price))}
+                      {band.note ? ` · ${band.note}` : ''}
+                    </span>
+                  ))}
+                </div>
+              </>
+            )}
+            {plan.sources && plan.sources.length > 0 && (
+              <div className={`note-block ${stylex.props(styles.note).className}`}>
+                {i18n('chartEpsPeSources')}: {plan.sources.join(' · ')}
+              </div>
+            )}
+          </>
+        );
+      })()}
+
       {p && ep && (
         <>
           <SectionTitle>{i18n('chartEntryPlan')}</SectionTitle>
