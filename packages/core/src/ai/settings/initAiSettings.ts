@@ -249,9 +249,11 @@ export function initAiSettings(
     void models
       .refresh({ force: true })
       .then((result) => {
-        const error = result.errors.get(LOBEHUB_PROVIDER);
-        if (error) {
-          console.warn(`initAiSettings: failed to load LobeHub Cloud models: ${String(error)}`);
+        for (const provider of [LOBEHUB_PROVIDER, 'xai']) {
+          const error = result.errors.get(provider);
+          if (error) {
+            console.warn(`initAiSettings: failed to load ${provider} models: ${String(error)}`);
+          }
         }
       })
       .catch((error: unknown) => {

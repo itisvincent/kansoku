@@ -9,6 +9,7 @@ import { getEnvApiKey } from '@earendil-works/pi-ai/compat';
 import { builtinModels } from '@earendil-works/pi-ai/providers/all';
 import { createCodexModelCatalog } from '../settings/codexModelCatalog.js';
 import { createOllamaCloudProvider, OLLAMA_CLOUD_PROVIDER } from './ollamaCloud.js';
+import { installXaiLiveCatalog } from './xaiModelCatalog.js';
 
 const CODEX_PROVIDER = 'openai-codex';
 
@@ -78,6 +79,7 @@ export function initModelsRuntime(credentials: CredentialStore): MutableModels {
   }
   const models = builtinModels({ credentials, authContext: isolatedAuthContext });
   installCodexProviderOverrides(models);
+  installXaiLiveCatalog(models);
   models.setProvider(createOllamaCloudProvider());
   singleton = models;
   return singleton;
