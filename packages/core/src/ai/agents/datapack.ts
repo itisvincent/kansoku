@@ -141,6 +141,19 @@ export interface ReassessPack {
   position: CockpitPosition | null;
 }
 
+export async function loadSavedEpsPePlan(
+  symbol: string,
+  deps: Pick<DatapackDeps, 'listCharts' | 'loadChart'> = defaultDatapackDeps,
+): Promise<IntradayPrediction['eps_pe_plan'] | null> {
+  const metas = await deps.listCharts({ symbol, type: 'intraday', limit: 20 });
+  for (const meta of metas) {
+    const doc = await deps.loadChart(meta.id);
+    const plan = (doc?.input.prediction as IntradayPrediction | undefined)?.eps_pe_plan;
+    if (plan?.scenarios && plan.scenarios.length >= 3) return plan;
+  }
+  return null;
+}
+
 export async function findTodayLatestIntradayDoc(
   symbol: string,
   deps: Pick<DatapackDeps, 'listCharts' | 'loadChart' | 'now'>,

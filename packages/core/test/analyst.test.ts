@@ -71,6 +71,7 @@ function harness(
     onAbort?: () => void;
     skillText?: string | null;
     disciplineText?: string | null;
+    loadSavedEpsPePlan?: AnalystDeps['loadSavedEpsPePlan'];
   } = {},
 ): Harness {
   const comments: CockpitComment[] = [];
@@ -139,6 +140,7 @@ function harness(
         ? {}
         : { disciplineText: opts.disciplineText }
       : { disciplineText: FAKE_DISCIPLINE }),
+    ...(opts.loadSavedEpsPePlan ? { loadSavedEpsPePlan: opts.loadSavedEpsPePlan } : {}),
   };
 
   return {
@@ -265,6 +267,48 @@ describe('analyst tools', () => {
     expect(analyst[0].level).toBe('warn');
     expect(analyst[0].text).toBe('量能背离');
     expect(analyst[0].chartId).toBe('old-chart');
+  });
+
+  it('submit_prediction keeps a saved EPS × PE multiple ladder', async () => {
+    const { deps, createCalls } = harness(
+      async (tools) => {
+        await tool(tools, 'submit_section').execute('c0', {
+          kind: 'technical',
+          trends: [
+            { timeframe: 'm5', trend: 'up' },
+            { timeframe: 'm15', trend: 'up' },
+            { timeframe: 'h1', trend: 'up' },
+          ],
+          levels: [{ price: 100, label: 'support' }],
+          summary: 'All periods rise.',
+        });
+        await tool(tools, 'submit_prediction').execute('c1', {
+          ...validPrediction,
+          eps_pe_plan: {
+            scenarios: [
+              { kind: 'bear', eps: 19.4, pe: 17, target: 329.8 },
+              { kind: 'base', eps: 19.6, pe: 22, target: 431.2 },
+              { kind: 'bull', eps: 19.9, pe: 26, target: 517.4 },
+            ],
+          },
+        });
+      },
+      {
+        loadSavedEpsPePlan: async () => ({
+          scenarios: [
+            { kind: 'bear', eps: 19.53, pe: 16, target: 312.48 },
+            { kind: 'base', eps: 19.77, pe: 26, target: 514.02 },
+            { kind: 'bull', eps: 20.02, pe: 30, target: 600.6 },
+          ],
+        }),
+      },
+    );
+    await executeAnalystRun('MU.US', deps);
+    const saved = createCalls[0]?.prediction as {
+      eps_pe_plan?: { scenarios: { pe: number; target: number }[] };
+    };
+    expect(saved.eps_pe_plan?.scenarios.map((row) => row.pe)).toEqual([16, 26, 30]);
+    expect(saved.eps_pe_plan?.scenarios.map((row) => row.target)).toEqual([312.48, 514.02, 600.6]);
   });
 
   it('submit_prediction rejects a plan that omits the Darren EPS × PE section', async () => {

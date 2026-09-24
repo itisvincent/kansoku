@@ -35,6 +35,7 @@ import {
   type PredictionParams,
   type SubmitSectionParams,
 } from './schemas.js';
+import { applySavedEpsPeFrame } from '../epsPeFrame.js';
 import { setAnalystSection } from './runState.js';
 import type { AnalystDeps, CreateChart } from './types.js';
 
@@ -158,6 +159,8 @@ export interface SubmitPredictionHooks {
   getTechnicalTrends?: () => string[];
   reportProgress?: (phase: ReassessPhase, activity: string) => void;
   onSubmitted?: (chartId: string, params: PredictionParams) => void;
+  /** Last accepted EPS × PE frame. Absent on the first run. */
+  loadSavedEpsPePlan?: () => Promise<IntradayPrediction['eps_pe_plan']>;
 }
 
 export function buildSubmitPredictionTool(
@@ -207,7 +210,13 @@ export function buildSubmitPredictionTool(
           );
         }
       }
-      const { comment, ...prediction } = params;
+      const savedPlan = await hooks.loadSavedEpsPePlan?.().catch(() => undefined);
+      const locked = params.eps_pe_plan
+        ? applySavedEpsPeFrame(savedPlan, params.eps_pe_plan)
+        : null;
+      const submitted = locked?.plan ? { ...params, eps_pe_plan: locked.plan } : params;
+      const comment = locked?.note ? `${submitted.comment}\n${locked.note}` : submitted.comment;
+      const { comment: _comment, ...prediction } = submitted;
       if (hooks.allowedTimeframes?.length) {
         (prediction as IntradayPrediction).analysis_timeframes = [...hooks.allowedTimeframes];
       }
@@ -306,6 +315,7 @@ export async function buildTools(
     skillIndex: SkillMeta[];
     analysisTimeframes?: readonly string[];
     anchorTimeframe?: string;
+    loadSavedEpsPePlan?: AnalystDeps['loadSavedEpsPePlan'];
   },
   state: RunState,
   isDone: () => boolean,
@@ -363,6 +373,7 @@ export async function buildTools(
     requiredTimeframes: deps.analysisTimeframes,
     getTechnicalTrends: () => [...coveredTrends],
     reportProgress,
+    loadSavedEpsPePlan: deps.loadSavedEpsPePlan,
     onSubmitted: (chartId) => {
       state.chartId = chartId;
       state.submitted = true;

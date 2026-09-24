@@ -1,4 +1,9 @@
-import { type CockpitComment, type NewsItem, type RawBar } from '@kansoku/shared/types';
+import {
+  type CockpitComment,
+  type EpsPePlan,
+  type NewsItem,
+  type RawBar,
+} from '@kansoku/shared/types';
 import type { ReassessStatus } from '../../../contract/symbols.js';
 import type { AiAgentFactory } from '../../agents/agentSession.js';
 import type { ExecFn } from '../../agents/agentTools/execTool.js';
@@ -26,6 +31,8 @@ export interface AnalystDeps {
   exec?: ExecFn;
   skillText?: string;
   disciplineText?: string;
+  /** When set, a later run keeps this symbol's saved EPS × PE multiples. */
+  loadSavedEpsPePlan?: () => Promise<EpsPePlan | null>;
 }
 
 export interface RunAnalystInput {

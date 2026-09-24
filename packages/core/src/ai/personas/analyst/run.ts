@@ -18,6 +18,7 @@ import { appendComment as defaultAppendComment } from '../comments.js';
 import {
   buildReassessPack as defaultBuildReassessPack,
   defaultDatapackDeps,
+  loadSavedEpsPePlan,
 } from '../../agents/datapack.js';
 import { sanitizeReassessTimeframes, type ReassessTf } from '../../agents/analysisTimeframes.js';
 import { aiConfig } from '../../runtime/models.js';
@@ -124,6 +125,7 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
         skillIndex,
         analysisTimeframes: dataPack.analysis_timeframes,
         anchorTimeframe: deps.anchorTimeframe,
+        loadSavedEpsPePlan: deps.loadSavedEpsPePlan,
       },
       state,
       () => session?.isDone() ?? false,
@@ -266,6 +268,7 @@ export async function reassessSymbol(
       model,
       anchorTimeframe: anchor,
       buildReassessPack: (sym) => defaultBuildReassessPack(sym, defaultDatapackDeps, analysisTfs),
+      loadSavedEpsPePlan: () => loadSavedEpsPePlan(symbol),
     },
   });
   if (result.started) {
