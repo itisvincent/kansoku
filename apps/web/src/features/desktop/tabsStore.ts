@@ -120,6 +120,18 @@ export function activateTab(snapshot: TabsSnapshot, id: string): TabsSnapshot {
   return { ...snapshot, activeTabId: id };
 }
 
+export function moveTab(snapshot: TabsSnapshot, id: string, toIndex: number): TabsSnapshot {
+  const from = snapshot.tabs.findIndex((tab) => tab.id === id);
+  if (from === -1 || from === 0) return snapshot; // index 0 is the pinned home tab
+  // Slot 0 belongs to the pinned home tab, so any reorder stays within 1..len-1.
+  const target = Math.min(Math.max(toIndex, 1), snapshot.tabs.length - 1);
+  if (target === from) return snapshot;
+  const tabs = [...snapshot.tabs];
+  const [moved] = tabs.splice(from, 1);
+  tabs.splice(target, 0, moved as TabState);
+  return { tabs, activeTabId: snapshot.activeTabId };
+}
+
 export function closeTab(snapshot: TabsSnapshot, id: string): TabsSnapshot {
   if (isPinnedTab(snapshot, id)) return snapshot;
   const idx = snapshot.tabs.findIndex((tab) => tab.id === id);

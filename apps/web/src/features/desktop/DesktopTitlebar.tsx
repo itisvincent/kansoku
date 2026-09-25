@@ -111,6 +111,10 @@ const styles = stylex.create({
     fontWeight: 600,
   },
   tabPinned: { gap: 0, justifyContent: 'center', maxWidth: '30px', padding: 0, width: '30px' },
+  tabDragging: { opacity: 0.45 },
+  tabDropTarget: {
+    boxShadow: `inset 0 0 0 1.5px ${colors.accent}`,
+  },
   tabAnchor: { alignItems: 'center', flex: '0 0 auto' },
   tabIconWrap: {
     alignItems: 'center',
@@ -360,6 +364,7 @@ function Tab({
   onActivate,
   onClose,
   onContextMenu,
+  onDropOnTab,
 }: {
   tab: TabState;
   active: boolean;
@@ -367,16 +372,43 @@ function Tab({
   onActivate: () => void;
   onClose: () => void;
   onContextMenu: () => void;
+  onDropOnTab: (event: React.DragEvent<HTMLButtonElement>) => void;
 }) {
   const { t } = useLocale();
+  const [dragging, setDragging] = useState(false);
+  const [dropTarget, setDropTarget] = useState(false);
   const button = (
     <button
       type="button"
+      draggable={!pinned}
+      onDragStart={(event) => {
+        event.dataTransfer.effectAllowed = 'move';
+        event.dataTransfer.setData('text/plain', tab.id);
+        setDragging(true);
+      }}
+      onDragOver={(event) => {
+        if (!event.dataTransfer.types.includes('text/plain')) return;
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'move';
+        setDropTarget(true);
+      }}
+      onDragLeave={() => setDropTarget(false)}
+      onDrop={(event) => {
+        event.preventDefault();
+        setDropTarget(false);
+        onDropOnTab(event);
+      }}
+      onDragEnd={() => {
+        setDragging(false);
+        setDropTarget(false);
+      }}
       className={classNames(
         `desktop-tab${active ? ' desktop-tab--active' : ''}${pinned ? ' desktop-tab--pinned' : ''}`,
         styles.tab,
         active ? styles.tabActive : undefined,
         pinned ? styles.tabPinned : undefined,
+        dragging ? styles.tabDragging : undefined,
+        dropTarget ? styles.tabDropTarget : undefined,
       )}
       aria-label={pinned ? t('dashboard') : undefined}
       onClick={onActivate}
@@ -448,6 +480,7 @@ export function DesktopTitlebar({ controller }: { controller: TabsController }) 
   const {
     snapshot,
     activateTab,
+    moveTab,
     closeTabById,
     closeOtherTabs,
     closeTabsToRight,
@@ -558,6 +591,10 @@ export function DesktopTitlebar({ controller }: { controller: TabsController }) 
             onActivate={() => activateTab(tab.id)}
             onClose={() => closeTabById(tab.id)}
             onContextMenu={() => openTabMenu(tab, index)}
+            onDropOnTab={(event) => {
+              const draggedId = event.dataTransfer.getData('text/plain');
+              if (draggedId && draggedId !== tab.id) moveTab(draggedId, index);
+            }}
           />
         ))}
         <NewTabLauncher

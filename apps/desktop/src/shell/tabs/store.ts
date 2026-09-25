@@ -22,6 +22,7 @@ export type MutateOp =
   | { op: 'close'; id: string }
   | { op: 'closeOthers'; id: string }
   | { op: 'closeToRight'; id: string }
+  | { op: 'move'; id: string; toIndex: number }
   | { op: 'updateRoute'; id: string; route: string }
   | { op: 'updateTitle'; id: string; title: string }
   | { op: 'updateScroll'; id: string; scrollY: number }
@@ -105,6 +106,17 @@ export function updateTabScroll(state: TabsState, id: string, scrollY: number): 
   return patchTab(state, id, { scrollY });
 }
 
+export function moveTab(state: TabsState, id: string, toIndex: number): TabsState {
+  const from = state.tabs.findIndex((tab) => tab.id === id);
+  if (from === -1 || from === 0) return state; // slot 0 is the pinned home tab
+  const target = Math.min(Math.max(Math.trunc(toIndex), 1), state.tabs.length - 1);
+  if (target === from) return state;
+  const tabs = [...state.tabs];
+  const [moved] = tabs.splice(from, 1);
+  tabs.splice(target, 0, moved as TabState);
+  return withTabs(state, tabs);
+}
+
 function isValidTab(value: unknown): value is TabState {
   if (!value || typeof value !== 'object') return false;
   const tab = value as Record<string, unknown>;
@@ -158,6 +170,9 @@ export function applyMutation(state: TabsState, mutation: MutateOp): TabsState {
     }
     case 'closeToRight': {
       return closeTabsToRight(state, mutation.id);
+    }
+    case 'move': {
+      return moveTab(state, mutation.id, mutation.toIndex);
     }
     case 'updateRoute': {
       return updateTabRoute(state, mutation.id, mutation.route);

@@ -28,6 +28,7 @@ export type TabsMutateOp =
   | { op: 'close'; id: string }
   | { op: 'closeOthers'; id: string }
   | { op: 'closeToRight'; id: string }
+  | { op: 'move'; id: string; toIndex: number }
   | { op: 'updateRoute'; id: string; route: string }
   | { op: 'updateTitle'; id: string; title: string }
   | { op: 'updateScroll'; id: string; scrollY: number }

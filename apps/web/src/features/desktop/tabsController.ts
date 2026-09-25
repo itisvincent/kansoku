@@ -34,6 +34,7 @@ export interface TabsController {
   activeRouter: DataRouter;
   newTabLauncherOpen: boolean;
   activateTab(id: string): void;
+  moveTab(id: string, toIndex: number): void;
   closeTabById(id: string): void;
   closeOtherTabs(id: string): void;
   closeTabsToRight(id: string): void;
@@ -294,6 +295,17 @@ export function useTabsController(): TabsController {
     [bridge, captureScroll],
   );
 
+  const moveTabById = useCallback(
+    (id: string, toIndex: number) => {
+      if (!bridge) {
+        setSnapshot((prev) => tabsStore.moveTab(prev, id, toIndex));
+        return;
+      }
+      void bridge.mutate({ op: 'move', id, toIndex }).then(applySnapshot);
+    },
+    [bridge, applySnapshot],
+  );
+
   const closeTabById = useCallback(
     (id: string) => {
       if (!bridge) {
@@ -541,6 +553,7 @@ export function useTabsController(): TabsController {
     activeRouter,
     newTabLauncherOpen,
     activateTab,
+    moveTab: moveTabById,
     closeTabById,
     closeOtherTabs,
     closeTabsToRight,

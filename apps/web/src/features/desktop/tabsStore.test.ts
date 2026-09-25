@@ -7,6 +7,7 @@ import {
   focusOrOpenRoute,
   focusOrOpenRoutePrefix,
   loadTabsSnapshot,
+  moveTab,
   nextTab,
   openTab,
   prevTab,
@@ -258,5 +259,41 @@ describe('loadTabsSnapshot / saveTabsSnapshot', () => {
     const snapshot = loadTabsSnapshot(storage);
     expect(snapshot.tabs.map((t) => t.route)).toEqual(['/', '/symbol/NVDA', '/settings']);
     expect(snapshot.activeTabId).toBe(snapshot.tabs[1].id);
+  });
+});
+
+describe('moveTab', () => {
+  it('moves a tab to the requested index and keeps the active tab', () => {
+    const snap = snapshotOf(['/', '/research', '/chat', '/settings'], 2);
+    const next = moveTab(snap, 't3', 1);
+    expect(next.tabs.map((tab) => tab.route)).toEqual(['/', '/settings', '/research', '/chat']);
+    expect(next.activeTabId).toBe('t2');
+  });
+
+  it('never displaces the pinned home tab', () => {
+    const snap = snapshotOf(['/', '/research', '/chat'], 2);
+    // toIndex 0 clamps to slot 1: the pinned home keeps its slot.
+    expect(moveTab(snap, 't2', 0).tabs.map((tab) => tab.route)).toEqual([
+      '/',
+      '/chat',
+      '/research',
+    ]);
+    expect(moveTab(snap, 't1', 0).tabs.map((tab) => tab.route)).toEqual([
+      '/',
+      '/research',
+      '/chat',
+    ]);
+    expect(moveTab(snap, 't0', 1)).toBe(snap);
+  });
+
+  it('clamps out-of-range indexes and ignores a no-op move', () => {
+    const snap = snapshotOf(['/', '/research', '/chat'], 1);
+    expect(moveTab(snap, 't1', 99).tabs.map((tab) => tab.route)).toEqual([
+      '/',
+      '/chat',
+      '/research',
+    ]);
+    expect(moveTab(snap, 't1', 1)).toBe(snap);
+    expect(moveTab(snap, 'missing', 1)).toBe(snap);
   });
 });

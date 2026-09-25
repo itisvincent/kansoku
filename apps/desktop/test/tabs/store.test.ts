@@ -10,6 +10,7 @@ import {
   createTabsFileStore,
   cycleTabId,
   emptyTabsState,
+  moveTab,
   openTab,
   adoptTabs,
   resolveCloseTabAction,
@@ -383,5 +384,25 @@ describe('createTabsFileStore', () => {
 
     const reloaded = await createTabsFileStore(path).load();
     expect(reloaded).toEqual(state);
+  });
+});
+
+describe('moveTab', () => {
+  it('reorders tabs through applyMutation without displacing the pinned home tab', () => {
+    let state = homeState();
+    state = applyMutation(state, { op: 'open', route: '/research' });
+    state = applyMutation(state, { op: 'open', route: '/chat' });
+    const moved = applyMutation(state, { op: 'move', id: state.tabs[2].id, toIndex: 1 });
+    expect(moved.tabs.map((tab) => tab.route)).toEqual(['/', '/chat', '/research']);
+    expect(moved.revision).toBe(state.revision + 1);
+
+    expect(applyMutation(moved, { op: 'move', id: moved.tabs[0].id, toIndex: 2 })).toBe(moved);
+    expect(applyMutation(moved, { op: 'move', id: moved.tabs[1].id, toIndex: 0 })).toBe(moved);
+    expect(applyMutation(moved, { op: 'move', id: 'missing', toIndex: 1 })).toBe(moved);
+    expect(applyMutation(moved, { op: 'move', id: moved.tabs[1].id, toIndex: 99 }).tabs.map((t) => t.route)).toEqual([
+      '/',
+      '/research',
+      '/chat',
+    ]);
   });
 });
