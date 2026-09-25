@@ -8,6 +8,7 @@ import { listComments as defaultListComments } from '../personas/comments.js';
 import type { AiModel } from '../runtime/models.js';
 import { aiConfig } from '../runtime/models.js';
 import { CHAT_SUGGESTIONS_PROMPT } from '../runtime/prompts.js';
+import { interfaceLanguageInstruction } from '../../settings/interfaceLocale.js';
 import { MessagesEngine } from '../conversation/messages/messageEngine.js';
 
 const TIMEOUT_MS = 30_000;
@@ -16,7 +17,7 @@ const MAX_LENGTH = 40;
 
 const submitSchema = Type.Object({
   questions: Type.Array(Type.String(), {
-    description: 'Three follow-up questions, each no more than 20 Chinese characters.',
+    description: 'Three follow-up questions, each no more than 20 characters.',
   }),
 });
 
@@ -80,7 +81,8 @@ async function generate(chartId: string, deps: ChatSuggestionDeps): Promise<stri
     layer: 'chat-suggest',
     symbol,
     model,
-    systemPrompt: CHAT_SUGGESTIONS_PROMPT,
+    // Mechanical agents get no discipline, but the output language still follows the UI.
+    systemPrompt: [CHAT_SUGGESTIONS_PROMPT, '', interfaceLanguageInstruction()].join('\n'),
     tools: [tool],
     transformContext: messageEngine.transformContext,
     agentFactory: deps.agentFactory,

@@ -168,7 +168,7 @@ export const CHAT_SUGGESTIONS_PROMPT = [
   'Task: write the three most valuable follow-up questions as an opening to the conversation.',
   'Question criteria:',
   '- Target the weakest parts of the analysis: unsupported assertions, ungrounded probabilities, or unexplained price levels.',
-  '- Each must be no more than 20 Chinese characters and phrased in the first person as though the user asked it.',
+  '- Each must be no more than 20 characters (about 12 words) and phrased in the first person as though the user asked it.',
   '- The three questions must cover different concerns rather than repeating the same one.',
   '- Ask only about information that actually appears in the analysis; never invent numbers.',
   'Call submit_questions exactly once.',

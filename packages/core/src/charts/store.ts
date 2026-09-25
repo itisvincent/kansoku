@@ -2,10 +2,11 @@ import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import { desc, eq, sql } from 'drizzle-orm';
 import { SYMBOL_TYPES } from '@kansoku/shared/chartUrl';
-import { CURRENT_SCHEMA_VERSION, type ChartDoc, type ChartMeta } from '@kansoku/shared/types';
+import { CURRENT_SCHEMA_VERSION, type ChartDoc, type ChartMeta, type ChartType } from '@kansoku/shared/types';
 import { getDb, type Db } from '../db/index.js';
 import { chartMeta, outcomes } from '../db/schema.js';
 import { CHART_DATA_DIR } from '../platform/env.js';
+import { getInterfaceLocale } from '../settings/interfaceLocale.js';
 import { setSymbolFollowing } from '../ai/personas/follows.js';
 import { isFeatureActive } from '../pro/features.js';
 import { stripProAnnotations } from '../pro/stripProAnnotations.js';
@@ -126,14 +127,40 @@ export async function listCharts(filter: ListFilter = {}, db: Db = getDb()): Pro
   return metas;
 }
 
+export function localizedDefaultTitle(type: ChartType, symbol: string | null): string {
+  const locale = getInterfaceLocale();
+  if (type === 'intraday') {
+    return locale === 'zh-CN' ? `${symbol ?? ''} 短线多周期`.trim() : `${symbol ?? ''} intraday multi-timeframe`.trim();
+  }
+  if (type === 'flow') {
+    return locale === 'zh-CN' ? `${symbol ?? ''} 主力资金流`.trim() : `${symbol ?? ''} capital flow`.trim();
+  }
+  return locale === 'zh-CN' ? 'cohort 对比' : 'Cohort comparison';
+}
+
+/** Titles are frozen in stored docs; legacy Chinese defaults display in the UI language. */
+function localizeLegacyTitle(doc: ChartDoc): ChartDoc {
+  if (getInterfaceLocale() !== 'en-US') return doc;
+  const symbol = doc.symbol ?? '';
+  const legacy: Partial<Record<ChartType, string>> = {
+    intraday: `${symbol} 短线多周期`,
+    flow: `${symbol} 主力资金流`,
+    cohort: 'cohort 对比',
+  };
+  const expected = legacy[doc.type];
+  if (expected === undefined || doc.title !== expected) return doc;
+  return { ...doc, title: localizedDefaultTitle(doc.type, doc.symbol) };
+}
+
 export async function loadChart(id: string): Promise<ChartDoc | null> {
   if (!/^[\p{L}\p{N}._-]+$/u.test(id)) return null;
   try {
     const doc = JSON.parse(await fs.readFile(docPath(id), 'utf8')) as ChartDoc;
     const migrated = migrateLegacyDoc(doc);
-    return migrated.built.kind === 'intraday'
-      ? { ...migrated, built: stripProAnnotations(migrated.built) }
-      : migrated;
+    const localized = localizeLegacyTitle(migrated);
+    return localized.built.kind === 'intraday'
+      ? { ...localized, built: stripProAnnotations(localized.built) }
+      : localized;
   } catch {
     return null;
   }

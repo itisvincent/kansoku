@@ -111,6 +111,9 @@ export function withDiscipline(
   repoRoot: string,
   systemPrompt: string,
 ): string {
-  if (capability === 'mechanical') return systemPrompt;
+  if (capability === 'mechanical') {
+    // Mechanical agents get no discipline, but their output is still user-visible text.
+    return [systemPrompt, '', interfaceLanguageInstruction()].join('\n');
+  }
   return composeWithDiscipline(disciplineFor(capability, repoRoot), systemPrompt);
 }
