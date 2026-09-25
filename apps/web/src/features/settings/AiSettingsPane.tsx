@@ -95,11 +95,16 @@ function AiSettingsWorkspace({
 
 export function AiSettingsPane() {
   const { t } = useLocale();
+  // cache:false + a pane-unique key: a saved model must be re-read from the server on every
+  // mount. The 30s shared cache served the pre-save snapshot after navigating away and back,
+  // which made saved switches look like they had reverted.
   const {
     data: settings,
     error: settingsError,
     reload: reloadSettings,
-  } = useQuery<PersistedAiSettings>('settings.getAi', () => client.settings.getAi());
+  } = useQuery<PersistedAiSettings>('settings.getAi.fresh', () => client.settings.getAi(), {
+    cache: false,
+  });
   const {
     data: catalog,
     error: catalogError,
