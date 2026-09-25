@@ -37,6 +37,7 @@ import {
 } from './schemas.js';
 import { applySavedEpsPeFrame } from '../epsPeFrame.js';
 import { setAnalystSection } from './runState.js';
+import { analystExtraKlineActivity, analystStatusText } from './activity.js';
 import type { AnalystDeps, CreateChart } from './types.js';
 
 export const SKILL_NAME = 'intraday-signal';
@@ -220,7 +221,7 @@ export function buildSubmitPredictionTool(
       if (hooks.allowedTimeframes?.length) {
         (prediction as IntradayPrediction).analysis_timeframes = [...hooks.allowedTimeframes];
       }
-      hooks.reportProgress?.('finalizing', '正在生成图表并提交最终结论');
+      hooks.reportProgress?.('finalizing', analystStatusText('finalizing'));
       const chart = await hooks.createChart({
         type: 'intraday',
         symbol,
@@ -323,7 +324,7 @@ export async function buildTools(
 ): Promise<AgentTool[]> {
   const readDataPack = buildDataPackTool(symbol, {
     buildPack: (symbol) => {
-      reportProgress('researching', '正在整理多周期行情、资金流与持仓');
+      reportProgress('researching', analystStatusText('gatheringPack'));
       return deps.buildReassessPack(symbol);
     },
     onPack: (pack) => {
@@ -333,11 +334,11 @@ export async function buildTools(
   });
 
   const fetchNewsTool = buildNewsTool(symbol, (symbol) => {
-    reportProgress('researching', '正在核对最新消息与催化事件');
+    reportProgress('researching', analystStatusText('checkingNews'));
     return deps.fetchNews(symbol);
   });
   const fetchKlineTool = buildKlineTool(symbol, (symbol, period, count) => {
-    reportProgress('researching', `正在补拉 ${period} K 线`);
+    reportProgress('researching', analystExtraKlineActivity(period));
     return deps.fetchKline(symbol, period, count);
   });
 
@@ -348,7 +349,7 @@ export async function buildTools(
     parameters: commentSchema,
     execute: async (_id, params) => {
       if (isDone()) return textResult('skipped');
-      reportProgress('researching', '正在记录阶段性判断');
+      reportProgress('researching', analystStatusText('recordingJudgment'));
       await deps.appendComment({
         ts: new Date().toISOString(),
         symbol,
@@ -390,7 +391,7 @@ export async function buildTools(
     await buildResearchTools({
       repoRoot: deps.repoRoot,
       exec: (command) => {
-        reportProgress('researching', '正在补充外部资料与风险信息');
+        reportProgress('researching', analystStatusText('externalResearch'));
         return deps.exec(command);
       },
       skillIndex: deps.skillIndex,
@@ -408,7 +409,7 @@ export async function buildTools(
     ...researchTools,
     buildJournalTool(symbol, deps.journalDir, deps.now, () => {
       state.journalWritten = true;
-      reportProgress('writing', '正在写入本次复盘日志');
+      reportProgress('writing', analystStatusText('writingReview'));
     }),
   ];
 }

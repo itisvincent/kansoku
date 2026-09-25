@@ -2,8 +2,9 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AgentEvent, AgentTool } from '@earendil-works/pi-agent-core';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { describeToolCall, describeTurnStart } from '../src/ai/personas/analyst/activity.js';
+import { setActiveInterfaceLocaleStore, type InterfaceLocale, type InterfaceLocaleStore } from '../src/settings/interfaceLocale.js';
 import type { AiAgentFactory, AiAgentHandle } from '../src/ai/agents/agentSession.js';
 import type { ReassessPack } from '../src/ai/agents/datapack.js';
 import { runAnalyst } from '../src/ai/personas/analyst/run.js';
@@ -11,6 +12,16 @@ import { analystRunStatus } from '../src/ai/personas/analyst/runState.js';
 import type { AiModel } from '../src/ai/runtime/models.js';
 
 const fakeModel = { provider: 'anthropic', id: 'claude-haiku-4-5' } as unknown as AiModel;
+
+// Activity text follows the interface-locale store; these assertions pin both languages.
+function withLocale(locale: InterfaceLocale): void {
+  setActiveInterfaceLocaleStore({ get: () => locale, set: () => {} });
+}
+afterEach(() => setActiveInterfaceLocaleStore(null));
+
+// The Chinese assertions below (and the run-wiring capture) pin the zh-CN labels;
+// the en-US test overrides the store inside itself.
+beforeEach(() => withLocale('zh-CN'));
 const FAKE_SKILL = '# intraday-signal\n假技能全文。';
 const FAKE_DISCIPLINE = '# trading-discipline\n假纪律全文。';
 
@@ -113,6 +124,19 @@ describe('describeToolCall', () => {
   it('falls back to a generic call description for unknown tools', () => {
     expect(describeToolCall('some_future_tool', { a: 1 })).toBe('正在调用 some_future_tool');
     expect(describeToolCall('some_future_tool', undefined)).toBe('正在调用 some_future_tool');
+  });
+
+  it('uses English labels when the interface locale is en-US', () => {
+    withLocale('en-US');
+    expect(describeToolCall('read_data_pack', {})).toBe('Reading the data pack');
+    expect(describeToolCall('submit_prediction', {})).toBe('Submitting the prediction');
+    expect(describeToolCall('fetch_kline', { period: 'm5' })).toBe('Reading 5-minute K-line');
+    expect(describeToolCall('fetch_kline', { period: 'day' })).toBe('Reading daily K-line');
+    expect(describeToolCall('bash', { command: 'longbridge quote SPY.US' })).toBe(
+      'Searching: longbridge quote SPY.US',
+    );
+    expect(describeToolCall('some_future_tool', {})).toBe('Calling some_future_tool');
+    expect(describeTurnStart(3)).toBe('Reasoning round 3');
   });
 });
 

@@ -13,6 +13,7 @@ import {
   ANALYST_SYSTEM_PROMPT,
 } from '../../runtime/prompts.js';
 import { DisciplineMissingError, loadAppDiscipline } from '../../runtime/promptPolicy.js';
+import { interfaceLanguageInstruction } from '../../../settings/interfaceLocale.js';
 import { createDefaultExec } from '../../agents/agentTools/execTool.js';
 import { appendComment as defaultAppendComment } from '../comments.js';
 import {
@@ -32,7 +33,11 @@ import {
   lastEscalationStart,
   updateAnalystRunStatus,
 } from './runState.js';
-import { describeToolCall, describeTurnStart } from './activity.js';
+import {
+  describeToolCall,
+  describeTurnStart,
+  analystStatusText,
+} from './activity.js';
 import {
   buildAnalystSkillContexts,
   buildTools,
@@ -85,7 +90,7 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
   };
   let session: ReturnType<typeof createAgentSession> | undefined;
 
-  reportProgress('preparing', '正在加载分析纪律与工具');
+  reportProgress('preparing', analystStatusText('loadingDiscipline'));
   const repoRoot = deps.repoRoot ?? PROJECT_ROOT;
   const skillIndex = loadSkillIndex(skillSearchDirs(repoRoot), { repoRoot, runtime: 'app' });
   const skillText = deps.skillText ?? readSkill(skillIndex, SKILL_NAME);
@@ -102,7 +107,7 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
 
   try {
     const runStartedAt = now();
-    reportProgress('researching', '正在整理多周期行情、资金流与持仓');
+    reportProgress('researching', analystStatusText('gatheringPack'));
     const dataPack = await (deps.buildReassessPack ?? defaultBuildReassessPack)(symbol);
     if (dataPack.prediction_chart_id) state.chartId = dataPack.prediction_chart_id;
     const sessionId = `analyst:${symbol}:${runStartedAt}`;
@@ -137,7 +142,7 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
         dataPack,
         marketDate: usSessionDate(runStartedAt),
         origin: deps.origin,
-        runtimeAdapter: ANALYST_ADAPTER_PROMPT,
+        runtimeAdapter: `${ANALYST_ADAPTER_PROMPT}\n\n${interfaceLanguageInstruction()}`,
         skills: buildAnalystSkillContexts(
           skillIndex,
           skillText,
@@ -181,7 +186,7 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
       onEvent: onAgentEvent,
     });
 
-    reportProgress('researching', '正在规划分析步骤并读取市场信息');
+    reportProgress('researching', analystStatusText('planningRun'));
     await session.runTurn(
       `Reassess the short-term multi-period conclusion for ${symbol}.`,
       timeoutMs,
@@ -232,7 +237,7 @@ export function runAnalyst({ symbol, origin, deps }: RunAnalystInput): StartResu
     running: true,
     origin,
     phase: 'preparing',
-    activity: '正在准备分析环境',
+    activity: analystStatusText('preparing'),
     startedAt,
     updatedAt: startedAt,
     activities: [],

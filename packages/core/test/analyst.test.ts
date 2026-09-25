@@ -2,7 +2,8 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { AgentMessage } from '@earendil-works/pi-agent-core';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { setActiveInterfaceLocaleStore } from '../src/settings/interfaceLocale.js';
 import type { CockpitComment } from '@kansoku/shared/types';
 import {
   promptText,
@@ -21,6 +22,12 @@ import type { ReassessPack } from '../src/ai/agents/datapack.js';
 import type { AiModel } from '../src/ai/runtime/models.js';
 
 const fakeModel = { provider: 'anthropic', id: 'claude-haiku-4-5' } as unknown as AiModel;
+
+// Run-status activity text follows the interface locale; these assertions pin zh-CN.
+beforeEach(() =>
+  setActiveInterfaceLocaleStore({ get: () => 'zh-CN' as const, set: () => {} }),
+);
+afterEach(() => setActiveInterfaceLocaleStore(null));
 const ESCALATION_MS = 30 * 60_000;
 
 function makePack(overrides: Partial<ReassessPack> = {}): ReassessPack {
