@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Check, TriangleAlert } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
 import { errorMessage } from '@web/lib/api';
@@ -237,7 +237,11 @@ export function RoleRow({
     },
   });
 
+  const draftRef = useRef(draft);
+  draftRef.current = draft;
+
   const push = (next: RoleSetting) => {
+    draftRef.current = next;
     onDraftChange(next);
     setFailure(null);
     setTestState({ status: 'idle' });
@@ -270,15 +274,18 @@ export function RoleRow({
   };
 
   const setModelId = (modelId: string) => {
+    // Provider and model can change within one React commit; merge onto the latest pushed
+    // draft (not the prop) so the pair the server validates stays coherent.
+    const base = draftRef.current;
     push({
-      ...draft,
+      ...base,
       modelId,
-      thinkingLevel: defaultThinkingLevel(catalog, draft.provider ?? '', modelId),
+      thinkingLevel: defaultThinkingLevel(catalog, base.provider ?? '', modelId),
     });
   };
 
   const setThinkingLevel = (thinkingLevel: string) => {
-    push({ ...draft, thinkingLevel });
+    push({ ...draftRef.current, thinkingLevel });
   };
 
   const provider = draft.provider ? catalog.providers.find((p) => p.id === draft.provider) : null;

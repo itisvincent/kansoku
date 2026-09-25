@@ -268,7 +268,7 @@ export async function reassessSymbol(
       model,
       anchorTimeframe: anchor,
       buildReassessPack: (sym) => defaultBuildReassessPack(sym, defaultDatapackDeps, analysisTfs),
-      loadSavedEpsPePlan: () => loadSavedEpsPePlan(symbol),
+      loadSavedEpsPePlan: async () => (await loadSavedEpsPePlan(symbol)) ?? null,
     },
   });
   if (result.started) {

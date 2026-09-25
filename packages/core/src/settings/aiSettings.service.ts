@@ -97,9 +97,20 @@ export const aiSettingsService: AiSettingsService = {
   async putRole(input) {
     const { settingsStore, models } = settingsDeps();
     const role = parseRole(input.role);
-    const setting = validateRoleSetting(role, input, models);
-    settingsStore.setRole(role, setting);
-    return { role, ...settingsStore.getRole(role) };
+    try {
+      const setting = validateRoleSetting(role, input, models);
+      settingsStore.setRole(role, setting);
+      return { role, ...settingsStore.getRole(role) };
+    } catch (err) {
+      // The UI rolls back to the previous role on this rejection; without a log line the
+      // reason only ever lived in the transient inline error.
+      console.warn(
+        `settings: putRole(${role}) rejected provider=${String(input.provider)} modelId=${String(input.modelId)} thinkingLevel=${String(input.thinkingLevel)}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      throw err;
+    }
   },
 
   async deleteRole(input) {

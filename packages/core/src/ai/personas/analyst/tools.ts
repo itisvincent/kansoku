@@ -160,7 +160,7 @@ export interface SubmitPredictionHooks {
   reportProgress?: (phase: ReassessPhase, activity: string) => void;
   onSubmitted?: (chartId: string, params: PredictionParams) => void;
   /** Last accepted EPS × PE frame. Absent on the first run. */
-  loadSavedEpsPePlan?: () => Promise<IntradayPrediction['eps_pe_plan']>;
+  loadSavedEpsPePlan?: () => Promise<NonNullable<IntradayPrediction['eps_pe_plan']> | null>;
 }
 
 export function buildSubmitPredictionTool(
