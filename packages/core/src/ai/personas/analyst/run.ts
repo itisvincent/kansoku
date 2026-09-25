@@ -13,7 +13,7 @@ import {
   ANALYST_SYSTEM_PROMPT,
 } from '../../runtime/prompts.js';
 import { DisciplineMissingError, loadAppDiscipline } from '../../runtime/promptPolicy.js';
-import { interfaceLanguageInstruction } from '../../../settings/interfaceLocale.js';
+import { interfaceLanguageInstruction, getInterfaceLocale } from '../../../settings/interfaceLocale.js';
 import { createDefaultExec } from '../../agents/agentTools/execTool.js';
 import { appendComment as defaultAppendComment } from '../comments.js';
 import {
@@ -204,11 +204,14 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
         errorMessage ? `分析员运行失败：${errorMessage}` : '分析员未提交预测，本次无结论。',
       );
     } else {
+      const en = getInterfaceLocale() === 'en-US';
       emitNotice({
         symbol,
         kind: 'analysis_done',
-        title: `${symbol} AI 分析完成`,
-        body: '多周期重估已落图，打开 cockpit 查看结论。',
+        title: en ? `${symbol} AI analysis finished` : `${symbol} AI 分析完成`,
+        body: en
+          ? 'The multi-timeframe reassessment is on the chart; open the cockpit for the conclusion.'
+          : '多周期重估已落图，打开 cockpit 查看结论。',
         at: new Date().toISOString(),
       });
     }

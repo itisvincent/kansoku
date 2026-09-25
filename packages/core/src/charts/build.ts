@@ -11,6 +11,7 @@ import { buildSepa, type SepaInput } from '../analysis/sepa.js';
 import { marketSessionDate } from '../marketdata/session.js';
 import { cleanCohortRows, type CohortRow, type FlowRow } from '../analysis/simple.js';
 import { marketOf } from '../symbols/symbol.utils.js';
+import { getInterfaceLocale } from '../settings/interfaceLocale.js';
 
 export const ALL_TYPES: ChartType[] = ['flow', 'cohort', 'sepa', 'intraday'];
 
@@ -198,6 +199,11 @@ async function prepareInput(type: ChartType, body: Body): Promise<Record<string,
   }
 }
 
+function localeDefault(...parts: { 'en-US': string; 'zh-CN': string }[]): string {
+  const locale = getInterfaceLocale();
+  return parts.map((part) => part[locale]).join(' ').trim();
+}
+
 export function rebuild(
   type: ChartType,
   input: Record<string, unknown>,
@@ -227,7 +233,7 @@ export function rebuild(
       const sessionDate = asOf ? marketSessionDate(symbol, asOf) : localToday();
       return {
         type,
-        title: title || `${symbol} 短线多周期`,
+        title: title || localeDefault({ 'en-US': symbol, 'zh-CN': symbol }, { 'en-US': 'intraday multi-timeframe', 'zh-CN': '短线多周期' }),
         slug: symbolSlug(symbol, 'intraday'),
         symbol,
         sessionDate,
@@ -249,7 +255,9 @@ export function rebuild(
       let slug: string;
       if (type === 'flow') {
         built = { kind: 'simple', chartType: 'flow', rows: rows as unknown as FlowRow[], subtitle };
-        defaultTitle = symbol ? `${symbol} 主力资金流` : '主力资金流';
+        defaultTitle = symbol
+          ? localeDefault({ 'en-US': symbol, 'zh-CN': symbol }, { 'en-US': 'capital flow', 'zh-CN': '主力资金流' })
+          : localeDefault({ 'en-US': 'Capital flow', 'zh-CN': '主力资金流' });
         slug = symbol ? symbolSlug(symbol, 'flow') : 'flow';
       } else {
         built = {
@@ -258,7 +266,7 @@ export function rebuild(
           rows: cleanCohortRows(rows as unknown as CohortRow[]),
           subtitle,
         };
-        defaultTitle = 'cohort 对比';
+        defaultTitle = localeDefault({ 'en-US': 'Cohort comparison', 'zh-CN': 'cohort 对比' });
         slug = title ? slugify(title, 'cohort') : 'cohort';
       }
       const lastTime = rows.at(-1)?.time;
