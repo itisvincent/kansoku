@@ -12,6 +12,8 @@ describe('buildPaletteCommands', () => {
       'nav:chat',
       'nav:canvases',
       'nav:settings',
+      'nav:scan',
+      'nav:scorecard',
       'nav:logs',
     ]);
   });

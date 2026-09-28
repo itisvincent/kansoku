@@ -56,6 +56,9 @@ import type {
 
 const DEFAULT_TIMEOUT_MS = 15 * 60_000;
 
+export const EPS_PE_REBUILD_TURN =
+  'The user asked to rebuild the EPS × PE multiples: no saved frame is held this run, so derive a fresh bear / base / bull PE ladder from the current implied PE, the historical average and the growth cap.';
+
 export function buildAnalystSystemPrompt(): string {
   return ANALYST_SYSTEM_PROMPT;
 }
@@ -188,7 +191,9 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
 
     reportProgress('researching', analystStatusText('planningRun'));
     await session.runTurn(
-      `Reassess the short-term multi-period conclusion for ${symbol}.`,
+      deps.rebuildEpsPe
+        ? `Reassess the short-term multi-period conclusion for ${symbol}. ${EPS_PE_REBUILD_TURN}`
+        : `Reassess the short-term multi-period conclusion for ${symbol}.`,
       timeoutMs,
     );
 
@@ -203,7 +208,7 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
       await writeError(
         errorMessage ? `分析员运行失败：${errorMessage}` : '分析员未提交预测，本次无结论。',
       );
-    } else {
+    } else if (!deps.quiet) {
       const en = getInterfaceLocale() === 'en-US';
       emitNotice({
         symbol,
@@ -257,27 +262,55 @@ export function runAnalyst({ symbol, origin, deps }: RunAnalystInput): StartResu
   return { started: true, done };
 }
 
-export async function reassessSymbol(
+export interface ManualRunRequest {
+  timeframes?: string[];
+  anchorTimeframe?: string;
+  rebuildEpsPe?: boolean;
+  quiet?: boolean;
+}
+
+/**
+ * Starts the same run the cockpit's Run analysis button starts. Returns the run handle so a
+ * caller that must wait for the result (the watchlist scan) can await `done`.
+ */
+export function startManualAnalystRun(
   symbol: string,
-  timeframes?: string[],
-  anchorTimeframe?: string,
-): Promise<ReassessResult> {
+  request: ManualRunRequest = {},
+): StartResult | { started: false; reason: 'analyst layer disabled' } {
   const model = aiConfig().analystModel;
   if (!model) return { started: false, reason: 'analyst layer disabled' };
-  const analysisTfs = sanitizeReassessTimeframes(timeframes);
+  const analysisTfs = sanitizeReassessTimeframes(request.timeframes);
   const anchor =
-    anchorTimeframe && analysisTfs.includes(anchorTimeframe as ReassessTf)
-      ? anchorTimeframe
+    request.anchorTimeframe && analysisTfs.includes(request.anchorTimeframe as ReassessTf)
+      ? request.anchorTimeframe
       : undefined;
-  const result = runAnalyst({
+  return runAnalyst({
     symbol,
     origin: 'manual',
     deps: {
       model,
       anchorTimeframe: anchor,
       buildReassessPack: (sym) => defaultBuildReassessPack(sym, defaultDatapackDeps, analysisTfs),
-      loadSavedEpsPePlan: async () => (await loadSavedEpsPePlan(symbol)) ?? null,
+      rebuildEpsPe: request.rebuildEpsPe === true,
+      quiet: request.quiet === true,
+      // A rebuild run starts a new frame; later runs then lock onto it.
+      loadSavedEpsPePlan: request.rebuildEpsPe
+        ? undefined
+        : async () => (await loadSavedEpsPePlan(symbol)) ?? null,
     },
+  });
+}
+
+export async function reassessSymbol(
+  symbol: string,
+  timeframes?: string[],
+  anchorTimeframe?: string,
+  options: { rebuildEpsPe?: boolean } = {},
+): Promise<ReassessResult> {
+  const result = startManualAnalystRun(symbol, {
+    timeframes,
+    anchorTimeframe,
+    rebuildEpsPe: options.rebuildEpsPe,
   });
   if (result.started) {
     void result.done.catch(() => {});

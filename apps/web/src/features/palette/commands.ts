@@ -40,6 +40,18 @@ function STATIC_COMMANDS(tr: Translator = chineseTranslator): PaletteCommand[] {
       route: '/settings/ai',
     },
     {
+      id: 'nav:scan',
+      title: tr('scanOpen'),
+      keywords: ['scan', 'watchlist', 'screener', 'setups', '扫描', '自选', '选股'],
+      route: '/scan',
+    },
+    {
+      id: 'nav:scorecard',
+      title: tr('scorecardOpen'),
+      keywords: ['scorecard', 'hit rate', 'win rate', 'predictions', '成绩', '命中率', '预测'],
+      route: '/scorecard',
+    },
+    {
       id: 'nav:logs',
       title: tr('paletteLogs'),
       keywords: ['logs', 'log', '日志', 'debug'],

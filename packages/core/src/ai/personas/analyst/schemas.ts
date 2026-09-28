@@ -115,6 +115,14 @@ export const predictionSchema = Type.Object({
   scenarios: Type.Array(scenarioSchema, { minItems: 2, maxItems: 4 }),
   range_plan: Type.Optional(rangePlanSchema),
   eps_pe_plan: Type.Optional(epsPePlanSchema),
+  conviction: Type.Optional(
+    Type.Integer({
+      minimum: 1,
+      maximum: 100,
+      description:
+        'How confident you are in this direction call, 1-100. 50 is a coin flip; reserve 80+ for setups where trend, levels and catalysts all agree.',
+    }),
+  ),
   comment: Type.String({ description: 'A one-sentence plain-language conclusion to store as a comment.' }),
 });
 

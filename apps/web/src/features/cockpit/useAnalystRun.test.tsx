@@ -67,6 +67,34 @@ describe('useAnalystRun', () => {
     vi.useRealTimers();
   });
 
+  it('sends the rebuild flag through startWithOptions', async () => {
+    reassess.mockResolvedValue({ started: true });
+    const { result } = renderHook(() => useAnalystRun('NVDA'));
+    await act(async () => {
+      await result.current.startWithOptions({ rebuildEpsPe: true });
+    });
+    expect(reassess).toHaveBeenCalledWith(expect.objectContaining({ rebuildEpsPe: true }));
+  });
+
+  it('does not treat a run already in flight as the requested rebuild', async () => {
+    reassess.mockResolvedValue({ started: false, reason: 'already running' });
+    const { result } = renderHook(() => useAnalystRun('NVDA'));
+    await act(async () => {
+      await result.current.startWithOptions({ rebuildEpsPe: true });
+    });
+    expect(result.current.running).toBe(false);
+    expect(result.current.hint).toBeTruthy();
+  });
+
+  it('keeps a plain start free of the rebuild flag', async () => {
+    reassess.mockResolvedValue({ started: true });
+    const { result } = renderHook(() => useAnalystRun('NVDA'));
+    await act(async () => {
+      await result.current.start();
+    });
+    expect(reassess.mock.calls[0][0]).not.toHaveProperty('rebuildEpsPe');
+  });
+
   it('reports not running when the store has no entry for the symbol', () => {
     const { result } = renderHook(() => useAnalystRun('NVDA'));
 

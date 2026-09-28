@@ -31,8 +31,8 @@ export const ANALYST_ADAPTER_PROMPT = [
   'Kansoku environment mapping (only the following differs from the skill; otherwise follow it verbatim):',
   "- Instead of Step 3's POST /api/charts preview, use the equivalent aggregated snapshot already injected as data_snapshot (multi-period technicals, day_context, options_levels, lessons, SPY/QQQ, news, capital flow, relative volume, positions, and archived predictions). Call read_data_pack only when it must be read again. Never curl the local chart API from bash; that would create a duplicate chart.",
   '- 读完数据包后，先用 submit_section 提交一段 technical 读数（各周期趋势 + 关键价位 + ≤200 字摘要），再继续深入研究。',
-  "- Instead of Step 5's PATCH prediction, call submit_prediction and succeed exactly once. It has hard validation; correct and resubmit if rejected. There is no tool for the context field, so put sources_used and news annotations in the journal.",
-  '- Always include eps_pe_plan in submit_prediction. Follow the activated eps-pe-scenario-stock-analysis skill (Darren EPS × PE). Source consensus forward EPS / PE / PEG / Wall Street target via web_search when they are not in data_snapshot. Three scenarios (bear/base/bull) are required; if a number is assumed, label it in sources. If a saved frame already exists, the server keeps those multiples. A small earnings difference does not rebuild targets. Do not describe a new PE ladder as the submitted result.',
+  "- Instead of Step 5's PATCH prediction, call submit_prediction and succeed exactly once. It has hard validation; correct and resubmit if rejected. There is no tool for the context field, so put sources_used and news annotations in the journal. Set conviction (1-100) to how sure you are of the direction call; it is used to rank watchlist scans, so do not inflate it.",
+  '- Always include eps_pe_plan in submit_prediction. Follow the activated eps-pe-scenario-stock-analysis skill (Darren EPS × PE). Source consensus forward EPS / PE / PEG / Wall Street target via web_search when they are not in data_snapshot. Three scenarios (bear/base/bull) are required; if a number is assumed, label it in sources. If a saved frame already exists, the server keeps those multiples. A small earnings difference does not rebuild targets. Do not describe a new PE ladder as the submitted result, unless the task explicitly asks you to rebuild the multiples.',
   "- Instead of Step 7's journal update, call write_journal. The server determines the path from the US Eastern trading date and appends a section for the same day; provide only Markdown content, including a timestamped section heading. The ordering differs from the skill: write_journal must run before submit_prediction, because a successful submission ends the run with no chance to write afterward.",
   '- Perform the remaining skill steps (checking X, finance-calendar, portfolio positions, and journal/lessons.md) through bash with cwd at the repository root. Bash is read-only and must not write files.',
   '- Use fetch_kline for additional bars, fetch_news for current news, and append_comment for process observations. read_skill loads related skills such as twitter-reader; read repository files with bash (cat).',
@@ -45,6 +45,23 @@ export const ANALYST_ADAPTER_PROMPT = [
 
 export const ANALYST_RETRY_PROMPT =
   'Your previous response did not successfully call submit_prediction. Call submit_prediction now and succeed exactly once; if validation rejects it, correct it and submit again. If direction is uncertain, submit neutral under the skill rules.';
+
+/**
+ * The stock-deep-dive skill names longbridge-* sub-skills that this runtime does not ship.
+ * Map each lens to the installed CLI instead.
+ */
+export const DEEP_DIVE_CLI_MAP = [
+  'The longbridge-* sub-skills named in the skill are not installed here. Use these CLI commands through bash instead (add --format json; run `longbridge <command> --help` when unsure of flags):',
+  '- Lens 1 business identity: `longbridge static SYM`, `longbridge business-segments SYM`.',
+  '- Lens 2 fundamentals: `longbridge financial-report SYM`, `longbridge forecast-eps SYM`, `longbridge consensus SYM`, `longbridge calc-index SYM`.',
+  '- Lens 3 technicals: fetch_kline (period day, count 250; also h1) or `longbridge kline SYM`.',
+  '- Lens 4 catalysts: fetch_news first, then `longbridge news SYM`, `longbridge filing SYM`, `longbridge facts SYM`, and `longbridge finance-calendar` for the next earnings date.',
+  '- Lens 5 supply chain and peers: `longbridge valuation SYM` (includes a peer comparison), `longbridge institution-rating SYM`, `longbridge industry-peers`.',
+  'Run independent commands back to back without waiting for commentary between them. If a command fails, say which data is missing instead of guessing (TD-DATA-01).',
+].join('\n');
+
+export const DEEP_DIVE_RETRY_PROMPT =
+  'You have not saved the note yet. Call write_note now with the complete updated Markdown for this stock; the run fails without it.';
 
 export function deepDiveAdapterPrompt(): string {
   return [

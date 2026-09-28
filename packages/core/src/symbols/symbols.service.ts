@@ -1,7 +1,11 @@
 import { promises as fs } from 'node:fs';
 import { join } from 'node:path';
 import type { IntradayPrediction, NewsItem, RawBar, SymbolAnalysisRow } from '@kansoku/shared/types';
-import { currentProHooks } from '../pro/hooks.js';
+import { currentProHooks, hasProHooks } from '../pro/hooks.js';
+import {
+  deepDiveStatus as coreDeepDiveStatus,
+  startDeepDive,
+} from '../ai/personas/deepDive/deepDive.js';
 import { withFeatureGates } from '../pro/withFeatureGates.js';
 import { chartUrl } from '../platform/chartUrl.js';
 import { analystRunStatus } from '../ai/personas/analyst/runState.js';
@@ -199,7 +203,9 @@ export const symbolsService: SymbolsApi = withFeatureGates(symbolsRoutes, {
   },
 
   async reassess(input) {
-    return reassessSymbol(normalizeSymbol(input.sym), input.timeframes, input.anchorTf);
+    return reassessSymbol(normalizeSymbol(input.sym), input.timeframes, input.anchorTf, {
+      rebuildEpsPe: input.rebuildEpsPe === true,
+    });
   },
 
   async reassessStatus(input) {
@@ -223,12 +229,18 @@ export const symbolsService: SymbolsApi = withFeatureGates(symbolsRoutes, {
   },
 
   async deepDive(input) {
-    const name = noteFileName(input.sym);
-    return currentProHooks().startDeepDiveForNote(name);
+    // A core run still writing a note must finish first, even if Pro loaded meanwhile.
+    if (coreDeepDiveStatus().running) {
+      throw new ClientError('a deep dive is already running', 'wait for it to finish', 409);
+    }
+    if (hasProHooks()) return currentProHooks().startDeepDiveForNote(noteFileName(input.sym));
+    const { result, done } = startDeepDive(normalizeSymbol(input.sym));
+    void done.catch(() => {});
+    return result;
   },
 
   async deepDiveStatus(_input) {
-    return currentProHooks().deepDiveStatus();
+    return hasProHooks() ? currentProHooks().deepDiveStatus() : coreDeepDiveStatus();
   },
 
   async latest(input) {

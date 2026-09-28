@@ -17,6 +17,11 @@ interface ReassessResponse {
   reason?: string;
 }
 
+export interface ReassessOptions {
+  /** Ignore the saved EPS × PE multiples and build a fresh ladder this run. */
+  rebuildEpsPe?: boolean;
+}
+
 export type ReassessOutcome =
   { ok: true; data: ReassessResponse } | { ok: false; error: string; aborted: boolean };
 
@@ -26,7 +31,7 @@ export function useReassessSymbol(
 ): {
   pending: boolean;
   error: string | null;
-  reassess: () => Promise<ReassessOutcome>;
+  reassess: (options?: ReassessOptions) => Promise<ReassessOutcome>;
 } {
   const { locale } = useLocale();
   const [pending, setPending] = useState(false);
@@ -48,7 +53,7 @@ export function useReassessSymbol(
     setError(null);
   }, [symbol]);
 
-  const reassess = useCallback(async (): Promise<ReassessOutcome> => {
+  const reassess = useCallback(async (options: ReassessOptions = {}): Promise<ReassessOutcome> => {
     const token = {};
     tokenRef.current = token;
     setPending(true);
@@ -60,6 +65,7 @@ export function useReassessSymbol(
         sym: symbol,
         timeframes: loadAnalysisTimeframes(),
         ...(anchorTf ? { anchorTf } : {}),
+        ...(options.rebuildEpsPe ? { rebuildEpsPe: true } : {}),
       });
       const superseded = tokenRef.current !== token;
       if (superseded) return { ok: false, error: 'local:cockpitCancelled', aborted: true };

@@ -8,9 +8,16 @@ describe('pro-absent HTTP surface', () => {
     await loadPro();
   });
 
-  it('returns 404 for the symbols deep-dive route when pro is absent', async () => {
+  it('serves the open-core deep-dive status route when pro is absent', async () => {
     setProPresent(false);
     const res = await tsukiRequest('/api/symbols/MU/deep-dive/status');
+    expect(res.status).toBe(200);
+    expect(await res.json()).toMatchObject({ running: false });
+  });
+
+  it('still 404s Pro-only routes that open core does not implement', async () => {
+    setProPresent(false);
+    const res = await tsukiRequest('/api/symbols/MU/follow', { method: 'POST' });
     expect(res.status).toBe(404);
   });
 
@@ -30,7 +37,7 @@ describe('pro-absent HTTP surface', () => {
       license: { state: 'unlicensed' },
       features: {
         'symbol-follow': 'absent',
-        'deep-dive': 'absent',
+        'deep-dive': 'active',
         'research-ai': 'absent',
         'memory': 'absent',
         'auto-patterns': 'absent',

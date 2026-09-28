@@ -6,6 +6,7 @@ import {
 } from '../src/license/licenseState.js';
 import { setEncBundlePresent, setProPresent } from '../src/pro/bundleState.js';
 import { capabilitiesService } from '../src/capabilities/capabilities.service.js';
+import { CORE_FALLBACK_FEATURES } from '../src/pro/features.js';
 
 const featureKeys = Object.keys(FEATURES) as Array<keyof typeof FEATURES>;
 
@@ -34,7 +35,9 @@ describe('capabilitiesService.get', () => {
     for (const key of featureKeys) {
       expect(result.features).toHaveProperty(key);
       const tier = FEATURES[key].tier as FeatureTier;
-      expect(result.features[key]).toBe(tier === 'free' ? 'active' : 'absent');
+      // Features open core also implements run on the core engine when Pro is missing.
+      const expected = tier === 'free' || CORE_FALLBACK_FEATURES.has(key) ? 'active' : 'absent';
+      expect(result.features[key]).toBe(expected);
     }
   });
 
@@ -46,7 +49,8 @@ describe('capabilitiesService.get', () => {
     expect(result.hasEncBundle).toBe(true);
     for (const key of featureKeys) {
       const tier = FEATURES[key].tier as FeatureTier;
-      expect(result.features[key]).toBe(tier === 'free' ? 'active' : 'locked');
+      const expected = tier === 'free' || CORE_FALLBACK_FEATURES.has(key) ? 'active' : 'locked';
+      expect(result.features[key]).toBe(expected);
     }
   });
 

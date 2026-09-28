@@ -90,3 +90,35 @@ describe('NoteTab deep-dive license gate', () => {
     expect(screen.queryByRole('button', { name: /深度分析/ })).toBeNull();
   });
 });
+
+describe('NoteTab open-core deep dive', () => {
+  function setupStart(result: unknown) {
+    capabilities = { features: { 'deep-dive': 'active' } };
+    vi.spyOn(window, 'confirm').mockReturnValue(true);
+    note.mockResolvedValue({ markdown: null });
+    deepDiveStatus.mockResolvedValue({ running: false });
+    deepDive.mockResolvedValue(result);
+    render(<NoteTab symbol="MU.US" />);
+  }
+
+  it('shows the running state once the core engine starts', async () => {
+    setupStart({ started: true });
+    fireEvent.click(await screen.findByRole('button', { name: /跑一次深度分析/ }));
+    await waitFor(() => expect(deepDive).toHaveBeenCalledWith({ sym: 'MU.US' }));
+    expect(await screen.findByRole('button', { name: /分析中/ })).toBeTruthy();
+  });
+
+  it('reports busy when a refusal comes back as a plain body', async () => {
+    setupStart({ started: false, reason: 'busy' });
+    fireEvent.click(await screen.findByRole('button', { name: /跑一次深度分析/ }));
+    await waitFor(() => expect(deepDive).toHaveBeenCalled());
+    expect(screen.queryByRole('button', { name: /分析中/ })).toBeNull();
+  });
+
+  it('asks for a model when the engine is disabled', async () => {
+    setupStart({ started: false, reason: 'disabled' });
+    const button = await screen.findByRole('button', { name: /跑一次深度分析/ });
+    fireEvent.click(button);
+    await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(true));
+  });
+});

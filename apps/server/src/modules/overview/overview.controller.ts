@@ -1,4 +1,4 @@
-import { Controller, Get, Query } from '@tsuki-hono/common';
+import { Body, Controller, Get, Post, Query } from '@tsuki-hono/common';
 import { overviewService } from '@kansoku/core/overview/overview.service';
 
 export { resetOverviewCacheForTests } from '@kansoku/core/overview/overview.service';
@@ -32,6 +32,35 @@ export class OverviewController {
   @Get('/stats')
   async getStats() {
     const data = await overviewService.stats();
+    return { ok: true, data };
+  }
+
+  @Get('/scorecard')
+  async getScorecard(@Query() query: { days?: string }) {
+    const days = query.days ? Number(query.days) : undefined;
+    const data = await overviewService.scorecard({ days });
+    return { ok: true, data };
+  }
+
+  @Post('/scan')
+  async startScan(@Body() body: { timeframes?: unknown; anchorTf?: unknown } | null) {
+    const timeframes = Array.isArray(body?.timeframes)
+      ? body.timeframes.filter((tf): tf is string => typeof tf === 'string')
+      : undefined;
+    const anchorTf = typeof body?.anchorTf === 'string' ? body.anchorTf : undefined;
+    const data = await overviewService.scanStart({ timeframes, anchorTf });
+    return { ok: true, data };
+  }
+
+  @Get('/scan')
+  async getScan() {
+    const data = await overviewService.scanStatus();
+    return { ok: true, data };
+  }
+
+  @Post('/scan/cancel')
+  async cancelScan() {
+    const data = await overviewService.scanCancel();
     return { ok: true, data };
   }
 

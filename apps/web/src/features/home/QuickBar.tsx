@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Library, MessageCircle, Settings, Sparkles } from 'lucide-react';
+import { Library, MessageCircle, Radar, Settings, Sparkles, Trophy } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
 import { useCapabilities } from '@web/features/edition/capabilitiesStore';
 import { openLicenseModal } from '@web/features/edition/licenseModalStore';
@@ -138,6 +138,22 @@ export function QuickBar({
             title={t('researchLibrary')}
           >
             <Library size={16} />
+          </a>
+          <a
+            {...stylex.props(styles.action)}
+            href="/scan"
+            aria-label={t('scanOpen')}
+            title={t('scanOpen')}
+          >
+            <Radar size={16} />
+          </a>
+          <a
+            {...stylex.props(styles.action)}
+            href="/scorecard"
+            aria-label={t('scorecardOpen')}
+            title={t('scorecardOpen')}
+          >
+            <Trophy size={16} />
           </a>
           <a
             {...stylex.props(styles.action)}

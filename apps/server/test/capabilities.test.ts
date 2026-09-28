@@ -18,10 +18,13 @@ function fakeLicenseManager(overrides: Partial<LicenseManager> = {}): LicenseMan
   };
 }
 
-function allFeatures(state: 'absent' | 'locked' | 'active') {
+type State = 'absent' | 'locked' | 'active';
+
+/** Without Pro, deep dive runs on the open-core engine, so it is active either way. */
+function allFeatures(state: State, deepDive: State = state) {
   return {
     'symbol-follow': state,
-    'deep-dive': state,
+    'deep-dive': deepDive,
     'research-ai': state,
     'memory': state,
     'auto-patterns': state,
@@ -44,7 +47,7 @@ describe('GET /capabilities', () => {
       pro: false,
       licensed: false,
       license: { state: 'unlicensed' },
-      features: allFeatures('absent'),
+      features: allFeatures('absent', 'active'),
       hasEncBundle: false,
     });
   });
@@ -59,7 +62,7 @@ describe('GET /capabilities', () => {
       pro: false,
       licensed: false,
       license: { state: 'unlicensed' },
-      features: allFeatures('locked'),
+      features: allFeatures('locked', 'active'),
       hasEncBundle: true,
     });
   });

@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { allRoutes } from '../src/contract/index.js';
 import { symbolsService } from '../src/symbols/symbols.service.js';
 import { setProPresent } from '../src/pro/bundleState.js';
+import { CORE_FALLBACK_FEATURES } from '../src/pro/features.js';
+import type { FeatureKey } from '@kansoku/pro-api/features';
 
 type GatedService = Record<string, (input: { sym: string }) => Promise<unknown>>;
 
@@ -12,12 +14,13 @@ const serviceByGroup: Record<string, GatedService> = {
 interface GatedRoute {
   group: string;
   method: string;
+  feature: FeatureKey;
 }
 
 const gatedRoutes: GatedRoute[] = [];
 for (const [group, routeGroup] of Object.entries(allRoutes)) {
   for (const [method, meta] of Object.entries(routeGroup.routes)) {
-    if (meta.feature) gatedRoutes.push({ group, method });
+    if (meta.feature) gatedRoutes.push({ group, method, feature: meta.feature });
   }
 }
 
@@ -30,7 +33,7 @@ describe('feature gate parity', () => {
     expect(gatedRoutes.length).toBeGreaterThan(0);
   });
 
-  for (const { group, method } of gatedRoutes) {
+  for (const { group, method, feature } of gatedRoutes) {
     describe(`${group}.${method}`, () => {
       it('rejects with 403 LICENSE_REQUIRED when pro is present without a valid license', async () => {
         const service = serviceByGroup[group];
@@ -45,7 +48,7 @@ describe('feature gate parity', () => {
         expect(err).toMatchObject({ status: 403, code: 'LICENSE_REQUIRED' });
       });
 
-      it('rejects with 404 when no pro module is registered', async () => {
+      it.skipIf(CORE_FALLBACK_FEATURES.has(feature))('rejects with 404 when no pro module is registered', async () => {
         const service = serviceByGroup[group];
         if (!service) {
           expect.fail(

@@ -86,12 +86,18 @@ export class SymbolsController {
   @Post('/:sym/reassess')
   async reassess(
     @Param('sym') sym: string,
-    @Body() body: { timeframes?: unknown } | null,
+    @Body() body: { timeframes?: unknown; anchorTf?: unknown; rebuildEpsPe?: unknown } | null,
   ) {
     const timeframes = Array.isArray(body?.timeframes)
       ? body.timeframes.filter((tf): tf is string => typeof tf === 'string')
       : undefined;
-    const data = await symbolsService.reassess({ sym, timeframes });
+    const anchorTf = typeof body?.anchorTf === 'string' ? body.anchorTf : undefined;
+    const data = await symbolsService.reassess({
+      sym,
+      timeframes,
+      anchorTf,
+      rebuildEpsPe: body?.rebuildEpsPe === true,
+    });
     return { ok: true, data };
   }
 

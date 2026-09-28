@@ -8,7 +8,7 @@ import {
   useAnalystRunStatus,
 } from '@web/features/cockpit/analystRunsStore.js';
 import { client } from '@web/lib/client';
-import { REASON_TEXT, useReassessSymbol } from './useReassessSymbol';
+import { REASON_TEXT, useReassessSymbol, type ReassessOptions } from './useReassessSymbol';
 
 export type { RunningReassessStatus };
 
@@ -19,6 +19,8 @@ export interface AnalystRunController {
   pending: boolean;
   running: boolean;
   start: () => Promise<void>;
+  /** Same as start, with run options (e.g. rebuilding the EPS × PE multiples). */
+  startWithOptions: (options: ReassessOptions) => Promise<void>;
   status: RunningReassessStatus | null;
 }
 
@@ -79,12 +81,18 @@ export function useAnalystRun(
     clearReconcileTimer();
   }, [serverRunning, clearReconcileTimer]);
 
-  const start = useCallback(async () => {
+  const startWithOptions = useCallback(async (options: ReassessOptions) => {
     const eventBeforeStart = getLatestAnalystRunEvent(symbol);
     setHint(null);
-    const result = await reassess();
+    const result = await reassess(options);
     if (!result.ok) {
       if (!result.aborted) setHint(result.error);
+      return;
+    }
+
+    if (options.rebuildEpsPe && result.data.reason === 'already running') {
+      // The run in flight keeps the saved EPS × PE frame, so it cannot stand in for a rebuild.
+      setHint('local:cockpitAnalystBusy');
       return;
     }
 
@@ -108,6 +116,8 @@ export function useAnalystRun(
     setHint(REASON_TEXT[reason] ?? (reason || 'local:cockpitStartFailed'));
   }, [reassess, armReconcileTimer, clearReconcileTimer, symbol]);
 
+  const start = useCallback(() => startWithOptions({}), [startWithOptions]);
+
   let status: RunningReassessStatus | null = serverStatus;
   if (!status && optimisticStartedAt !== null) {
     const startedAt = new Date(optimisticStartedAt).toISOString();
@@ -126,6 +136,7 @@ export function useAnalystRun(
     pending,
     running: status !== null,
     start,
+    startWithOptions,
     status,
   };
 }

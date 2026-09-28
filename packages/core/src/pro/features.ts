@@ -10,13 +10,21 @@ import { hasEncBundle, isProPresent } from './bundleState.js';
 
 const featureCatalog: Record<FeatureKey, { tier: FeatureTier }> = FEATURES;
 
+/**
+ * Pro features that open core also implements. Without the Pro composition they run on the
+ * core engine; with Pro present, Pro's engine and its license check apply unchanged.
+ */
+export const CORE_FALLBACK_FEATURES: ReadonlySet<FeatureKey> = new Set<FeatureKey>(['deep-dive']);
+
 function resolveState(
   tier: FeatureTier,
   proPresent: boolean,
   licensed: boolean,
   encBundlePresent: boolean,
+  key?: FeatureKey,
 ): FeatureState {
   if (tier === 'free') return 'active';
+  if (!proPresent && key && CORE_FALLBACK_FEATURES.has(key)) return 'active';
   if (!proPresent) return encBundlePresent ? 'locked' : 'absent';
   return licensed ? 'active' : 'locked';
 }
@@ -24,7 +32,7 @@ function resolveState(
 export function featureStateSync(key: FeatureKey): FeatureState {
   const tier = featureCatalog[key].tier;
   if (tier === 'free') return 'active';
-  return resolveState(tier, isProPresent(), isLicensed(), hasEncBundle());
+  return resolveState(tier, isProPresent(), isLicensed(), hasEncBundle(), key);
 }
 
 export async function featureState(key: FeatureKey): Promise<FeatureState> {
@@ -39,7 +47,7 @@ export async function featureStates(): Promise<Record<FeatureKey, FeatureState>>
   return Object.fromEntries(
     keys.map((key) => [
       key,
-      resolveState(featureCatalog[key].tier, proPresent, licensed, encBundlePresent),
+      resolveState(featureCatalog[key].tier, proPresent, licensed, encBundlePresent, key),
     ]),
   ) as Record<FeatureKey, FeatureState>;
 }

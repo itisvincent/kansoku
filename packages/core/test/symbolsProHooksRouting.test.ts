@@ -9,6 +9,7 @@ import { setEncBundlePresent, setProPresent } from '../src/pro/bundleState.js';
 import {
   currentProHooks,
   freeHooks,
+  hasProHooks,
   registerProHooks,
   resetProHooksForTests,
 } from '../src/pro/hooks.js';
@@ -49,17 +50,30 @@ afterAll(() => {
 });
 
 describe('symbolsService routes through the registered pro hooks', () => {
-  it('defaults to the free no-op hooks, and the license gate keeps them from ever running unlicensed', async () => {
+  it('defaults to the free no-op hooks', () => {
     expect(currentProHooks()).toBe(freeHooks);
+    expect(hasProHooks()).toBe(false);
     expect(currentProHooks().startDeepDiveForNote('NVDA')).toEqual({
       started: false,
       reason: 'disabled',
     });
     expect(currentProHooks().deepDiveStatus()).toEqual({ running: false });
     expect(() => currentProHooks().requestImmediateFollow('NVDA.US')).not.toThrow();
+  });
 
+  it('runs the open-core deep dive when pro is absent', async () => {
+    expect(await symbolsService.deepDiveStatus({ sym: 'NVDA.US' })).toEqual({ running: false });
+    // No settings store in this test, so no deep-research model: the core engine answers 503.
     const err = await symbolsService.deepDive({ sym: 'NVDA.US' }).catch((e: unknown) => e);
-    expect(err).toMatchObject({ status: 404 });
+    expect(err).toMatchObject({ status: 503 });
+  });
+
+  it('runs the open-core deep dive when a composition fills the pro slot without hooks', async () => {
+    // The local test build: proPresent with the license baked open, but no deep-dive hooks.
+    setProPresent(true);
+    setLicenseManagerForTests(fakeLicenseManager());
+    const err = await symbolsService.deepDive({ sym: 'NVDA.US' }).catch((e: unknown) => e);
+    expect(err).toMatchObject({ status: 503 });
   });
 
   it('reaches the composition-registered hooks when pro is active and licensed', async () => {

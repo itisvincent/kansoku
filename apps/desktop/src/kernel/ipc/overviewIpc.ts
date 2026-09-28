@@ -32,6 +32,26 @@ export class OverviewIpc extends IpcService implements WrapEnvelope<OverviewApi>
   }
 
   @IpcMethod()
+  scorecard(input: Parameters<OverviewApi['scorecard']>[0]) {
+    return toEnvelope('overview.scorecard', () => overviewService.scorecard(input ?? {}));
+  }
+
+  @IpcMethod()
+  scanStart(input: Parameters<OverviewApi['scanStart']>[0]) {
+    return toEnvelope('overview.scanStart', () => overviewService.scanStart(input ?? {}));
+  }
+
+  @IpcMethod()
+  scanStatus() {
+    return toEnvelope('overview.scanStatus', () => overviewService.scanStatus());
+  }
+
+  @IpcMethod()
+  scanCancel() {
+    return toEnvelope('overview.scanCancel', () => overviewService.scanCancel());
+  }
+
+  @IpcMethod()
   usage(input: Parameters<OverviewApi['usage']>[0]) {
     return toEnvelope('overview.usage', () => overviewService.usage(input));
   }

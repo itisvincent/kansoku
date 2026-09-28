@@ -221,6 +221,9 @@ export function buildSubmitPredictionTool(
       if (hooks.allowedTimeframes?.length) {
         (prediction as IntradayPrediction).analysis_timeframes = [...hooks.allowedTimeframes];
       }
+      if (required?.length) {
+        (prediction as IntradayPrediction).analysis_windows = [...required];
+      }
       hooks.reportProgress?.('finalizing', analystStatusText('finalizing'));
       const chart = await hooks.createChart({
         type: 'intraday',

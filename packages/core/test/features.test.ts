@@ -45,6 +45,21 @@ describe('feature resolver', () => {
     expect(err).toMatchObject({ status: 403, code: 'LICENSE_REQUIRED' });
   });
 
+  it('runs deep dive on the open-core engine when pro is absent', async () => {
+    await expect(featureState('deep-dive')).resolves.toBe('active');
+    await expect(requireFeature('deep-dive')).resolves.toBeUndefined();
+    setEncBundlePresent(true);
+    await expect(featureState('deep-dive')).resolves.toBe('active');
+  });
+
+  it('keeps the Pro license check on deep dive when pro is present', async () => {
+    setProPresent(true);
+    setLicenseManagerForTests(fakeLicenseManager(false));
+    await expect(featureState('deep-dive')).resolves.toBe('locked');
+    setLicenseManagerForTests(fakeLicenseManager(true));
+    await expect(featureState('deep-dive')).resolves.toBe('active');
+  });
+
   it('is locked for a pro key when pro is present without a license manager', async () => {
     setProPresent(true);
     await expect(featureState('deep-dive')).resolves.toBe('locked');

@@ -33,6 +33,10 @@ export interface AnalystDeps {
   disciplineText?: string;
   /** When set, a later run keeps this symbol's saved EPS × PE multiples. */
   loadSavedEpsPePlan?: () => Promise<EpsPePlan | null>;
+  /** The user asked for a fresh EPS × PE ladder; the saved multiples are ignored this run. */
+  rebuildEpsPe?: boolean;
+  /** Skip the per-symbol "analysis finished" notice (batch runs announce once instead). */
+  quiet?: boolean;
 }
 
 export interface RunAnalystInput {

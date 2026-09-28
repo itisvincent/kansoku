@@ -8,14 +8,14 @@ export interface StatsRow {
   outcome: AnalysisOutcome | null;
 }
 
-interface MutableBucket extends StatsBucket {
+export interface MutableBucket extends StatsBucket {
   resolved_pct_sum: number;
   resolved_count: number;
   r_sum: number;
   r_count: number;
 }
 
-function emptyBucket(): MutableBucket {
+export function emptyBucket(): MutableBucket {
   return {
     total: 0,
     hit_target: 0,
@@ -34,7 +34,7 @@ function emptyBucket(): MutableBucket {
   };
 }
 
-function addRow(bucket: MutableBucket, outcome: AnalysisOutcome | null): void {
+export function addRow(bucket: MutableBucket, outcome: AnalysisOutcome | null): void {
   bucket.total += 1;
   if (!outcome) {
     bucket.unjudged += 1;
@@ -55,7 +55,7 @@ function addRow(bucket: MutableBucket, outcome: AnalysisOutcome | null): void {
   }
 }
 
-function finalize(bucket: MutableBucket): StatsBucket {
+export function finalize(bucket: MutableBucket): StatsBucket {
   const resolved = bucket.hit_target + bucket.hit_stop + bucket.held_range + bucket.broke_range;
   return {
     total: bucket.total,

@@ -13,6 +13,7 @@ import {
 import type { AnalystDeps } from '../src/ai/personas/analyst/types.js';
 import {
   buildAnalystSystemPrompt,
+  EPS_PE_REBUILD_TURN,
   executeAnalystRun,
   runAnalyst,
 } from '../src/ai/personas/analyst/run.js';
@@ -318,6 +319,48 @@ describe('analyst tools', () => {
     expect(saved.eps_pe_plan?.scenarios.map((row) => row.target)).toEqual([312.48, 514.02, 600.6]);
   });
 
+  it('a rebuild run keeps the fresh EPS × PE ladder and tells the model why', async () => {
+    const fresh = {
+      scenarios: [
+        { kind: 'bear' as const, eps: 19.4, pe: 17, target: 329.8 },
+        { kind: 'base' as const, eps: 19.6, pe: 22, target: 431.2 },
+        { kind: 'bull' as const, eps: 19.9, pe: 26, target: 517.4 },
+      ],
+    };
+    const { deps, createCalls, engineeredMessages } = harness(async (tools) => {
+      await tool(tools, 'submit_section').execute('c0', {
+        kind: 'technical',
+        trends: [
+          { timeframe: 'm5', trend: 'up' },
+          { timeframe: 'm15', trend: 'up' },
+          { timeframe: 'h1', trend: 'up' },
+        ],
+        levels: [{ price: 100, label: 'support' }],
+        summary: 'All periods rise.',
+      });
+      await tool(tools, 'submit_prediction').execute('c1', {
+        ...validPrediction,
+        eps_pe_plan: fresh,
+      });
+    });
+    // reassessSymbol drops loadSavedEpsPePlan on a rebuild, so no saved frame is offered.
+    await executeAnalystRun('MU.US', { ...deps, rebuildEpsPe: true });
+    const saved = createCalls[0]?.prediction as {
+      eps_pe_plan?: { scenarios: { pe: number; target: number }[] };
+    };
+    expect(saved.eps_pe_plan?.scenarios.map((row) => row.pe)).toEqual([17, 22, 26]);
+    expect(saved.eps_pe_plan?.scenarios.map((row) => row.target)).toEqual([329.8, 431.2, 517.4]);
+    const turnText = engineeredMessages[0].map((message) => messageText(message)).join(' ');
+    expect(turnText).toContain(EPS_PE_REBUILD_TURN);
+  });
+
+  it('a normal run does not send the rebuild instruction', async () => {
+    const { deps, engineeredMessages } = harness(async () => {});
+    await executeAnalystRun('MU.US', deps);
+    const turnText = engineeredMessages[0].map((message) => messageText(message)).join(' ');
+    expect(turnText).not.toContain(EPS_PE_REBUILD_TURN);
+  });
+
   it('submit_prediction rejects a plan that omits the Darren EPS × PE section', async () => {
     let text: string | undefined;
     const { deps, createCalls } = harness(async (tools) => {
@@ -440,10 +483,38 @@ describe('analyst message pipeline', () => {
     expect(results[0]).toContain('submit_section');
     expect(results[1]).toContain('4h');
     expect(results[3]).toContain('recorded');
-    expect(createCalls[0].prediction).toMatchObject({ analysis_timeframes: ['h1', '4h', 'day'] });
+    expect(createCalls[0].prediction).toMatchObject({
+      analysis_timeframes: ['h1', '4h', 'day'],
+      analysis_windows: ['h1', '4h', 'day'],
+    });
     const context = messageText(engineeredMessages[0][1]);
     expect(context).toContain('Selected analysis timeframes for this run: h1, 4h, day');
     expect(context).toContain('Override the skill');
+  });
+
+  it('saves the full window set even when the anchor is pinned', async () => {
+    const { deps, createCalls } = harness(
+      async (tools) => {
+        await tool(tools, 'submit_section').execute('s', {
+          kind: 'technical',
+          trends: ['h1', '4h', 'day'].map((timeframe) => ({ timeframe, trend: 'up' })),
+          levels: [{ price: 100, label: 'support' }],
+          summary: 'All three selected periods rise above 100.',
+        });
+        await tool(tools, 'submit_prediction').execute('p', {
+          ...validPrediction,
+          anchor: { ...validPrediction.anchor, timeframe: '4h' },
+          conviction: 64,
+        });
+      },
+      { pack: makePack({ analysis_timeframes: ['h1', '4h', 'day'] }) },
+    );
+    await executeAnalystRun('MU.US', { ...deps, anchorTimeframe: '4h' });
+    expect(createCalls[0].prediction).toMatchObject({
+      analysis_timeframes: ['4h'],
+      analysis_windows: ['h1', '4h', 'day'],
+      conviction: 64,
+    });
   });
 
   it('keeps the system prompt stable and injects skills before the task', async () => {

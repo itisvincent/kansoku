@@ -235,6 +235,8 @@ interface PredictionTabProps {
   predictionStale?: boolean;
   reassess?: ConclusionReassess;
   emptyCta?: ReactNode;
+  /** Rendered under a saved EPS × PE plan, e.g. the rebuild-multiples control. */
+  epsPeAction?: ReactNode;
 }
 
 export function PredictionTab({
@@ -244,6 +246,7 @@ export function PredictionTab({
   predictionStale,
   reassess,
   emptyCta,
+  epsPeAction,
 }: PredictionTabProps) {
   const { t: i18n, locale } = useLocale();
   const { analysisTfs } = useIntradayControls();
@@ -563,6 +566,7 @@ export function PredictionTab({
                 ))}
               </div>
             )}
+            {epsPeAction}
           </>
         );
       })()}

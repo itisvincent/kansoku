@@ -96,7 +96,17 @@ export function useDeepDive(symbol: string, onNoteReady: () => void) {
     setSuccessNote(null);
     setPending(true);
     try {
-      await client.symbols.deepDive({ sym: symbol });
+      const result = await client.symbols.deepDive({ sym: symbol });
+      // Desktop IPC hands a refusal back as a plain body instead of a 409/503 status.
+      if (result && result.started === false) {
+        if (result.reason === 'busy') {
+          setInlineMessage('local:cockpitDeepBusy');
+        } else {
+          setDisabled(true);
+          setInlineMessage('local:cockpitDeepUnconfigured');
+        }
+        return;
+      }
       trackFeatureUsed('deep_research', { stage: 'started' });
       setRunning(true);
       setRunningSymbol(symbol);

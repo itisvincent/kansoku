@@ -32,6 +32,7 @@ import { useAiUnreadBadge } from './useAiUnreadBadge';
 import { useCockpitComments } from './useCockpitComments';
 import { useCockpitEnv } from './useCockpitEnv';
 import { useAnalystRun } from './useAnalystRun';
+import { RebuildEpsPe } from './RebuildEpsPe';
 import { useCockpitReviewState } from './useCockpitReviewState';
 import { useLatestAnalysis } from './useLatestAnalysis';
 import { colors, fontSizes, radii, sizes } from '../../theme/tokens.stylex';
@@ -368,6 +369,7 @@ export function SymbolCockpit({ sym }: { sym: string }) {
           activeTf={activeIntradayTf}
           predictionUpdatedAt={doc.prediction_updated_at}
           predictionStale={doc.prediction_stale}
+          epsPeAction={<RebuildEpsPe sym={sym} viewedTf={activeIntradayTf} />}
         />
       </>
     ),

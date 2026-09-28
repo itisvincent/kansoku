@@ -1,10 +1,12 @@
 import type {
   IntradayPrediction,
+  PredictionScorecard,
   OverviewRecap,
   RawBar,
   RecapSettlementRow,
 } from '@kansoku/shared/types';
 import { chartUrl } from '../platform/chartUrl.js';
+import { ClientError } from '../platform/errors.js';
 import { listAllCommentDates, listComments } from '../ai/personas/comments.js';
 import { listUsage, listUsageDates, summarizeUsage } from '../ai/runtime/usageStore.js';
 import type { OverviewApi } from '../contract/overview.js';
@@ -20,12 +22,18 @@ import { getResolvedOutcomes, saveResolvedOutcome } from '../cockpit/outcomeCach
 import { buildHomeEvents } from './homeEvents.js';
 import { getIndustryPanorama } from './industryPanorama.js';
 import { aggregateStats, type StatsRow } from '../cockpit/stats.js';
+import { buildScorecard, scorecardSince } from '../cockpit/scorecard.js';
+import { loadScorecardRows } from '../cockpit/scorecardSource.js';
+import { watchlistScanner } from '../ai/personas/scan/watchlistScan.js';
 import { getProvider } from '../marketdata/registry.js';
 import { easternDate } from '../marketdata/session.js';
 import { listCharts, loadChart } from '../charts/store.js';
 import { marketOf } from '../symbols/symbol.utils.js';
 
 const OUTCOME_BARS = 300;
+/** Long enough to absorb tab switches and re-renders; short enough that new verdicts show up. */
+const SCORECARD_TTL_MS = 60_000;
+let scorecardCache = new Map<string, { at: number; data: PredictionScorecard }>();
 const DAILY_BARS = 30;
 const RECAP_TTL_MS = 60_000;
 const RECAP_HISTORICAL_TTL_MS = 60 * 60_000;
@@ -36,6 +44,7 @@ let recapCache = new Map<string, { at: number; data: OverviewRecap }>();
 let recapInflight = new Map<string, Promise<OverviewRecap>>();
 
 export function resetOverviewCacheForTests(): void {
+  scorecardCache = new Map();
   recapCache = new Map();
   recapInflight = new Map();
 }
@@ -257,6 +266,38 @@ export const overviewService: OverviewApi = {
     });
 
     return aggregateStats(rows);
+  },
+
+  async scorecard(input) {
+    // HTTP hands the query over as a string; IPC passes a number.
+    const raw = input?.days as unknown;
+    const days = raw === undefined || raw === '' ? undefined : Number(raw);
+    if (days !== undefined && (!Number.isFinite(days) || days <= 0)) {
+      throw new ClientError(`invalid days: ${String(raw)}`, 'expected a positive number of days', 400);
+    }
+    const key = days === undefined ? 'all' : String(Math.floor(days));
+    const cached = scorecardCache.get(key);
+    if (cached && Date.now() - cached.at < SCORECARD_TTL_MS) return cached.data;
+    const since = scorecardSince(days, Date.now());
+    const data = buildScorecard(await loadScorecardRows(since), since);
+    scorecardCache.set(key, { at: Date.now(), data });
+    return data;
+  },
+
+  async scanStart(input) {
+    const timeframes = Array.isArray(input?.timeframes)
+      ? input.timeframes.filter((tf): tf is string => typeof tf === 'string')
+      : undefined;
+    const anchorTf = typeof input?.anchorTf === 'string' ? input.anchorTf : undefined;
+    return watchlistScanner.start({ timeframes, anchorTf });
+  },
+
+  async scanStatus() {
+    return watchlistScanner.status();
+  },
+
+  async scanCancel() {
+    return watchlistScanner.cancel();
   },
 
   async usage(input) {

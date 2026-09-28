@@ -563,6 +563,13 @@ export interface IntradayPrediction {
   direction: 'long' | 'short' | 'neutral';
   /** Analysis windows this prediction was generated from (set by the analyst run). */
   analysis_timeframes?: string[];
+  /**
+   * The full analysis-window set the run covered. `analysis_timeframes` narrows to the anchor
+   * when one was pinned, so the scorecard groups by this field instead.
+   */
+  analysis_windows?: string[];
+  /** The analyst's confidence in the direction call, 1-100. Older predictions have none. */
+  conviction?: number;
   /** Darren-style EPS × PE scenario plan (bear/base/bull targets, PEG, bands). */
   eps_pe_plan?: EpsPePlan;
   anchor?: { timeframe: TimeframeKey; time: string; price: number };
@@ -844,6 +851,90 @@ export interface StatsBucket {
   win_rate: number | null;
   avg_pct: number | null;
   avg_r: number | null;
+}
+
+export type ScanItemStatus = 'queued' | 'running' | 'done' | 'failed' | 'skipped' | 'cancelled';
+
+export interface ScanItem {
+  symbol: string;
+  status: ScanItemStatus;
+  chart_id: string | null;
+  /** Why the symbol failed or was skipped, in plain words. */
+  reason: string | null;
+  started_at: string | null;
+  finished_at: string | null;
+}
+
+/** One analysed symbol, ready to rank. */
+export interface ScanSetup {
+  symbol: string;
+  chart_id: string;
+  direction: 'long' | 'short' | 'neutral';
+  conviction: number | null;
+  entry: number | null;
+  stop: number | null;
+  target1: number | null;
+  /** First-target distance divided by stop distance; null without an entry plan. */
+  reward_risk: number | null;
+  range_low: number | null;
+  range_high: number | null;
+  /** conviction (0-1) × reward-to-risk (capped at 4). Higher ranks first. */
+  score: number;
+}
+
+export interface WatchlistScanState {
+  running: boolean;
+  started_at: string | null;
+  finished_at: string | null;
+  timeframes: string[];
+  anchor_tf: string | null;
+  items: ScanItem[];
+  /** Long and short calls, best first. */
+  setups: ScanSetup[];
+  /** Range (neutral) calls; they have no single target so they are listed apart. */
+  ranges: ScanSetup[];
+  /** Watchlist symbols left out because the scan is capped. */
+  skipped_over_cap: number;
+}
+
+export type ScanStartResult =
+  | { started: true }
+  | {
+      started: false;
+      reason: 'busy' | 'analyst layer disabled' | 'empty watchlist' | 'watchlist unavailable';
+    };
+
+/** One AI prediction as the scorecard sees it. */
+export interface ScorecardRow {
+  chart_id: string;
+  symbol: string;
+  created_at: string;
+  url: string;
+  direction: 'long' | 'short' | 'neutral';
+  /** Anchor timeframe (m5 / m15 / h1 / 4h / day ...); null on very old predictions. */
+  anchor_tf: string | null;
+  /** Analysis windows the run covered, in canonical order; null when not recorded. */
+  windows: string[] | null;
+  conviction: number | null;
+  outcome: AnalysisOutcome | null;
+}
+
+export interface ScorecardGroup {
+  /** Timeframe key, direction, comma-joined window set, or 'unknown'. */
+  key: string;
+  bucket: StatsBucket;
+}
+
+export interface PredictionScorecard {
+  /** Oldest creation time included, or null for all history. */
+  since: string | null;
+  total: number;
+  overall: StatsBucket;
+  by_anchor: ScorecardGroup[];
+  by_direction: ScorecardGroup[];
+  by_windows: ScorecardGroup[];
+  /** Newest predictions first. */
+  recent: ScorecardRow[];
 }
 
 export interface PredictionStats {
