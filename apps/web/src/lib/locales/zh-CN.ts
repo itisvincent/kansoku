@@ -623,7 +623,7 @@ const zhCN = {
   chartMode: '模式',
   chartPreview: '👀 预览模式',
   chartPreviewHelp: '仅技术面，暂无预测结论——供分析前读数用',
-  chartScenarios: '情景推演',
+  chartScenarios: '短线价格情景',
   chartProbabilityTotal: '概率合计 {total}%，未凑够100',
   chartTrigger: ' · 触发：{trigger}',
   chartRangePlan: '震荡应对',

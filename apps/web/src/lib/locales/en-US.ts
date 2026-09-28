@@ -645,7 +645,7 @@ const enUS = {
   chartMode: 'Mode',
   chartPreview: '👀 Preview mode',
   chartPreviewHelp: 'Technical readings only. No prediction is available yet.',
-  chartScenarios: 'Scenarios',
+  chartScenarios: 'Short-term price scenarios',
   chartProbabilityTotal: 'Probabilities total {total}%, rather than 100%',
   chartTrigger: ' · Trigger: {trigger}',
   chartRangePlan: 'Range trading plan',

@@ -24,6 +24,7 @@ import {
 import { sanitizeReassessTimeframes, type ReassessTf } from '../../agents/analysisTimeframes.js';
 import { aiConfig } from '../../runtime/models.js';
 import { emitNotice } from '../notices.js';
+import { describeSavedEpsPeFrame } from '../epsPeFrame.js';
 import {
   analystRunLock,
   analystRunStates,
@@ -190,10 +191,16 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
     });
 
     reportProgress('researching', analystStatusText('planningRun'));
+    const savedFrame = deps.rebuildEpsPe
+      ? null
+      : describeSavedEpsPeFrame(await deps.loadSavedEpsPePlan?.().catch(() => null));
+    const task = `Reassess the short-term multi-period conclusion for ${symbol}.`;
     await session.runTurn(
       deps.rebuildEpsPe
-        ? `Reassess the short-term multi-period conclusion for ${symbol}. ${EPS_PE_REBUILD_TURN}`
-        : `Reassess the short-term multi-period conclusion for ${symbol}.`,
+        ? `${task} ${EPS_PE_REBUILD_TURN}`
+        : savedFrame
+          ? `${task} ${savedFrame}`
+          : task,
       timeoutMs,
     );
 

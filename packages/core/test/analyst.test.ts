@@ -354,6 +354,22 @@ describe('analyst tools', () => {
     expect(turnText).toContain(EPS_PE_REBUILD_TURN);
   });
 
+  it('tells the model which multiples the saved frame will hold', async () => {
+    const { deps, engineeredMessages } = harness(async () => {}, {
+      loadSavedEpsPePlan: async () => ({
+        anchor_year: 'FY2028',
+        scenarios: [
+          { kind: 'bear', eps: 6.67, pe: 12, target: 80.04 },
+          { kind: 'base', eps: 6.99, pe: 16, target: 111.84 },
+          { kind: 'bull', eps: 7.36, pe: 19, target: 139.84 },
+        ],
+      }),
+    });
+    await executeAnalystRun('ORCL.US', deps);
+    const turnText = engineeredMessages[0].map((message) => messageText(message)).join(' ');
+    expect(turnText).toContain('bear 12×, base 16×, bull 19×');
+  });
+
   it('a normal run does not send the rebuild instruction', async () => {
     const { deps, engineeredMessages } = harness(async () => {});
     await executeAnalystRun('MU.US', deps);

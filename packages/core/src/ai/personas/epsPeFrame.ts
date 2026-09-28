@@ -20,6 +20,15 @@ function byKind(plan: EpsPePlan | null | undefined): Map<EpsPeScenario['kind'], 
   return KINDS.every((kind) => map.has(kind)) ? map : null;
 }
 
+/** One line for the analyst's task: the multiples the server will hold for this run. */
+export function describeSavedEpsPeFrame(saved: EpsPePlan | null | undefined): string | null {
+  const rows = byKind(saved);
+  if (!saved || !rows) return null;
+  const ladder = KINDS.map((kind) => `${kind} ${rows.get(kind)!.pe}×`).join(', ');
+  const year = saved.anchor_year ? ` for ${saved.anchor_year}` : '';
+  return `A saved EPS × PE frame exists${year}: ${ladder}. The server keeps these multiples, so write each scenario's rationale, the thesis-break triggers and the band notes for exactly these multiples.`;
+}
+
 export interface LockedEpsPeFrame {
   plan: EpsPePlan;
   held: boolean;
@@ -49,8 +58,11 @@ export function applySavedEpsPeFrame(
   const earningsMove = Math.abs(rawMove) > EPS_MOVE_THRESHOLD ? rawMove : 0;
   const factor = 1 + earningsMove;
 
+  // Numbers come from the saved frame; wording comes from this run, which writes in the
+  // current interface language (the saved text may be in the language of an older run).
   const scenarios = KINDS.map((kind) => {
     const prior = savedRows.get(kind)!;
+    const fresh = incomingRows.get(kind)!;
     const eps = round2(prior.eps * factor);
     const pe = prior.pe;
     return {
@@ -59,6 +71,7 @@ export function applySavedEpsPeFrame(
       pe,
       target: round2(eps * pe),
       upside_pct: undefined,
+      rationale: fresh.rationale ?? prior.rationale,
     };
   });
 
@@ -75,6 +88,7 @@ export function applySavedEpsPeFrame(
     plan: {
       ...saved,
       anchor_year: saved.anchor_year ?? incoming.anchor_year,
+      eps_growth_note: incoming.eps_growth_note ?? saved.eps_growth_note,
       scenarios,
       blended_target:
         saved.blended_target != null ? round2(saved.blended_target * factor) : undefined,
@@ -84,6 +98,7 @@ export function applySavedEpsPeFrame(
             ...saved.black_swan,
             eps: round2(saved.black_swan.eps * factor),
             target: round2(saved.black_swan.eps * factor * saved.black_swan.pe),
+            triggers: incoming.black_swan?.triggers ?? saved.black_swan.triggers,
           }
         : incoming.black_swan,
       digestion: saved.digestion?.map((row) => ({
@@ -91,8 +106,17 @@ export function applySavedEpsPeFrame(
         eps: round2(row.eps * factor),
         pe: factor === 1 ? row.pe : round2(row.pe / factor),
       })),
-      bands: saved.bands?.map((band) => ({ ...band, price: round2(band.price * factor) })),
-      sources: [note, ...(saved.sources ?? [])],
+      bands: saved.bands?.map((band, i) => {
+        // Bands line up by position only when this run produced the same set of bands.
+        const fresh = incoming.bands?.length === saved.bands?.length ? incoming.bands?.[i] : undefined;
+        return {
+          ...band,
+          price: round2(band.price * factor),
+          label: fresh?.label ?? band.label,
+          note: fresh?.note ?? band.note,
+        };
+      }),
+      sources: [note, ...(incoming.sources ?? saved.sources ?? [])],
     },
   };
 }

@@ -14,6 +14,7 @@ import type {
   RawBar,
   RelativeVolume,
 } from '@kansoku/shared/types';
+import { wilderAtr } from '../../analysis/atr.js';
 import { ClientError } from '../../platform/errors.js';
 import { normalizeQuote } from '../../realtime/quotes.js';
 import { buildCockpitPosition } from '../../cockpit/position.js';
@@ -120,6 +121,10 @@ export interface CommentPack {
 export interface ReassessTimeframe {
   bars: RawBar[];
   summary: IntradayTfSummary | null;
+  /** Wilder ATR over the last 14 bars of this timeframe: its typical move per bar. */
+  atr14: number | null;
+  /** atr14 as a percent of the latest close. */
+  atr14_pct: number | null;
 }
 
 export interface ReassessPack {
@@ -312,9 +317,16 @@ export async function buildReassessPack(
   const timeframes: Record<string, ReassessTimeframe> = {};
   keys.forEach((tf, i) => {
     const bars = barsList[i] ?? [];
+    const atr = wilderAtr(bars, 14);
+    const close = Number(bars.at(-1)?.close);
     timeframes[tf] = {
       bars: bars.slice(-REASSESS_TF_BARS),
       summary: summarizeTimeframe(bars, tf),
+      atr14: atr == null ? null : Math.round(atr * 100) / 100,
+      atr14_pct:
+        atr == null || !Number.isFinite(close) || close <= 0
+          ? null
+          : Math.round((atr / close) * 10_000) / 100,
     };
   });
 

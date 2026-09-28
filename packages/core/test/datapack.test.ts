@@ -319,6 +319,9 @@ describe('buildReassessPack', () => {
     expect(pack.timeframes.m5.bars).toHaveLength(60);
     expect(pack.timeframes.m5.summary).not.toBeNull();
     expect(pack.timeframes.h1.summary?.last_hist).toBeTypeOf('number');
+    // Scenario sizing reads the anchor timeframe's typical move per bar.
+    expect(pack.timeframes.h1.atr14).toBeGreaterThan(0);
+    expect(pack.timeframes.h1.atr14_pct).toBeGreaterThan(0);
     expect(pack.prediction?.direction).toBe('long');
     expect(pack.prediction_chart_id).toBe('2026-07-02-mu');
     expect(pack.position?.symbol).toBe('MU.US');
