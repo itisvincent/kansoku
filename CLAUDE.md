@@ -8,7 +8,7 @@ A personal **US-equities trading journal**, not a software product. The repo is 
 
 1. **A durable record** — dated markdown under `journal/` and per-name notes under `stocks/`, plus chart data JSON under `journal/charts/data/`. These files are the _only_ persistence layer (no database).
 2. **A toolchain** — custom Claude Code skills under `.claude/skills/` that pull market data and orchestrate analysis workflows. "Running" this repo means invoking a skill or one of its Python scripts, then writing the synthesis back into a journal/stock file.
-3. **A chart web app** — a pnpm workspace rooted at the repo root: shared libraries live under `packages/` and hosts under `apps/`. The kernel lives in `packages/core` (`@kansoku/core`); `apps/server` is a thin HTTP host (Tsuki (Hono + NestJS-style modules/DI) controllers + WS) that wraps the kernel, hosted as a single process by `main.node.ts` in production; `apps/desktop` is an Electron shell that embeds the same kernel and reaches it over typed IPC (`electron-ipc-decorator`) instead of HTTP; `apps/web` is Vite + React and picks HTTP or IPC transport by environment — `pnpm dev` runs web+server (Vite dev server proxies to the server process, neither needs a separate build step), `pnpm dev:desktop` runs web+desktop with no server process at all; charts render locally at `http://localhost:1792`. Cross-package types sit in `packages/shared`. **Open-core split (2026-07-17)**: `apps/pro/` — a gitignored slot directory holding the private repo `Innei/kansoku-pro` (`@kansoku/pro`), loaded at boot via `packages/core/src/pro/loader.ts` — now provides only the paid surface (个股自动跟踪、深度研究、研究库 AI) plus license, while the free AI (自带 key 的复评、对话、AI 设置、macro 过滤、研究库浏览) has moved into open core and runs without `apps/pro`; `packages/pro-api` stays the public types-only contract. Without `apps/pro` the build is the complete free version (charts/realtime/journal + free AI all work, only the paid routes 404 and their UI hidden); `GET /api/capabilities` reports `{ pro, licensed }` unchanged. Paid-AI work therefore usually means editing `apps/pro` (its own git repo — commit there separately); free-AI work lives in `packages/core`. The server/kernel calls the longbridge CLI itself and computes every indicator in TS; charts are created via `POST /api/charts` (see `.claude/skills/chart/SKILL.md`). Realtime layer: a single WS connection (`/api/ws`) pushes live quotes (watchlist ∪ positions, pre/post/overnight aware) and 60s chart rebuilds while a page is open — persisted chart JSON stays frozen at analysis time. **Default way to launch the app is Electron: `pnpm dev:desktop` (or `pnpm dev:desktop:unlocked` for licensed-Pro behavior) — do not start the server process (`pnpm dev` / `apps/server`) unless the task specifically needs the HTTP host.** Before launching, make sure the pro overlays are projected (`pnpm overlay:sync`; a missing projection silently boots the free composition). `pnpm start` is the production form and requires `pnpm --filter @kansoku/web build` first. Tests with `pnpm test`.
+3. **A chart web app** — a pnpm workspace rooted at the repo root: shared libraries live under `packages/` and hosts under `apps/`. The kernel lives in `packages/core` (`@kansoku/core`); `apps/server` is a thin HTTP host (Tsuki (Hono + NestJS-style modules/DI) controllers + WS) that wraps the kernel, hosted as a single process by `main.node.ts` in production; `apps/desktop` is an Electron shell that embeds the same kernel and reaches it over typed IPC (`electron-ipc-decorator`) instead of HTTP; `apps/web` is Vite + React and picks HTTP or IPC transport by environment — `pnpm dev` runs web+server (Vite dev server proxies to the server process, neither needs a separate build step), `pnpm dev:desktop` runs web+desktop with no server process at all; charts render locally at `http://localhost:1792`. Cross-package types sit in `packages/shared`. **Open-core split (2026-07-17)**: `apps/pro/` — a gitignored slot directory holding the private repo `Innei/kansoku-pro` (`@kansoku/pro`), loaded at boot via `packages/core/src/pro/loader.ts` — now provides only the paid surface (per-stock auto-tracking, deep research, research-library AI) plus license, while the free AI (bring-your-own-key review, chat, AI settings, macro filtering, research-library browsing) has moved into open core and runs without `apps/pro`; `packages/pro-api` stays the public types-only contract. Without `apps/pro` the build is the complete free version (charts/realtime/journal + free AI all work, only the paid routes 404 and their UI hidden); `GET /api/capabilities` reports `{ pro, licensed }` unchanged. Paid-AI work therefore usually means editing `apps/pro` (its own git repo — commit there separately); free-AI work lives in `packages/core`. The server/kernel calls the longbridge CLI itself and computes every indicator in TS; charts are created via `POST /api/charts` (see `.claude/skills/chart/SKILL.md`). Realtime layer: a single WS connection (`/api/ws`) pushes live quotes (watchlist ∪ positions, pre/post/overnight aware) and 60s chart rebuilds while a page is open — persisted chart JSON stays frozen at analysis time. **Default way to launch the app is Electron: `pnpm dev:desktop` (or `pnpm dev:desktop:unlocked` for licensed-Pro behavior) — do not start the server process (`pnpm dev` / `apps/server`) unless the task specifically needs the HTTP host.** Before launching, make sure the pro overlays are projected (`pnpm overlay:sync`; a missing projection silently boots the free composition). `pnpm start` is the production form and requires `pnpm --filter @kansoku/web build` first. Tests with `pnpm test`.
 
 ## OSS → Pro sync (hard rule)
 
@@ -23,15 +23,15 @@ Especially after edits under `packages/core` (conversation/agent/models/roles) o
 
 Burned once: dropping `timeoutMs` from `ConversationPreparedTurn` without updating `apps/pro/src/ai/researchChat.ts`.
 
-**Documentation language — write every document in this repo in 中文白话 (modern vernacular Chinese).** This covers journal entries, stock notes, specs, READMEs, and this file. Keep English only for tickers, API/CLI identifiers, and terms with no natural translation. This **overrides** the global "products committed to git are written in English" default (`~/.claude/CLAUDE.md`) — for this repo, written docs are 中文白话, not English and not 文言.
+**Default language is English.** Write every new document in this repo in plain English — journal entries, stock notes, specs, READMEs, and this file. Existing Chinese documents stay as they are; when appending to one, match its language so a single file does not switch mid-way.
 
-**对话回复也用 中文白话，不用文言。** This project overrides the global 文言 chat-reply rule (`~/.claude/CLAUDE.md`). Every reply to the user — explanations, status updates, end-of-turn summaries — is plain modern Chinese.
+**Chat replies are in plain English too.** Every reply to the user — explanations, status updates, end-of-turn summaries — is in English. For Claude Code sessions this **overrides** TD-LANG-01 in the imported `trading-discipline` skill below (TD-LANG-01 still governs the app's own AI output, which follows the interface language).
 
-**少用专业术语和英文行话** —— 细则与正反例见下方导入的纪律文件（TD-LANG-02）。
+**Avoid jargon** — details and good/bad examples are in the discipline file imported below (TD-LANG-02).
 
-**持仓相关不要问用户，直接查长桥**（TD-BROKER-01）。
+**For anything about positions, do not ask the user — query Longbridge directly** (TD-BROKER-01).
 
-**市场范围跟随配置，默认 US**（TD-LANG-03；个人配置在 `journal/personal.md`）。
+**Market scope follows configuration, default US** (TD-LANG-03; personal config lives in `journal/personal.md`).
 
 ## Architecture — three layers
 
@@ -44,8 +44,8 @@ Burned once: dropping `timeoutMs` from `ConversationPreparedTurn` without updati
 | **`sec-edgar`** skill                                                | UA header                 | raw 10-K/10-Q/8-K/S-1 text, Form 4 insider parsing                                                                                                                |
 | **`gdelt`** skill                                                    | none (5s throttle)        | global multilingual news tone stream                                                                                                                              |
 | **`trump-truth-monitor`** skill                                      | RSS mirror                | Trump Truth Social feed, classified + tier-graded for market impact                                                                                               |
-| **`options-levels`** skill                                           | none (CBOE delayed)       | per-strike option open interest（磁铁位/止损扎堆区）+ put/call ratios; per-contract quotes on Longbridge are NOT authorized for this account                      |
-| **`hithink-a-share`** skill                                          | `HITHINK_FINANCE_API_KEY` | A 股特色数据（同花顺官方 API）：涨停池带原因、连板天梯、龙虎榜、异动、热榜、官方口径财报三表与指标、A 股交易日历；只有日线无分钟线——A 股图表与实时仍走 Longbridge |
+| **`options-levels`** skill                                           | none (CBOE delayed)       | per-strike option open interest (magnet levels / stop-loss clusters) + put/call ratios; per-contract quotes on Longbridge are NOT authorized for this account                      |
+| **`hithink-a-share`** skill                                          | `HITHINK_FINANCE_API_KEY` | China A-share data (official Tonghuashun API): limit-up pool with reasons, consecutive-limit-up ladder, Dragon-Tiger list, unusual moves, hot list, official three financial statements and metrics, A-share trading calendar; daily bars only, no minute bars — A-share charts and realtime still use Longbridge |
 
 Longbridge covers price/fundamentals; the five custom skills cover Longbridge's blind spots (macro, raw filings, world news, policy speech, per-strike options positioning). Earnings dates and macro release schedules come from `longbridge finance-calendar report/macrodata` — never hand-hunt them from news. See `docs/superpowers/specs/2026-05-28-market-intel-skills-design.md` for the design rationale and full per-script interface.
 
@@ -63,7 +63,7 @@ These skills do not fetch new kinds of data; they sequence Layer-1 calls into a 
 - Single name, first look, multiple dimensions → `stock-deep-dive`.
 - Cross-section "where is money moving today" → `capital-rotation`.
 - Live "watch this watchlist as it trades" → `market-session-tracker`.
-- 买入/卖出/加仓/减仓决策，或对持仓跑卖出触发器巡检 → `trade-gate`.
+- Buy / sell / add / trim decisions, or a sell-trigger patrol across positions → `trade-gate`.
 - Only ONE lens wanted (just a quote, just news) → skip the workflow skills, call the `longbridge-*` sub-skill directly.
 
 ### Layer 3 — durable record (always the last step)
@@ -73,9 +73,9 @@ Every workflow ends by writing markdown. Do not skip this.
 - `journal/YYYY-MM-DD-flow.md` — capital-rotation snapshots (scaffold: `capital-rotation/templates/rotation-snapshot.md`).
 - `journal/YYYY-MM-DD-<theme>.md` — session-tracker reports (scaffold: `market-session-tracker/templates/session-report.md`).
 - `journal/trump-feed/YYYY-MM-DD.md` — Trump post archive, appended idempotently by `archive.py`.
-- `stocks/{SYMBOL}.md` — per-name six-lens notes; 增量更新，不整篇重写（TD-NOTES-01）。
+- `stocks/{SYMBOL}.md` — per-name six-lens notes; update incrementally, never rewrite the whole file (TD-NOTES-01).
 - `stocks/_chain-ai-stack.md` — cross-stock map tying the tracked names along the AI-capex value chain.
-- `journal/lessons.md` — 复盘教训清单，一行一条带日期；短线预测（`intraday-signal`）每次运行前必读，复盘产生的可执行教训必须沉淀到这里。
+- `journal/lessons.md` — post-mortem lessons list, one dated line per lesson; short-term prediction (`intraday-signal`) must read it before every run, and every actionable lesson from a post-mortem must be recorded here.
 
 ## Running the data scripts
 
@@ -106,4 +106,4 @@ The main `SKILL.md` is imported here; the `references/<runtime>/` chapters are c
 
 ### Known data gotchas
 
-已收编进 trading-discipline，只引用不复述：`.SOX.US` 替身见 TD-PROXY-01；journal 文件名 = 美股交易日、同日追加不覆盖见 TD-JOURNAL-01；GDELT / Trump RSS 的窗口限制见 TD-WINDOW-01。
+Folded into trading-discipline — cite, don't restate: the `.SOX.US` proxy is TD-PROXY-01; journal filename = US trading day, same-day entries append rather than overwrite is TD-JOURNAL-01; GDELT / Trump RSS window limits are TD-WINDOW-01.
