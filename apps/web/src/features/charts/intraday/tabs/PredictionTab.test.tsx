@@ -94,5 +94,26 @@ describe('PredictionTab Darren EPS × PE section', () => {
     expect(screen.getByText('加权目标价')).toBeTruthy();
     expect(screen.getByText(/论点破坏（黑天鹅）/)).toBeTruthy();
     expect(screen.getByText('价格区间')).toBeTruthy();
+
+    cleanup();
+    renderTab(
+      <PredictionTab
+        built={built}
+        activeTf="4h"
+        epsPeAction={<button type="button">rebuild-multiples</button>}
+      />,
+    );
+    expect(screen.getByRole('button', { name: 'rebuild-multiples' })).toBeTruthy();
+  });
+
+  it('hides the EPS × PE action when the snapshot has no plan', () => {
+    renderTab(
+      <PredictionTab
+        built={nullPredictionBuilt}
+        activeTf="m5"
+        epsPeAction={<button type="button">rebuild-multiples</button>}
+      />,
+    );
+    expect(screen.queryByRole('button', { name: 'rebuild-multiples' })).toBeNull();
   });
 });

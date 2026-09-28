@@ -14,6 +14,7 @@ import { useViewTimeframe } from '@web/features/charts/intraday/useViewTimeframe
 import { IntradayControlsProvider } from '@web/features/charts/intraday/controlsContext';
 import { PredictionTab } from '@web/features/charts/intraday/tabs/PredictionTab';
 import { resolveIntradayTf } from '@web/features/charts/intraday/useIntradayDoc';
+import { RebuildEpsPe } from './RebuildEpsPe';
 import { useIntradayPreview } from '@web/features/charts/intraday/useIntradayPreview';
 import { TopbarQuote } from '@web/features/quotes/QuoteBar';
 import { Dot, Empty, ErrorBox } from '@web/ui';
@@ -216,6 +217,7 @@ export function PreviewCockpit({
         activeTf={activeIntradayTf}
         predictionUpdatedAt={predictionUpdatedAt}
         predictionStale={predictionStale}
+        epsPeAction={<RebuildEpsPe sym={sym} viewedTf={activeIntradayTf} />}
       />
     ) : analystRunStatus ? (
       <AnalystRunFeed sym={sym} />
