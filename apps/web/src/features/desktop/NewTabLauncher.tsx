@@ -1,5 +1,14 @@
 import { Popover } from '@base-ui/react/popover';
-import { GraduationCap, LayoutDashboard, Library, MessageCircle, Plus, Search } from 'lucide-react';
+import {
+  GraduationCap,
+  LayoutDashboard,
+  Library,
+  MessageCircle,
+  Plus,
+  Radar,
+  Search,
+  Trophy,
+} from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
 import { useState } from 'react';
 import { normalizeSymbol } from '../../lib/symbol';
@@ -179,6 +188,8 @@ interface NewTabLauncherProps {
   onOpenResearch(): void;
   onOpenSymbol(route: string): void;
   onOpenTrainer?: (() => void) | null;
+  onOpenScan?: (() => void) | null;
+  onOpenScorecard?: (() => void) | null;
 }
 
 export function NewTabLauncher({
@@ -189,6 +200,8 @@ export function NewTabLauncher({
   onOpenResearch,
   onOpenSymbol,
   onOpenTrainer,
+  onOpenScan,
+  onOpenScorecard,
 }: NewTabLauncherProps) {
   const { t } = useLocale();
   const [symbol, setSymbol] = useState('');
@@ -282,6 +295,26 @@ export function NewTabLauncher({
                   keys={['shift', 'mod', 'L']}
                 />
               </button>
+              {onOpenScan && (
+                <button
+                  {...stylex.props(styles.menuButton)}
+                  type="button"
+                  onClick={() => run(onOpenScan)}
+                >
+                  <Radar {...stylex.props(styles.menuIcon)} size={14} aria-hidden />
+                  <span>{t('scanOpen')}</span>
+                </button>
+              )}
+              {onOpenScorecard && (
+                <button
+                  {...stylex.props(styles.menuButton)}
+                  type="button"
+                  onClick={() => run(onOpenScorecard)}
+                >
+                  <Trophy {...stylex.props(styles.menuIcon)} size={14} aria-hidden />
+                  <span>{t('scorecardOpen')}</span>
+                </button>
+              )}
               {onOpenTrainer && (
                 <>
                   <span {...stylex.props(styles.divider)} aria-hidden />

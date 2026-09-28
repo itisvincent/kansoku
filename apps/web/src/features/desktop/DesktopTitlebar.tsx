@@ -28,6 +28,7 @@ import type { TabsController } from './tabsController';
 import { NewTabLauncher } from './NewTabLauncher';
 import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
 import { useLocale, type MessageKey } from '@web/lib/i18n';
+import { localizeChartTitle } from '@web/lib/chartTitle';
 
 const statusPulse = stylex.keyframes({
   '50%': { opacity: 0.45, transform: 'scale(0.8)' },
@@ -374,7 +375,7 @@ function Tab({
   onContextMenu: () => void;
   onDropOnTab: (event: React.DragEvent<HTMLButtonElement>) => void;
 }) {
-  const { t } = useLocale();
+  const { t, locale } = useLocale();
   const [dragging, setDragging] = useState(false);
   const [dropTarget, setDropTarget] = useState(false);
   const button = (
@@ -420,7 +421,9 @@ function Tab({
       <TabIcon route={pinned ? '/' : tab.route} active={active} />
       {!pinned && (
         <>
-          <span className={classNames('desktop-tab-title', styles.tabTitle)}>{tab.title}</span>
+          <span className={classNames('desktop-tab-title', styles.tabTitle)}>
+            {localizeChartTitle(tab.title, locale)}
+          </span>
           <span
             className={classNames(
               'desktop-tab-close',
@@ -492,6 +495,12 @@ export function DesktopTitlebar({ controller }: { controller: TabsController }) 
     focusOrOpenSettings,
     focusOrOpenChat,
   } = controller;
+  // Scan and scorecard are single pages: reuse an open tab instead of stacking duplicates.
+  const focusOrOpenPage = (route: string) => {
+    const existing = snapshot.tabs.find((tab) => tab.route === route);
+    if (existing) activateTab(existing.id);
+    else openTab(route);
+  };
   const updaterStatus = useUpdaterStatus();
   const showUpdateBadge = isAvailableStatus(updaterStatus);
   const update = updaterStatus?.kind === 'available' ? updaterStatus : null;
@@ -605,6 +614,8 @@ export function DesktopTitlebar({ controller }: { controller: TabsController }) 
           onOpenResearch={focusOrOpenResearch}
           onOpenSymbol={openTab}
           onOpenTrainer={openTrainer}
+          onOpenScan={() => focusOrOpenPage('/scan')}
+          onOpenScorecard={() => focusOrOpenPage('/scorecard')}
         />
       </ScrollArea>
       <div className={classNames('desktop-titlebar-actions', styles.titlebarActions)}>

@@ -1,4 +1,3 @@
-import { Link } from 'react-router';
 import * as stylex from '@stylexjs/stylex';
 import type { ScanItem, ScanItemStatus, ScanSetup } from '@kansoku/shared/types';
 import { symbolAnalysisPath } from '@kansoku/shared/chartUrl';
@@ -82,10 +81,10 @@ export function SetupList({ setups }: { setups: readonly ScanSetup[] }) {
           <span className={stylex.props(styles.num).className}>{t('scanTarget')}</span>
         </div>
         {setups.map((setup, index) => (
-          <Link
+          <a
             key={setup.symbol}
             className={`scan-setup-row ${stylex.props(styles.row).className}`}
-            to={symbolAnalysisPath(setup.symbol, setup.chart_id)}
+            href={symbolAnalysisPath(setup.symbol, setup.chart_id)}
             title={`${t('scanStopPrice')} ${price(setup.stop)}`}
           >
             <span className={stylex.props(styles.rank).className}>{index + 1}</span>
@@ -102,7 +101,7 @@ export function SetupList({ setups }: { setups: readonly ScanSetup[] }) {
             </span>
             <span className={stylex.props(styles.num).className}>{price(setup.entry)}</span>
             <span className={stylex.props(styles.num).className}>{price(setup.target1)}</span>
-          </Link>
+          </a>
         ))}
       </div>
     </div>
@@ -114,17 +113,17 @@ export function RangeList({ ranges }: { ranges: readonly ScanSetup[] }) {
   return (
     <div className={stylex.props(styles.list).className}>
       {ranges.map((setup) => (
-        <Link
+        <a
           key={setup.symbol}
           className={stylex.props(styles.row, styles.rangeRow).className}
-          to={symbolAnalysisPath(setup.symbol, setup.chart_id)}
+          href={symbolAnalysisPath(setup.symbol, setup.chart_id)}
         >
           <span className={stylex.props(styles.symbol).className}>{bare(setup.symbol)}</span>
           <span className={stylex.props(styles.num).className}>{setup.conviction ?? '—'}</span>
           <span className={stylex.props(styles.num).className}>
             {t('scanRange')} {price(setup.range_low)} – {price(setup.range_high)}
           </span>
-        </Link>
+        </a>
       ))}
     </div>
   );
@@ -150,13 +149,13 @@ export function ItemList({ items }: { items: readonly ScanItem[] }) {
           </>
         );
         return item.chart_id ? (
-          <Link
+          <a
             key={item.symbol}
             className={stylex.props(styles.row, styles.itemRow).className}
-            to={symbolAnalysisPath(item.symbol, item.chart_id)}
+            href={symbolAnalysisPath(item.symbol, item.chart_id)}
           >
             {label}
-          </Link>
+          </a>
         ) : (
           <div key={item.symbol} className={stylex.props(styles.row, styles.itemRow).className}>
             {label}

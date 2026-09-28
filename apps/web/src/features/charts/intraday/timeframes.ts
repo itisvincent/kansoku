@@ -74,16 +74,27 @@ export const isSessionlessTf = (tf: ChartTf): boolean => SESSIONLESS.has(tf);
 export const tfDataOf = (built: IntradayBuilt, tf: ChartTf): IntradayTfData | undefined =>
   (built.timeframes as Record<string, IntradayTfData | undefined>)[tf];
 
+// Keyed by object identity: the same inputs must return the same object, or every parent
+// render (quote and run-status pushes) makes the chart tear down and redraw all its series.
+const viewTimeframeCache = new WeakMap<
+  IntradayBuilt,
+  { tf: ChartTf; data: IntradayTfData; result: IntradayBuilt }
+>();
+
 export function withViewTimeframe(
   built: IntradayBuilt,
   tf: ChartTf,
   data: IntradayTfData | null,
 ): IntradayBuilt {
   if (!data || !isViewPeriod(tf)) return built;
-  return {
+  const cached = viewTimeframeCache.get(built);
+  if (cached && cached.tf === tf && cached.data === data) return cached.result;
+  const result: IntradayBuilt = {
     ...built,
     timeframes: { ...built.timeframes, [tf]: data } as IntradayBuilt['timeframes'],
   };
+  viewTimeframeCache.set(built, { tf, data, result });
+  return result;
 }
 
 export function withPreviewLevels(

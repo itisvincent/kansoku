@@ -15,6 +15,7 @@ import { marketOfSymbol } from '../../lib/market';
 import { recordRecentSymbol } from '../charts/recentCharts';
 import { Dot, ErrorBox, MarketTime, Tooltip } from '../../ui';
 import { useTitle } from '../../lib/useTitle';
+import { localizeChartTitle } from '../../lib/chartTitle';
 import { isDesktopRealtime } from '../../lib/portTransport';
 import { AnalysisRunDetails } from './AnalysisRunDetails';
 import { useAnalystRunLastEnded } from './analystRunsStore';
@@ -212,7 +213,13 @@ export function SymbolCockpit({ sym }: { sym: string }) {
     loadHistory,
   } = useIntradayDoc(mode === 'live' ? null : latestId);
 
-  useTitle(doc ? doc.title || symLabel : latestChecked && !latestId ? symLabel : undefined);
+  useTitle(
+    doc
+      ? localizeChartTitle(doc.title || symLabel, locale)
+      : latestChecked && !latestId
+        ? symLabel
+        : undefined,
+  );
 
   // A finished run creates a new frozen snapshot; open it so the Prediction
   // panel shows the fresh result instead of the previously selected analysis.

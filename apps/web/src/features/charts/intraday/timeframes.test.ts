@@ -62,6 +62,13 @@ describe('withViewTimeframe', () => {
     expect(withViewTimeframe(built, 'day', null)).toBe(built);
     expect(withViewTimeframe(built, 'm5', viewTf)).toBe(built);
   });
+
+  it('returns the same object for the same inputs so the chart does not redraw', () => {
+    const first = withViewTimeframe(built, 'day', viewTf);
+    expect(withViewTimeframe(built, 'day', viewTf)).toBe(first);
+    expect(withViewTimeframe(built, 'day', { ...viewTf })).not.toBe(first);
+    expect(withViewTimeframe(built, 'week', viewTf)).not.toBe(first);
+  });
 });
 
 describe('sanitizeAnalysisTimeframes', () => {

@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
 import * as stylex from '@stylexjs/stylex';
 import type { ScanStartResult, WatchlistScanState } from '@kansoku/shared/types';
 import { errorMessage } from '@web/lib/api';
@@ -158,9 +157,9 @@ export function ScanPage() {
     <div className={`scan-page ${stylex.props(styles.root).className}`}>
       <SectionTitle>
         {t('scanTitle')}
-        <Link className={stylex.props(styles.back).className} to="/">
+        <a className={stylex.props(styles.back).className} href="/">
           ← {t('backHome')}
-        </Link>
+        </a>
       </SectionTitle>
       <p className={stylex.props(styles.text).className}>{t('scanIntro')}</p>
       <p className={stylex.props(styles.settings).className}>

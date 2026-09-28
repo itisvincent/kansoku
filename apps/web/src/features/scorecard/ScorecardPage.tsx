@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Link } from 'react-router';
 import * as stylex from '@stylexjs/stylex';
 import type { OutcomeStatus, PredictionScorecard, ScorecardRow } from '@kansoku/shared/types';
 import { symbolAnalysisPath } from '@kansoku/shared/chartUrl';
@@ -114,9 +113,9 @@ function Figure({ label, value }: { label: string; value: string }) {
 function RecentRow({ row }: { row: ScorecardRow }) {
   const { t, locale } = useLocale();
   return (
-    <Link
+    <a
       className={`scorecard-recent-row ${stylex.props(styles.recentRow).className}`}
-      to={symbolAnalysisPath(row.symbol, row.chart_id)}
+      href={symbolAnalysisPath(row.symbol, row.chart_id)}
     >
       <span>
         <span className={stylex.props(styles.symbol).className}>
@@ -143,7 +142,7 @@ function RecentRow({ row }: { row: ScorecardRow }) {
           <Badge>{t('homeUndetermined')}</Badge>
         )}
       </span>
-    </Link>
+    </a>
   );
 }
 
@@ -218,9 +217,9 @@ export function ScorecardPage() {
     <div className={`scorecard-page ${stylex.props(styles.root).className}`}>
       <SectionTitle>
         {t('scorecardTitle')}
-        <Link className={stylex.props(styles.back).className} to="/">
+        <a className={stylex.props(styles.back).className} href="/">
           ← {t('backHome')}
-        </Link>
+        </a>
       </SectionTitle>
       <p className={stylex.props(styles.intro).className}>{t('scorecardIntro')}</p>
       <div className={stylex.props(styles.toolbar).className}>
