@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { clampRect, defaultRect } from './useFloatingRect';
+// @vitest-environment jsdom
+import { act, renderHook } from '@testing-library/react';
+import { afterEach, describe, expect, it } from 'vitest';
+import { clampRect, defaultRect, useFloatingRect } from './useFloatingRect';
 
 const VW = 1440;
 const VH = 900;
@@ -58,5 +60,67 @@ describe('defaultRect', () => {
     const rect = defaultRect(360, VH);
     expect(rect.w).toBe(328);
     expect(rect.x + rect.w).toBe(360 - 16);
+  });
+});
+
+describe('clampRect below the desktop tab bar', () => {
+  it('keeps the header below a 40px tab bar', () => {
+    expect(clampRect({ x: 900, y: 0, w: 420, h: 460 }, VW, VH, 40).y).toBe(40);
+  });
+
+  it('caps the height to the space under the tab bar', () => {
+    expect(clampRect({ x: 0, y: 40, w: 420, h: 9000 }, VW, VH, 40).h).toBe(VH - 40 - 32);
+  });
+});
+
+describe('useFloatingRect', () => {
+  afterEach(() => {
+    document.body.innerHTML = '';
+    localStorage.clear();
+  });
+
+  function mountTabBar() {
+    const bar = document.createElement('div');
+    bar.className = 'desktop-titlebar';
+    bar.getBoundingClientRect = () => ({ bottom: 40 }) as DOMRect;
+    document.body.append(bar);
+  }
+
+  it('pulls a panel saved under the tab bar back down on load', () => {
+    mountTabBar();
+    localStorage.setItem('chat-panel-rect', JSON.stringify({ x: 500, y: 0, w: 600, h: 900 }));
+    const { result } = renderHook(() => useFloatingRect());
+    expect(result.current.rect.y).toBeGreaterThanOrEqual(40);
+  });
+
+  it('ends a drag the OS cancelled instead of staying stuck', () => {
+    const { result } = renderHook(() => useFloatingRect());
+    act(() => {
+      result.current.onDragStart({
+        preventDefault: () => {},
+        clientX: 10,
+        clientY: 10,
+      } as unknown as React.PointerEvent);
+    });
+    expect(result.current.dragging).toBe(true);
+    act(() => {
+      window.dispatchEvent(new Event('pointercancel'));
+    });
+    expect(result.current.dragging).toBe(false);
+  });
+
+  it('ends a drag when the window loses focus mid-drag', () => {
+    const { result } = renderHook(() => useFloatingRect());
+    act(() => {
+      result.current.onDragStart({
+        preventDefault: () => {},
+        clientX: 10,
+        clientY: 10,
+      } as unknown as React.PointerEvent);
+    });
+    act(() => {
+      window.dispatchEvent(new Event('blur'));
+    });
+    expect(result.current.dragging).toBe(false);
   });
 });

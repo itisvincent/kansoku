@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 const STORAGE_KEY = 'chat-panel-rect';
 const MIN_W = 320;
@@ -17,19 +17,34 @@ export interface FloatRect {
 
 type ResizeEdge = 'w' | 'n' | 'nw';
 
-export function clampRect(rect: FloatRect, vw: number, vh: number): FloatRect {
+/**
+ * `top` is the height of anything fixed above the page (the desktop tab bar). That strip is
+ * an OS window-drag region that swallows the mouse, so the panel's header must never sit
+ * under it or the panel can no longer be moved.
+ */
+export function clampRect(rect: FloatRect, vw: number, vh: number, top = 0): FloatRect {
   const w = Math.min(Math.max(rect.w, MIN_W), Math.max(MIN_W, vw - MARGIN * 2));
-  const h = Math.min(Math.max(rect.h, MIN_H), Math.max(MIN_H, vh - MARGIN * 2));
+  const h = Math.min(Math.max(rect.h, MIN_H), Math.max(MIN_H, vh - top - MARGIN * 2));
   const minX = KEEP_VISIBLE - w;
   const maxX = Math.max(minX, vw - KEEP_VISIBLE);
-  const maxY = Math.max(0, vh - KEEP_VISIBLE);
+  const maxY = Math.max(top, vh - KEEP_VISIBLE);
   return {
     w,
     h,
     x: Math.min(Math.max(rect.x, minX), maxX),
-    y: Math.min(Math.max(rect.y, 0), maxY),
+    y: Math.min(Math.max(rect.y, top), maxY),
   };
 }
+
+/** Bottom edge of the desktop tab bar, or 0 outside the desktop shell. */
+export function topInset(): number {
+  if (typeof document === 'undefined') return 0;
+  const bar = document.querySelector('.desktop-titlebar');
+  return bar ? Math.max(0, Math.ceil(bar.getBoundingClientRect().bottom)) : 0;
+}
+
+const clampToWindow = (rect: FloatRect): FloatRect =>
+  clampRect(rect, window.innerWidth, window.innerHeight, topInset());
 
 export function defaultRect(vw: number, vh: number): FloatRect {
   const w = Math.min(DEFAULT_W, Math.max(MIN_W, vw - MARGIN * 2));
@@ -48,7 +63,7 @@ function loadRect(vw: number, vh: number): FloatRect {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return defaultRect(vw, vh);
     const parsed: unknown = JSON.parse(raw);
-    return isRect(parsed) ? clampRect(parsed, vw, vh) : defaultRect(vw, vh);
+    return isRect(parsed) ? clampRect(parsed, vw, vh, topInset()) : defaultRect(vw, vh);
   } catch {
     return defaultRect(vw, vh);
   }
@@ -74,33 +89,45 @@ export function useFloatingRect(): FloatingRectHandle {
     loadRect(window.innerWidth, window.innerHeight),
   );
   const [dragging, setDragging] = useState(false);
+  const stopTrackingRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const onResize = () => {
-      setRect((prev) => clampRect(prev, window.innerWidth, window.innerHeight));
-    };
+    // The tab bar may mount after the panel; re-clamp once it exists and on every resize.
+    setRect((prev) => clampToWindow(prev));
+    const onResize = () => setRect((prev) => clampToWindow(prev));
     window.addEventListener('resize', onResize);
-    return () => window.removeEventListener('resize', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      stopTrackingRef.current?.();
+    };
   }, []);
 
   const track = useCallback(
     (compute: (dx: number, dy: number) => FloatRect, startX: number, startY: number) => {
+      stopTrackingRef.current?.();
       setDragging(true);
       const onMove = (ev: PointerEvent) => {
-        const next = compute(ev.clientX - startX, ev.clientY - startY);
-        setRect(clampRect(next, window.innerWidth, window.innerHeight));
+        setRect(clampToWindow(compute(ev.clientX - startX, ev.clientY - startY)));
       };
-      const onUp = () => {
+      // pointercancel and window blur end a drag the OS interrupted (alt-tab, touch cancel),
+      // which otherwise left the panel stuck in dragging mode.
+      const stop = () => {
         window.removeEventListener('pointermove', onMove, true);
-        window.removeEventListener('pointerup', onUp, true);
+        window.removeEventListener('pointerup', stop, true);
+        window.removeEventListener('pointercancel', stop, true);
+        window.removeEventListener('blur', stop);
+        stopTrackingRef.current = null;
         setDragging(false);
         setRect((current) => {
           saveRect(current);
           return current;
         });
       };
+      stopTrackingRef.current = stop;
       window.addEventListener('pointermove', onMove, true);
-      window.addEventListener('pointerup', onUp, true);
+      window.addEventListener('pointerup', stop, true);
+      window.addEventListener('pointercancel', stop, true);
+      window.addEventListener('blur', stop);
     },
     [],
   );
