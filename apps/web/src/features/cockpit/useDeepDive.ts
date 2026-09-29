@@ -32,7 +32,14 @@ export function useDeepDive(symbol: string, onNoteReady: () => void) {
           setRunningSymbol(status.symbol ?? null);
           setStartedAt(status.startedAt ?? null);
         }
-        if (status.lastResult) seenFinishedAtRef.current = status.lastResult.finishedAt;
+        const last = status.lastResult;
+        if (last) {
+          seenFinishedAtRef.current = last.finishedAt;
+          // A failure is kept across restarts; show why the last run on this stock stopped.
+          if (!status.running && !last.ok && bareSymbol(last.symbol) === bareSymbol(symbol)) {
+            setInlineMessage(last.error ?? 'local:cockpitDeepFailed');
+          }
+        }
       })
       .catch(() => {})
       .finally(() => {

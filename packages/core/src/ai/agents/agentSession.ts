@@ -102,11 +102,30 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/**
+ * A failed provider call leaves an empty assistant message (stopReason "error") at the end of
+ * the transcript, and continue() refuses to resume from an assistant message. Drop that
+ * placeholder so the retry resumes from the last user or tool-result message.
+ */
+export function dropFailedTail(agent: AiAgentHandle): void {
+  const state = agent.state;
+  if (!state) return;
+  let end = state.messages.length;
+  while (end > 0) {
+    const last = state.messages[end - 1] as { role?: string; stopReason?: string };
+    const failed = last.stopReason === 'error' || last.stopReason === 'aborted';
+    if (last.role !== 'assistant' || !failed) break;
+    end -= 1;
+  }
+  if (end !== state.messages.length) state.messages = state.messages.slice(0, end);
+}
+
 async function retryNetwork(agent: AiAgentHandle, first: unknown): Promise<void> {
   let last = first;
   for (let attempt = 0; attempt < NETWORK_RETRIES; attempt++) {
     await sleep(NETWORK_BACKOFF_MS * 2 ** attempt);
     try {
+      dropFailedTail(agent);
       await agent.continue!();
       if (!agent.state?.errorMessage) return;
       last = new Error(agent.state.errorMessage);
@@ -223,7 +242,8 @@ export function createAgentSession(config: {
           agent.abort();
           reject(new AgentTimeoutError(`timed out after ${timeoutMs}ms`));
         }, timeoutMs);
-        agent.prompt(prompt).then(
+        // Same network retry as the untimed path; the timer still bounds the whole turn.
+        runUntilSettled(agent, prompt).then(
           () => {
             if (done) return;
             done = true;

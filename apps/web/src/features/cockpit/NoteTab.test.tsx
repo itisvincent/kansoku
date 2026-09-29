@@ -122,3 +122,28 @@ describe('NoteTab open-core deep dive', () => {
     await waitFor(() => expect((button as HTMLButtonElement).disabled).toBe(true));
   });
 });
+
+describe('NoteTab last deep-dive result', () => {
+  it('shows why the last run on this stock failed, even after a restart', async () => {
+    capabilities = { features: { 'deep-dive': 'active' } };
+    note.mockResolvedValue({ markdown: null });
+    deepDiveStatus.mockResolvedValue({
+      running: false,
+      lastResult: { symbol: 'AVGO.US', ok: false, finishedAt: '2026-09-28T14:42:19.000Z', error: 'model error: 429' },
+    });
+    render(<NoteTab symbol="AVGO.US" />);
+    expect(await screen.findByText(/model error: 429/)).toBeTruthy();
+  });
+
+  it('does not show a failure from a different stock', async () => {
+    capabilities = { features: { 'deep-dive': 'active' } };
+    note.mockResolvedValue({ markdown: null });
+    deepDiveStatus.mockResolvedValue({
+      running: false,
+      lastResult: { symbol: 'AVGO.US', ok: false, finishedAt: '2026-09-28T14:42:19.000Z', error: 'model error: 429' },
+    });
+    render(<NoteTab symbol="MU.US" />);
+    await screen.findByRole('button', { name: /跑一次深度分析/ });
+    expect(screen.queryByText(/model error: 429/)).toBeNull();
+  });
+});

@@ -61,8 +61,11 @@ export const DEEP_DIVE_CLI_MAP = [
   'Run independent commands back to back without waiting for commentary between them. If a command fails, say which data is missing instead of guessing (TD-DATA-01).',
 ].join('\n');
 
+export const DEEP_DIVE_DRAFT_RULE =
+  'Save progress: once lenses 1-3 are written, call write_note with final:false to store a draft (keep every existing section of the note). A late failure then still leaves your work on disk. Finish the remaining lenses and end with one write_note call carrying the complete note and final:true.';
+
 export const DEEP_DIVE_RETRY_PROMPT =
-  'You have not saved the note yet. Call write_note now with the complete updated Markdown for this stock; the run fails without it.';
+  'You have not saved the final note yet. Call write_note now with the complete updated Markdown for this stock and final:true; the run fails without it.';
 
 export function deepDiveAdapterPrompt(): string {
   return [

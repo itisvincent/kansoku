@@ -17,12 +17,18 @@ const noteSchema = Type.Object({
     description:
       'The complete Markdown for stocks/{SYMBOL}.md after your update. Keep existing sections and dated history; add or revise, do not drop.',
   }),
+  final: Type.Optional(
+    Type.Boolean({
+      description:
+        'false saves a mid-run draft and the run continues; omit or true for the finished note, which ends the run.',
+    }),
+  ),
 });
 
 export interface NoteToolHooks {
   /** Absolute path of the one note this run may write. */
   notePath: string;
-  onWritten: () => void;
+  onWritten: (final: boolean) => void;
 }
 
 async function readExisting(path: string): Promise<string | null> {
@@ -52,7 +58,7 @@ export function buildWriteNoteTool(hooks: NoteToolHooks): AgentTool<typeof noteS
     name: 'write_note',
     label: 'Write Note',
     description:
-      'Save the research note for this stock (stocks/{SYMBOL}.md). This is the only way to persist the deep dive; the run fails without it. Read the existing note first and pass the full updated Markdown.',
+      'Save the research note for this stock (stocks/{SYMBOL}.md). This is the only way to persist the deep dive; the run fails without a final save. Read the existing note first and pass the full updated Markdown. Use final:false for a draft partway through.',
     parameters: noteSchema,
     execute: async (_id, params) => {
       const content = params.content.trim();
@@ -68,8 +74,13 @@ export function buildWriteNoteTool(hooks: NoteToolHooks): AgentTool<typeof noteS
         );
       }
       await writeAtomic(hooks.notePath, `${content}\n`);
-      hooks.onWritten();
-      return textResult(`saved ${content.length} chars to the stock note`, true);
+      const final = params.final !== false;
+      hooks.onWritten(final);
+      return final
+        ? textResult(`saved ${content.length} chars to the stock note`, true)
+        : textResult(
+            `draft saved (${content.length} chars). Continue the remaining lenses, then call write_note again with the complete note and final:true.`,
+          );
     },
   };
 }

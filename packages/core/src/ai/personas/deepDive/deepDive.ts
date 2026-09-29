@@ -15,13 +15,21 @@ import { MessagesEngine } from '../../conversation/messages/messageEngine.js';
 import { SkillCatalogProvider, toSkillContexts } from '../../conversation/messages/sharedProviders.js';
 import { aiConfig, type AiModel } from '../../runtime/models.js';
 import { composeWithDiscipline, DisciplineMissingError, loadAppDiscipline } from '../../runtime/promptPolicy.js';
-import { DEEP_DIVE_CLI_MAP, DEEP_DIVE_RETRY_PROMPT, deepDiveAdapterPrompt } from '../../runtime/prompts.js';
+import {
+  DEEP_DIVE_CLI_MAP,
+  DEEP_DIVE_DRAFT_RULE,
+  DEEP_DIVE_RETRY_PROMPT,
+  deepDiveAdapterPrompt,
+} from '../../runtime/prompts.js';
 import { getInterfaceLocale } from '../../../settings/interfaceLocale.js';
 import { emitNotice } from '../notices.js';
+import { appMetaLastResultStore, type LastResultStore } from './lastResultStore.js';
 import { buildWriteNoteTool } from './noteTool.js';
+import { createRunLogger, defaultLogLine, type LogLine } from './runLog.js';
 
 export const DEEP_DIVE_SKILL = 'stock-deep-dive';
-const DEFAULT_TIMEOUT_MS = 15 * 60_000;
+/** A full six-lens run on a slower model took 11 minutes before its save; leave headroom. */
+const DEFAULT_TIMEOUT_MS = 25 * 60_000;
 
 export interface DeepDiveDeps {
   model: AiModel;
@@ -36,6 +44,7 @@ export interface DeepDiveDeps {
   webSearchConfigured?: boolean;
   fetchNews: (symbol: string) => Promise<NewsItem[]>;
   fetchKline: (symbol: string, period: string, count: number) => Promise<RawBar[]>;
+  log?: LogLine;
 }
 
 export interface DeepDiveOutcome {
@@ -48,6 +57,8 @@ export function buildDeepDiveSystemPrompt(disciplineText: string, skillText: str
     deepDiveAdapterPrompt(),
     '',
     DEEP_DIVE_CLI_MAP,
+    '',
+    DEEP_DIVE_DRAFT_RULE,
     '',
     `<skill name="${DEEP_DIVE_SKILL}">`,
     skillText,
@@ -68,7 +79,9 @@ export async function executeDeepDive(symbol: string, deps: DeepDiveDeps): Promi
   if (!disciplineText) return { ok: false, error: new DisciplineMissingError().message };
 
   const noteName = noteFileName(symbol);
-  let written = false;
+  const runLog = createRunLogger(symbol, deps.log ?? defaultLogLine);
+  let finalSaved = false;
+  let draftSaved = false;
   const { tools: researchTools } = await buildResearchTools({
     repoRoot: deps.repoRoot,
     exec: deps.exec,
@@ -81,8 +94,9 @@ export async function executeDeepDive(symbol: string, deps: DeepDiveDeps): Promi
     buildKlineTool(symbol, deps.fetchKline),
     buildWriteNoteTool({
       notePath: join(deps.stocksDir, `${noteName}.md`),
-      onWritten: () => {
-        written = true;
+      onWritten: (final) => {
+        if (final) finalSaved = true;
+        else draftSaved = true;
       },
     }),
   ];
@@ -98,37 +112,68 @@ export async function executeDeepDive(symbol: string, deps: DeepDiveDeps): Promi
     sessionId: `deep-dive:${symbol}:${now()}`,
     transformContext: engine.transformContext,
     agentFactory: deps.agentFactory,
+    onEvent: runLog.onEvent,
   });
   const timeoutMs = deps.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const today = easternDate(new Date(now()));
+  runLog.line(`started with ${deps.model.provider}/${deps.model.id}, limit ${Math.round(timeoutMs / 60_000)} min`);
+
+  const finish = (outcome: DeepDiveOutcome): DeepDiveOutcome => {
+    runLog.line(outcome.ok ? 'finished: note saved' : `failed: ${outcome.error}`);
+    return outcome;
+  };
+  // Keep the draft visible in the error, so a late failure does not read as lost work.
+  const withDraft = (error: string) =>
+    draftSaved ? `${error}. A draft of the note was saved; run again to finish it` : error;
 
   try {
     await session.runTurn(
       `Run the six-lens deep dive for ${symbol} (US Eastern date ${today}). Read the existing note at stocks/${noteName}.md first if it exists, then save the updated note with write_note.`,
       timeoutMs,
     );
-    if (!written && !session.agent.state?.errorMessage) {
+    if (!finalSaved && !session.agent.state?.errorMessage) {
       await session.runTurn(DEEP_DIVE_RETRY_PROMPT, timeoutMs);
     }
   } catch (error) {
     if (error instanceof AgentTimeoutError) {
-      return { ok: false, error: `deep dive timed out after ${Math.round(timeoutMs / 60_000)} min` };
+      return finish({
+        ok: false,
+        error: withDraft(`deep dive timed out after ${Math.round(timeoutMs / 60_000)} min`),
+      });
     }
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    return finish({
+      ok: false,
+      error: withDraft(error instanceof Error ? error.message : String(error)),
+    });
   }
-  if (written) return { ok: true };
+  if (finalSaved) return finish({ ok: true });
   const reason = session.agent.state?.errorMessage;
-  return { ok: false, error: reason ? `model error: ${reason}` : 'the note was not saved' };
+  return finish({
+    ok: false,
+    error: withDraft(reason ? `model error: ${reason}` : 'the note was not saved'),
+  });
 }
 
 let state: DeepDiveState = { running: false };
+let resultStore: LastResultStore = appMetaLastResultStore;
+let restored = false;
 
+/** The last result is kept in the database, so a failure is still explained after a restart. */
 export function deepDiveStatus(): DeepDiveState {
+  if (!restored) {
+    restored = true;
+    if (!state.running && !state.lastResult) {
+      const saved = resultStore.load();
+      if (saved) state = { ...state, lastResult: saved };
+    }
+  }
   return state;
 }
 
-export function resetDeepDiveForTests(): void {
+export function resetDeepDiveForTests(store?: LastResultStore): void {
   state = { running: false };
+  restored = false;
+  resultStore = store ?? appMetaLastResultStore;
 }
 
 function announce(symbol: string, outcome: DeepDiveOutcome): void {
@@ -198,15 +243,15 @@ export function startDeepDive(
       error: error instanceof Error ? error.message : String(error),
     }))
     .then((outcome) => {
-      state = {
-        running: false,
-        lastResult: {
-          symbol,
-          ok: outcome.ok,
-          finishedAt: new Date().toISOString(),
-          ...(outcome.error ? { error: outcome.error } : {}),
-        },
+      const lastResult = {
+        symbol,
+        ok: outcome.ok,
+        finishedAt: new Date().toISOString(),
+        ...(outcome.error ? { error: outcome.error } : {}),
       };
+      state = { running: false, lastResult };
+      restored = true;
+      resultStore.save(lastResult);
       announce(symbol, outcome);
     });
   return { result: { started: true }, done };

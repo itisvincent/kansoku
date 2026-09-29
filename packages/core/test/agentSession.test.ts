@@ -155,6 +155,96 @@ describe('createAgentSession', () => {
     expect(session.isDone()).toBe(true);
   });
 
+  /**
+   * Mirrors pi-agent-core: prompt() never throws; a failed provider call appends an empty
+   * assistant message with stopReason "error", and continue() refuses to resume from it.
+   */
+  function realisticAgent(failures: number) {
+    let calls = 0;
+    const messages: AgentMessage[] = [];
+    const state: { messages: AgentMessage[]; errorMessage?: string } = {
+      get messages() {
+        return messages.slice();
+      },
+      set messages(next) {
+        messages.splice(0, messages.length, ...next);
+      },
+    };
+    const attempt = () => {
+      calls += 1;
+      if (calls <= failures) {
+        messages.push({ role: 'assistant', stopReason: 'error', content: [] } as unknown as AgentMessage);
+        state.errorMessage = '429 Too Many Requests';
+      } else {
+        messages.push({ role: 'assistant', stopReason: 'stop', content: [] } as unknown as AgentMessage);
+        state.errorMessage = undefined;
+      }
+    };
+    const agent = {
+      prompt: async () => {
+        messages.push(fakeMessage);
+        attempt();
+      },
+      continue: async () => {
+        const last = messages.at(-1) as { role?: string } | undefined;
+        if (last?.role === 'assistant') throw new Error('Cannot continue from message role: assistant');
+        attempt();
+      },
+      abort: () => {},
+      state,
+    };
+    return { agent, calls: () => calls, messages };
+  }
+
+  it('recovers from a provider error the way pi-agent-core reports it', async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = realisticAgent(1);
+      const session = createAgentSession({
+        layer: 'analyst',
+        symbol: 'AVGO.US',
+        model: fakeModel,
+        systemPrompt: 'system prompt',
+        tools: [],
+        agentFactory: () => fake.agent,
+      });
+      const turn = session.runTurn('hi');
+      await vi.advanceTimersByTimeAsync(1000);
+      await turn;
+      expect(fake.calls()).toBe(2);
+      expect(fake.agent.state.errorMessage).toBeUndefined();
+      // The failed placeholder is gone; only the prompt and the good reply remain.
+      expect(fake.messages.map((m) => (m as { stopReason?: string }).stopReason ?? m.role)).toEqual([
+        'user',
+        'stop',
+      ]);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('retries network errors inside a timed turn too', async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = realisticAgent(2);
+      const session = createAgentSession({
+        layer: 'analyst',
+        symbol: 'AVGO.US',
+        model: fakeModel,
+        systemPrompt: 'system prompt',
+        tools: [],
+        agentFactory: () => fake.agent,
+      });
+      const turn = session.runTurn('hi', 60_000);
+      await vi.advanceTimersByTimeAsync(3000);
+      await turn;
+      expect(fake.calls()).toBe(3);
+      expect(fake.agent.state.errorMessage).toBeUndefined();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('retries a network error with increasing delays and settles', async () => {
     vi.useFakeTimers();
     try {

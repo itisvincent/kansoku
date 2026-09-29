@@ -9,6 +9,7 @@ import { locateOpencli } from '../../../credentials/opencli.js';
 import { locateLongbridgeCli } from '../../../marketdata/longbridgeCli.js';
 import { resolveAugmentedPath, resetUserPathCacheForTests } from '../../../platform/userPath.js';
 import { textResult } from '../dataTools.js';
+import { agentShell } from './gitBash.js';
 
 const OUTPUT_TRUNCATE_CHARS = 30_000;
 const OUTPUT_PREVIEW_CHARS = 12_000;
@@ -50,8 +51,10 @@ function resolveExecPath(): Promise<string> {
 
 export function createDefaultExec(repoRoot: string): ExecFn {
   return async (command: string, signal?: AbortSignal) => {
+    const shell = agentShell();
     const options = {
       cwd: repoRoot,
+      ...(shell ? { shell } : {}),
       timeout: BASH_TIMEOUT_MS,
       maxBuffer: BASH_MAX_BUFFER,
       env: {
