@@ -98,8 +98,26 @@ function isRetryableNetworkError(err: unknown): boolean {
   return NETWORK_ERROR.test(errorText(err));
 }
 
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+/** Resolves after `ms`, or as soon as `signal` aborts, so a stopped turn is not held up. */
+function sleep(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    if (signal?.aborted) {
+      resolve();
+      return;
+    }
+    const finish = () => {
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', finish);
+      resolve();
+    };
+    const timer = setTimeout(finish, ms);
+    signal?.addEventListener('abort', finish, { once: true });
+  });
+}
+
+/** Thrown when a turn was stopped (timeout or abort) while a network retry was pending. */
+function stoppedError(): Error {
+  return new Error('aborted: the turn was stopped before the network retry');
 }
 
 /**
@@ -120,15 +138,23 @@ export function dropFailedTail(agent: AiAgentHandle): void {
   if (end !== state.messages.length) state.messages = state.messages.slice(0, end);
 }
 
-async function retryNetwork(agent: AiAgentHandle, first: unknown): Promise<void> {
+async function retryNetwork(
+  agent: AiAgentHandle,
+  first: unknown,
+  stop?: AbortSignal,
+): Promise<void> {
   let last = first;
   for (let attempt = 0; attempt < NETWORK_RETRIES; attempt++) {
-    await sleep(NETWORK_BACKOFF_MS * 2 ** attempt);
+    await sleep(NETWORK_BACKOFF_MS * 2 ** attempt, stop);
+    // A timed-out or aborted turn has already been reported as over; restarting the agent
+    // here would run tools (and spend tokens) behind the caller's back.
+    if (stop?.aborted) throw stoppedError();
     try {
       dropFailedTail(agent);
       await agent.continue!();
       if (!agent.state?.errorMessage) return;
       last = new Error(agent.state.errorMessage);
+      if (stop?.aborted) throw stoppedError();
       if (!isRetryableNetworkError(last)) throw last;
     } catch (err) {
       if (isAbortError(err) || !isRetryableNetworkError(err)) throw err;
@@ -138,20 +164,25 @@ async function retryNetwork(agent: AiAgentHandle, first: unknown): Promise<void>
   throw last instanceof Error ? last : new Error(String(last));
 }
 
-async function runUntilSettled(agent: AiAgentHandle, prompt: AiAgentPrompt): Promise<void> {
+async function runUntilSettled(
+  agent: AiAgentHandle,
+  prompt: AiAgentPrompt,
+  stop?: AbortSignal,
+): Promise<void> {
   try {
     await agent.prompt(prompt);
   } catch (err) {
-    if (!agent.continue || !isRetryableNetworkError(err)) throw err;
-    await retryNetwork(agent, err);
+    if (!agent.continue || stop?.aborted || !isRetryableNetworkError(err)) throw err;
+    await retryNetwork(agent, err, stop);
     return;
   }
   if (
     agent.continue &&
+    !stop?.aborted &&
     agent.state?.errorMessage &&
     isRetryableNetworkError(new Error(agent.state.errorMessage))
   ) {
-    await retryNetwork(agent, new Error(agent.state.errorMessage));
+    await retryNetwork(agent, new Error(agent.state.errorMessage), stop);
   }
 }
 
@@ -201,7 +232,7 @@ export function createAgentSession(config: {
 } {
   const factory = config.agentFactory ?? defaultAgentFactory;
   const sessionId = config.sessionId ?? `${config.layer}:${randomUUID()}`;
-  const agent = factory({
+  const rawAgent = factory({
     systemPrompt: config.systemPrompt,
     model: config.model,
     tools: config.tools,
@@ -209,6 +240,20 @@ export function createAgentSession(config: {
     sessionId,
     transformContext: config.transformContext,
   });
+
+  // Callers stop a turn with agent.abort() (chat's Stop button) and the timer below does the
+  // same. Both must also cancel a network retry that is waiting to restart the agent.
+  let turnStop = new AbortController();
+  const agent: AiAgentHandle = {
+    ...rawAgent,
+    get state() {
+      return rawAgent.state;
+    },
+    abort: () => {
+      turnStop.abort();
+      rawAgent.abort();
+    },
+  };
 
   attachAiUsageLogger(agent, {
     layer: config.layer,
@@ -229,9 +274,11 @@ export function createAgentSession(config: {
     }
     inFlight = true;
     done = false;
+    turnStop = new AbortController();
+    const stop = turnStop.signal;
     try {
       if (timeoutMs == null || timeoutMs <= 0) {
-        await runUntilSettled(agent, prompt);
+        await runUntilSettled(agent, prompt, stop);
         done = true;
         return;
       }
@@ -242,8 +289,9 @@ export function createAgentSession(config: {
           agent.abort();
           reject(new AgentTimeoutError(`timed out after ${timeoutMs}ms`));
         }, timeoutMs);
-        // Same network retry as the untimed path; the timer still bounds the whole turn.
-        runUntilSettled(agent, prompt).then(
+        // Same network retry as the untimed path; the timer still bounds the whole turn, and
+        // agent.abort() above also cancels any retry that is still waiting.
+        runUntilSettled(agent, prompt, stop).then(
           () => {
             if (done) return;
             done = true;

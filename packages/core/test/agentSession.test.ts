@@ -245,6 +245,57 @@ describe('createAgentSession', () => {
     }
   });
 
+  it('does not restart the agent after the turn timed out during a retry wait', async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = realisticAgent(1);
+      const session = createAgentSession({
+        layer: 'analyst',
+        symbol: 'AVGO.US',
+        model: fakeModel,
+        systemPrompt: 'system prompt',
+        tools: [],
+        agentFactory: () => fake.agent,
+      });
+      // The first retry would wait 1000ms; the turn's limit is 500ms.
+      const turn = session.runTurn('hi', 500);
+      const settled = turn.catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(500);
+      expect(await settled).toBeInstanceOf(AgentTimeoutError);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(fake.calls()).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stops a pending retry as soon as the caller aborts', async () => {
+    vi.useFakeTimers();
+    try {
+      const fake = realisticAgent(1);
+      const session = createAgentSession({
+        layer: 'chat',
+        symbol: 'MU.US',
+        model: fakeModel,
+        systemPrompt: 'system prompt',
+        tools: [],
+        agentFactory: () => fake.agent,
+      });
+      const turn = session.runTurn('hi');
+      const settled = turn.catch((error: unknown) => error);
+      await vi.advanceTimersByTimeAsync(10);
+      session.agent.abort();
+      // Resolves on the abort, not after the 1000ms backoff.
+      await vi.advanceTimersByTimeAsync(0);
+      const error = await settled;
+      expect(String(error)).toMatch(/abort/i);
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(fake.calls()).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('retries a network error with increasing delays and settles', async () => {
     vi.useFakeTimers();
     try {
