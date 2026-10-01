@@ -10,7 +10,7 @@ import { navigate, useQueryParam } from '@web/lib/router';
 import { Button, Empty, Spinner } from '@web/ui';
 import { useTitle } from '@web/lib/useTitle';
 import { saveRole } from '../settings/roleShared';
-import type { AiSettings, Catalog } from '../settings/types';
+import { normalizeAiSettings, type Catalog, type PersistedAiSettings } from '../settings/types';
 import { AssistantConversation } from './AssistantConversation';
 import { AssistantSessionList, SidebarToggle } from './AssistantSessionList';
 import { isBlankSession } from './sessionGroups';
@@ -169,12 +169,19 @@ export function AssistantChatPage() {
   const requestedCanvasPath = useQueryParam('canvas');
   const activeId = resolveActiveSessionId(requestedId, sessions);
 
-  const aiSettingsQuery = useQuery<AiSettings>('settings.getAi', () => client.settings.getAi());
+  const aiSettingsQuery = useQuery<PersistedAiSettings>('settings.getAi', () =>
+    client.settings.getAi(),
+  );
   const catalogQuery = useQuery<Catalog>('settings.getCatalog', () => client.settings.getCatalog());
   const { data: library } = useQuery<ResearchDocumentMeta[]>('assistant.researchLibrary', () =>
     client.research.list({}),
   );
-  const aiSettings = aiSettingsQuery.data;
+  // The query cache is persisted, so a snapshot from an older release can lack newer
+  // roles; normalize it like the Settings page does, or reading roles.chat throws.
+  const aiSettings = useMemo(
+    () => (aiSettingsQuery.data ? normalizeAiSettings(aiSettingsQuery.data) : null),
+    [aiSettingsQuery.data],
+  );
   const catalog = catalogQuery.data;
   const [pendingModelValue, setPendingModelValue] = useState<string | null>(null);
   const [modelSaving, setModelSaving] = useState(false);
