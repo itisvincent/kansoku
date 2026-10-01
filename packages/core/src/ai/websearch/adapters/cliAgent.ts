@@ -3,6 +3,8 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { resolveAugmentedPath } from '../../../platform/userPath.js';
+import { launchSpec, resolveWindowsCommand } from '../../../platform/windowsLaunch.js';
+import { getInterfaceLocale } from '../../../settings/interfaceLocale.js';
 import {
   SearchAdapterError,
   type SearchAdapter,
@@ -12,12 +14,33 @@ import {
 
 // stdin must be closed the moment the child starts: `codex exec` treats an open pipe as
 // "more prompt is coming" ("Reading additional input from stdin...") and blocks until the
-// timeout kills it. promisify(execFile) hides the child, so the callback form is required.
+// timeout kills it. A prompt sent through stdin is written first, then stdin is closed.
+// promisify(execFile) hides the child, so the callback form is required.
+// On Windows the tool is usually an npm `.cmd` launcher, which needs cmd.exe to run.
 const execFileClosedStdin: CliRunner = (bin, args, opts) =>
   new Promise((resolve, reject) => {
-    const child = execFile(bin, args, opts, (error, stdout) =>
-      error ? reject(error) : resolve({ stdout }),
+    const { input, ...execOpts } = opts;
+    let spec = { file: bin, args } as ReturnType<typeof launchSpec>;
+    if (process.platform === 'win32') {
+      const resolved = resolveWindowsCommand(bin, { ...process.env, PATH: opts.env.PATH });
+      if (!resolved) {
+        reject(Object.assign(new Error(`spawn ${bin} ENOENT`), { code: 'ENOENT' }));
+        return;
+      }
+      try {
+        spec = launchSpec(resolved, args, opts.env);
+      } catch (error) {
+        reject(error);
+        return;
+      }
+    }
+    const child = execFile(
+      spec.file,
+      spec.args,
+      { ...execOpts, windowsVerbatimArguments: spec.windowsVerbatimArguments },
+      (error, stdout) => (error ? reject(error) : resolve({ stdout })),
     );
+    if (input !== undefined) child.stdin?.write(input);
     child.stdin?.end();
   });
 
@@ -28,8 +51,14 @@ const PREAMBLE = [
   'Answer strictly from web search results. Never read local files and never run commands other than web search.',
   'Report only what the sources say; add no market opinion and no trading advice of your own.',
   'Every fact carries its publication date and its source URL. When the search finds nothing, say so plainly instead of guessing.',
-  'Answer in modern vernacular Chinese (中文白话).',
 ].join('\n');
+
+/** The answer follows the interface language, like the rest of the app's AI output. */
+function languageLine(): string {
+  return getInterfaceLocale() === 'zh-CN'
+    ? 'Answer in modern vernacular Chinese (中文白话).'
+    : 'Answer in plain English.';
+}
 
 const RECENCY_INSTRUCTIONS = {
   day: 'Only use sources published within the last 24 hours.',
@@ -39,7 +68,7 @@ const RECENCY_INSTRUCTIONS = {
 } as const;
 
 export function buildPrompt(request: SearchRequest): string {
-  const lines = [PREAMBLE];
+  const lines = [PREAMBLE, languageLine()];
   if (request.recency) lines.push(RECENCY_INSTRUCTIONS[request.recency]);
   lines.push('', 'Request:', request.query);
   return lines.join('\n');
@@ -54,6 +83,8 @@ export type CliRunner = (
     maxBuffer: number;
     env: NodeJS.ProcessEnv;
     signal?: AbortSignal;
+    /** Written to the child's stdin before it is closed. */
+    input?: string;
   },
 ) => Promise<{ stdout: string }>;
 
@@ -64,6 +95,11 @@ export interface CliAgentAdapterSpec {
   versionArgs: string[];
   /** `outFile` is a scratch path the CLI may write its answer to; adapters that print to stdout ignore it. */
   searchArgs: (prompt: string, outFile: string) => string[];
+  /**
+   * Send the prompt through stdin and pass "-" in its place. A multi-line prompt cannot
+   * travel through cmd.exe, which Windows needs for npm .cmd launchers.
+   */
+  stdinPrompt?: boolean;
   readAnswer: (stdout: string, outFile: string) => Promise<string>;
 }
 
@@ -106,13 +142,19 @@ export function createCliAgentAdapter(
       const dir = await mkdtemp(path.join(tmpdir(), `kansoku-websearch-${spec.id}-`));
       const outFile = path.join(dir, 'answer.md');
       try {
-        const { stdout } = await run(spec.bin, spec.searchArgs(buildPrompt(request), outFile), {
-          cwd: dir,
-          timeout: request.timeoutMs,
-          maxBuffer: MAX_BUFFER,
-          env: { ...process.env, PATH: await resolveAugmentedPath() },
-          signal: request.signal,
-        });
+        const prompt = buildPrompt(request);
+        const { stdout } = await run(
+          spec.bin,
+          spec.searchArgs(spec.stdinPrompt ? '-' : prompt, outFile),
+          {
+            cwd: dir,
+            timeout: request.timeoutMs,
+            maxBuffer: MAX_BUFFER,
+            env: { ...process.env, PATH: await resolveAugmentedPath() },
+            signal: request.signal,
+            ...(spec.stdinPrompt ? { input: prompt } : {}),
+          },
+        );
         const answer = await spec.readAnswer(stdout, outFile);
         if (!answer) throw new SearchAdapterError(spec.id, `${spec.label} returned no answer.`);
         return { provider: spec.id, answer, sources: [] };
@@ -150,4 +192,6 @@ export const codexAdapterSpec: CliAgentAdapterSpec = {
     prompt,
   ],
   readAnswer: readOutFile,
+  // `codex exec -` reads the instructions from stdin.
+  stdinPrompt: true,
 };

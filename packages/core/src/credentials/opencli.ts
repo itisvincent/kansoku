@@ -10,6 +10,7 @@ import {
   SYSTEM_EXTRA_BIN_DIRS,
   type PathExec,
 } from '../platform/userPath.js';
+import { launchSpec } from '../platform/windowsLaunch.js';
 
 const execFileAsync = promisify(execFile);
 const DOCTOR_TIMEOUT_MS = 20_000;
@@ -147,15 +148,31 @@ function runOptions(
   deps: OpencliDeps,
   timeout: number,
 ): Parameters<typeof execFileAsync>[2] {
-  const options: Parameters<typeof execFileAsync>[2] = {
+  return {
     timeout,
     maxBuffer: 1024 * 1024,
     env: runEnvForCli(cliPath, deps),
   };
-  // Windows batch launchers require a shell. Keep this scoped to the
-  // discovered .cmd/.bat wrapper; native executables remain direct spawns.
-  if (process.platform === 'win32' && /\.(cmd|bat)$/i.test(cliPath)) options.shell = true;
-  return options;
+}
+
+/**
+ * Runs the CLI. A Windows .cmd/.bat launcher goes through cmd.exe with its path and
+ * arguments quoted; `shell: true` passed them unquoted, so a path with spaces broke.
+ */
+function runCli(
+  exec: typeof execFileAsync,
+  cliPath: string,
+  args: string[],
+  deps: OpencliDeps,
+  timeout: number,
+) {
+  const options = runOptions(cliPath, deps, timeout);
+  if (process.platform !== 'win32') return exec(cliPath, args, options);
+  const spec = launchSpec(cliPath, args);
+  return exec(spec.file, spec.args, {
+    ...options,
+    ...(spec.windowsVerbatimArguments ? { windowsVerbatimArguments: true } : {}),
+  });
 }
 
 export async function probeOpencli(deps: OpencliDeps = {}): Promise<OpencliStatus> {
@@ -168,7 +185,7 @@ export async function probeOpencli(deps: OpencliDeps = {}): Promise<OpencliStatu
   let doctorStdout: string;
   let doctorError: unknown = null;
   try {
-    const { stdout } = await exec(cliPath, ['doctor'], runOptions(cliPath, deps, DOCTOR_TIMEOUT_MS));
+    const { stdout } = await runCli(exec, cliPath, ['doctor'], deps, DOCTOR_TIMEOUT_MS);
     doctorStdout = stdout.toString();
   } catch (error) {
     const { stdout, killed, signal } = error as {
@@ -196,7 +213,7 @@ export async function probeOpencli(deps: OpencliDeps = {}): Promise<OpencliStatu
   }
 
   try {
-    await exec(cliPath, ['twitter', 'profile'], runOptions(cliPath, deps, PROFILE_TIMEOUT_MS));
+    await runCli(exec, cliPath, ['twitter', 'profile'], deps, PROFILE_TIMEOUT_MS);
     return { state: 'ready', cliPath, lastError: null };
   } catch (error) {
     return { state: 'no_session', cliPath, lastError: truncate(errorMessage(error)) };
