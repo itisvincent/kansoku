@@ -187,10 +187,14 @@ export function ScanPage() {
         {state && <Progress state={state} />}
         {notice && <span className={stylex.props(styles.error).className}>{notice}</span>}
       </div>
-      {query.error ? (
+      {state ? (
+        <>
+          {/* One failed poll should not hide results that are already on screen. */}
+          {query.error && <span className={stylex.props(styles.error).className}>{query.error}</span>}
+          <ScanBody state={state} />
+        </>
+      ) : query.error ? (
         <ErrorBox>{query.error}</ErrorBox>
-      ) : state ? (
-        <ScanBody state={state} />
       ) : (
         <NoteBlock>
           <Spinner />

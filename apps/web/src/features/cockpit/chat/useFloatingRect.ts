@@ -156,7 +156,9 @@ export function useFloatingRect(): FloatingRectHandle {
             next.x = right - next.w;
           }
           if (edge === 'n' || edge === 'nw') {
-            next.h = Math.max(MIN_H, start.h - dy);
+            // Stop growing at the tab bar instead of pushing the bottom edge down.
+            const top = topInset();
+            next.h = Math.max(MIN_H, Math.min(start.h - dy, bottom - top));
             next.y = bottom - next.h;
           }
           return next;

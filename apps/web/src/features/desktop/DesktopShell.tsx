@@ -17,6 +17,8 @@ const styles = stylex.create({
   },
 });
 
+const SINGLE_PAGE_ROUTES = new Set(['/scan', '/scorecard']);
+
 export function DesktopShell() {
   const controller = useTabsController();
   const activeRoute = controller.activeTab.route;
@@ -27,6 +29,15 @@ export function DesktopShell() {
   }, [activeSymbol]);
 
   useEffect(() => clearActiveSymbol, []);
+
+  // Scan and Scorecard are single pages: reuse an open tab instead of stacking duplicates.
+  const openFromPalette = (route: string) => {
+    const existing = SINGLE_PAGE_ROUTES.has(route)
+      ? controller.snapshot.tabs.find((tab) => tab.route === route)
+      : undefined;
+    if (existing) controller.activateTab(existing.id);
+    else controller.openTab(route);
+  };
 
   return (
     <>
@@ -39,7 +50,7 @@ export function DesktopShell() {
         <RestrictedBanner />
         <RouterProvider router={controller.activeRouter} />
       </div>
-      <CommandPalette onOpenRoute={controller.openTab} />
+      <CommandPalette onOpenRoute={openFromPalette} />
       <LinkHoverStatus />
       <ModalHost />
       <ContextMenuHost />

@@ -8,6 +8,11 @@ describe('localizeChartTitle', () => {
     expect(localizeChartTitle('cohort 对比', 'en-US')).toBe('Cohort comparison');
   });
 
+  it('translates a flow chart title that has no symbol', () => {
+    expect(localizeChartTitle('主力资金流', 'en-US')).toBe('Capital flow');
+    expect(localizeChartTitle('Capital flow', 'zh-CN')).toBe('主力资金流');
+  });
+
   it('translates English default names back for a Chinese interface', () => {
     expect(localizeChartTitle('INTU.US intraday multi-timeframe', 'zh-CN')).toBe('INTU.US 短线多周期');
   });

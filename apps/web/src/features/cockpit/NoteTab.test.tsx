@@ -147,3 +147,18 @@ describe('NoteTab last deep-dive result', () => {
     expect(screen.queryByText(/model error: 429/)).toBeNull();
   });
 });
+
+describe('NoteTab across symbols', () => {
+  it('drops the previous symbol’s failure message when the symbol changes', async () => {
+    capabilities = { features: { 'deep-dive': 'active' } };
+    note.mockResolvedValue({ markdown: null });
+    deepDiveStatus.mockResolvedValue({
+      running: false,
+      lastResult: { symbol: 'AVGO.US', ok: false, finishedAt: '2026-09-28T14:42:19.000Z', error: 'model error: 429' },
+    });
+    const view = render(<NoteTab symbol="AVGO.US" />);
+    expect(await screen.findByText(/model error: 429/)).toBeTruthy();
+    view.rerender(<NoteTab symbol="MU.US" />);
+    await waitFor(() => expect(screen.queryByText(/model error: 429/)).toBeNull());
+  });
+});
