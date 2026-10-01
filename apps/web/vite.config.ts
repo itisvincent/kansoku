@@ -66,6 +66,9 @@ export default defineConfig({
   },
   server: {
     port: LOCAL_APP_PORT,
+    // The sandboxed canvas frame has an opaque origin ("null"); its module scripts still
+    // have to load from this server.
+    cors: { origin: [/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/, 'null'] },
     proxy: {
       '/api': { target: KERNEL_URL, ws: true },
       '/legacy': { target: KERNEL_URL },

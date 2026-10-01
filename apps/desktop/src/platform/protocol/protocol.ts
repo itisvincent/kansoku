@@ -122,6 +122,15 @@ export function missingDistErrorHtml(distRoot: string): string {
   </body>`;
 }
 
+/**
+ * The canvas frame is sandboxed without allow-same-origin, so it has an opaque ("null")
+ * origin and its module scripts load cross-origin. These are the app's own public bundle
+ * files, sent without credentials, so allowing any origin to read them exposes nothing.
+ */
+function staticHeaders(path: string): Record<string, string> {
+  return { 'content-type': lookupMimeType(path), 'access-control-allow-origin': '*' };
+}
+
 export interface ProtocolHostDeps {
   distRoot: string;
   distRootExists: () => boolean;
@@ -146,7 +155,7 @@ export function createAppProtocolHandler(deps: ProtocolHostDeps) {
     if (asset.kind === 'memory') {
       return new Response(new Uint8Array(asset.body), {
         status: 200,
-        headers: { 'content-type': lookupMimeType(decision.relativePath) },
+        headers: staticHeaders(decision.relativePath),
       });
     }
 
@@ -162,7 +171,7 @@ export function createAppProtocolHandler(deps: ProtocolHostDeps) {
       const body = await readFile(filePath);
       return new Response(new Uint8Array(body), {
         status: 200,
-        headers: { 'content-type': lookupMimeType(filePath) },
+        headers: staticHeaders(filePath),
       });
     } catch {
       return new Response('Not Found', { status: 404 });

@@ -2,12 +2,13 @@ import type { Server } from 'node:http';
 import { WebSocketServer } from 'ws';
 import { handleConnection } from '@kansoku/core/realtime/channelProtocol';
 import { wrapWebSocket } from './wsConnection.js';
+import { refuseUpgrade } from '../localGuard.js';
 
 export function attachWs(server: Server, path: string): WebSocketServer {
   const wss = new WebSocketServer({ noServer: true });
   server.on('upgrade', (req, socket, head) => {
     const pathname = new URL(req.url ?? '', 'http://localhost').pathname;
-    if (pathname !== path) {
+    if (pathname !== path || refuseUpgrade(req)) {
       socket.destroy();
       return;
     }
