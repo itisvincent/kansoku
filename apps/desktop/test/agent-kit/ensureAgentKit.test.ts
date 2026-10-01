@@ -93,10 +93,16 @@ describe('ensureAgentKit', () => {
     );
 
     const shimPath = join(kitDir, 'bin', 'kansoku-cli');
-    expect(lstatSync(shimPath).isSymbolicLink()).toBe(true);
-    expect(readlinkSync(shimPath)).toBe(
-      join(resourcesPath, 'kansoku-agent-kit', 'bin', 'kansoku-cli'),
-    );
+    if (process.platform === 'win32') {
+      // Windows gets generated launchers instead of a file symlink (see cliShim.test.ts).
+      expect(lstatSync(shimPath).isFile()).toBe(true);
+      expect(lstatSync(`${shimPath}.cmd`).isFile()).toBe(true);
+    } else {
+      expect(lstatSync(shimPath).isSymbolicLink()).toBe(true);
+      expect(readlinkSync(shimPath)).toBe(
+        join(resourcesPath, 'kansoku-agent-kit', 'bin', 'kansoku-cli'),
+      );
+    }
 
     const bundledSkills = join(resourcesPath, 'skills');
     const skillLink = join(dataRoot, '.agent', 'skill');
@@ -125,7 +131,7 @@ describe('ensureAgentKit', () => {
     expect(state?.pendingUpdates).toBeUndefined();
   });
 
-  it('replaces a stale CLI symlink on re-run instead of throwing', async () => {
+  it.skipIf(process.platform === 'win32')('replaces a stale CLI symlink on re-run instead of throwing', async () => {
     await ensureAgentKit({ agentKitDir: dataRoot, dataRoot, resourcesPath, db, now });
 
     const shimPath = join(dataRoot, '.kansoku-agent-kit', 'bin', 'kansoku-cli');
@@ -236,7 +242,7 @@ describe('ensureAgentKit', () => {
     }
   });
 
-  it('can be sourced by POSIX sh when Workspace paths contain spaces and quotes', async () => {
+  it.skipIf(process.platform === 'win32')('can be sourced by POSIX sh when Workspace paths contain spaces and quotes', async () => {
     const spacedRoot = join(dataRoot, 'Application Support', "Kansoku's Workspace");
     const agentKitDir = join(dataRoot, 'Agent Project');
     await mkdir(spacedRoot, { recursive: true });

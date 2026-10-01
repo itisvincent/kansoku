@@ -1,6 +1,7 @@
-import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Db } from '@kansoku/core/db/index';
+import { installCliShim } from './cliShim.js';
 import { readManifest } from './manifest.js';
 import { ensureAgentKitSkillLinks } from './skillLinks.js';
 import {
@@ -51,9 +52,7 @@ export async function ensureAgentKit(input: {
     'utf8',
   );
 
-  const targetShim = join(input.resourcesPath, 'kansoku-agent-kit', 'bin', 'kansoku-cli');
-  rmSync(cliShim, { force: true });
-  symlinkSync(targetShim, cliShim, 'file');
+  installCliShim({ cliShim, resourcesPath: input.resourcesPath });
 
   const render = makeRender(input.resourcesPath, input.db);
   const conflicts: PendingConflict[] = [];

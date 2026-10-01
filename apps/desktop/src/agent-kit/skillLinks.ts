@@ -5,9 +5,11 @@ import {
   mkdirSync,
   readdirSync,
   realpathSync,
+  renameSync,
   rmSync,
   statSync,
   symlinkSync,
+  unlinkSync,
 } from 'node:fs';
 import path from 'node:path';
 import { removeLegacyBundledSkillsLink } from '../boot/skills.js';
@@ -54,6 +56,20 @@ function isValidSkillLink(dest: string, skillsDir: string, probe: string): boole
 }
 
 /**
+ * Points `dest` at `target`. Windows makes a directory junction, which needs no admin
+ * rights or Developer Mode (a symlink does). The new link is made beside `dest` first,
+ * so a failure leaves whatever was there untouched instead of deleting it.
+ */
+function replaceWithLink(target: string, dest: string): void {
+  mkdirSync(path.dirname(dest), { recursive: true });
+  const staged = `${dest}.kansoku-link-${process.pid}`;
+  rmSync(staged, { recursive: true, force: true });
+  symlinkSync(target, staged, process.platform === 'win32' ? 'junction' : 'dir');
+  rmSync(dest, { recursive: true, force: true });
+  renameSync(staged, dest);
+}
+
+/**
  * Project the packaged skill tree into every Agent Kit client location.
  *
  * These links are a managed runtime invariant rather than conflict-aware
@@ -68,11 +84,7 @@ export function ensureAgentKitSkillLinks(agentKitDir: string, resourcesPath: str
 
   for (const relativePath of AGENT_KIT_SKILL_LINK_PATHS) {
     const dest = path.join(agentKitDir, relativePath);
-    if (!isValidSkillLink(dest, skillsDir, probe)) {
-      rmSync(dest, { recursive: true, force: true });
-      mkdirSync(path.dirname(dest), { recursive: true });
-      symlinkSync(skillsDir, dest, 'dir');
-    }
+    if (!isValidSkillLink(dest, skillsDir, probe)) replaceWithLink(skillsDir, dest);
     if (!isValidSkillLink(dest, skillsDir, probe)) {
       throw new Error(
         `agentKit: skill link verification failed for ${dest}; expected target ${skillsDir}`,
@@ -86,7 +98,9 @@ export function cleanAgentKitSkillLinks(agentKitDir: string): void {
   for (const relativePath of [...AGENT_KIT_SKILL_LINK_PATHS, LEGACY_CLAUDE_SKILL_LINK]) {
     const dest = path.join(agentKitDir, relativePath);
     try {
-      if (lstatSync(dest).isSymbolicLink()) rmSync(dest, { force: true });
+      // unlink removes only the link (never what it points to); rmSync without recursive
+      // refuses a folder link or junction on Windows (EISDIR).
+      if (lstatSync(dest).isSymbolicLink()) unlinkSync(dest);
     } catch {
       // Missing or unreadable destinations require no cleanup.
     }
