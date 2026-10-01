@@ -72,13 +72,28 @@ function notifyFinished(state: WatchlistScanState): void {
  * Held positions first, so the cap never drops a stock you own, then the rest of the
  * watchlist. Only the configured watched markets are scanned (TD-LANG-03).
  */
+/**
+ * marketOf() treats any unknown suffix as US; a scan must not, or .SG / crypto (.HAS)
+ * watchlist entries would be analysed under a US-only setting.
+ */
+function scanMarketOf(symbol: string): string | null {
+  const upper = symbol.trim().toUpperCase();
+  if (upper.endsWith('.US') || !upper.includes('.')) return 'US';
+  const suffix = upper.includes('.') ? upper.slice(upper.lastIndexOf('.')) : '';
+  if (suffix === '.HK' || suffix === '.SH' || suffix === '.SZ') return marketOf(upper);
+  return null;
+}
+
 export function orderScanSymbols(
   positions: readonly string[],
   watched: readonly string[],
   markets: readonly string[],
 ): string[] {
   const allowed = new Set(markets);
-  return [...new Set([...positions, ...watched])].filter((symbol) => allowed.has(marketOf(symbol)));
+  return [...new Set([...positions, ...watched])].filter((symbol) => {
+    const market = scanMarketOf(symbol);
+    return market !== null && allowed.has(market);
+  });
 }
 
 async function listScanSymbols(): Promise<string[]> {

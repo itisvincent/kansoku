@@ -63,7 +63,11 @@ export function reassessPackPromptText(pack: ReassessPack): string {
   const tables: string[] = [];
   for (const key of Object.keys(timeframes)) {
     const frame = timeframes[key];
-    summaries[key] = { summary: frame.summary };
+    // atr14 is what the analyst prompt tells the model to size scenarios against.
+    summaries[key] = {
+      summary: frame.summary,
+      ...(frame.atr14 !== undefined ? { atr14: frame.atr14, atr14_pct: frame.atr14_pct } : {}),
+    };
     tables.push(klineTable(pack.symbol, TIMEFRAME_PERIOD[key] ?? key, frame.bars));
   }
   return withKlineTables({ ...rest, timeframes: summaries }, tables);

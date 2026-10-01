@@ -54,6 +54,10 @@ async function writeAtomic(path: string, content: string): Promise<void> {
 }
 
 export function buildWriteNoteTool(hooks: NoteToolHooks): AgentTool<typeof noteSchema> {
+  // The note as it was before this run. Every save is measured against it, not against the
+  // latest draft: otherwise a chain of drafts could shrink a note step by step, and a long
+  // draft could get a correct final note rejected.
+  let original: Promise<string | null> | null = null;
   return {
     name: 'write_note',
     label: 'Write Note',
@@ -63,14 +67,15 @@ export function buildWriteNoteTool(hooks: NoteToolHooks): AgentTool<typeof noteS
     execute: async (_id, params) => {
       const content = params.content.trim();
       if (!content) return textResult('write_note rejected: content is empty.');
-      const existing = await readExisting(hooks.notePath);
+      original ??= readExisting(hooks.notePath);
+      const existing = await original;
       if (
         existing &&
         existing.trim().length >= SUBSTANTIAL_NOTE_CHARS &&
         content.length < existing.trim().length * MIN_KEPT_SHARE
       ) {
         return textResult(
-          `write_note rejected: the new note (${content.length} chars) drops most of the existing note (${existing.trim().length} chars). Notes grow incrementally (TD-NOTES-01): keep earlier sections and dated history, mark outdated parts as superseded instead of deleting them, then call write_note again.`,
+          `write_note rejected: the new note (${content.length} chars) drops most of the note as it was before this run (${existing.trim().length} chars). Notes grow incrementally (TD-NOTES-01): keep earlier sections and dated history, mark outdated parts as superseded instead of deleting them, then call write_note again.`,
         );
       }
       await writeAtomic(hooks.notePath, `${content}\n`);

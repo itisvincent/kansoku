@@ -5,6 +5,7 @@ import { trackFeatureUsed } from '@web/lib/analytics';
 import { errorMessage } from '@web/lib/api';
 import { client } from '@web/lib/client';
 import { loadAnalysisTimeframes } from '@web/features/charts/intraday/timeframes';
+import { noteRunRequested } from './runRequests';
 
 export const REASON_TEXT: Record<string, string> = {
   'analyst layer disabled': 'local:cockpitAnalystUnconfigured',
@@ -69,6 +70,7 @@ export function useReassessSymbol(
       });
       const superseded = tokenRef.current !== token;
       if (superseded) return { ok: false, error: 'local:cockpitCancelled', aborted: true };
+      if (data.started) noteRunRequested(symbol);
       return { ok: true, data };
     } catch (caught: unknown) {
       const superseded = tokenRef.current !== token;

@@ -33,6 +33,7 @@ import { marketOf } from '../symbols/symbol.utils.js';
 const OUTCOME_BARS = 300;
 /** Long enough to absorb tab switches and re-renders; short enough that new verdicts show up. */
 const SCORECARD_TTL_MS = 60_000;
+const MAX_SCORECARD_DAYS = 3650;
 let scorecardCache = new Map<string, { at: number; data: PredictionScorecard }>();
 const DAILY_BARS = 30;
 const RECAP_TTL_MS = 60_000;
@@ -272,8 +273,12 @@ export const overviewService: OverviewApi = {
     // HTTP hands the query over as a string; IPC passes a number.
     const raw = input?.days as unknown;
     const days = raw === undefined || raw === '' ? undefined : Number(raw);
-    if (days !== undefined && (!Number.isFinite(days) || days <= 0)) {
-      throw new ClientError(`invalid days: ${String(raw)}`, 'expected a positive number of days', 400);
+    if (days !== undefined && (!Number.isInteger(days) || days < 1 || days > MAX_SCORECARD_DAYS)) {
+      throw new ClientError(
+        `invalid days: ${String(raw)}`,
+        `expected a whole number of days from 1 to ${MAX_SCORECARD_DAYS}`,
+        400,
+      );
     }
     const key = days === undefined ? 'all' : String(Math.floor(days));
     const cached = scorecardCache.get(key);

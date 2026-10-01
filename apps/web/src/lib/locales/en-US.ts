@@ -797,6 +797,7 @@ const enUS = {
   cockpitDeepDirty: 'Analysis complete ⚠️ Changes outside the notes were detected',
   cockpitDeepComplete: 'Analysis complete',
   cockpitDeepFailed: 'Analysis failed',
+  cockpitDeepLastFailed: 'The last deep analysis ({when}) failed: {error}',
   cockpitDeepBusy: 'An analysis is already running',
   cockpitDeepUnconfigured: 'Configure a deep research model in Settings',
   cockpitExplainUnconfigured: 'Configure an AI commentary model to interpret the market',

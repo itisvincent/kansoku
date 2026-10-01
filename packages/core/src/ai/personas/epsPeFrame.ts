@@ -5,6 +5,10 @@ export const EPS_MOVE_THRESHOLD = 0.02;
 
 const KINDS = ['bear', 'base', 'bull'] as const;
 
+function bandKey(label: string): string {
+  return label.trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
@@ -106,13 +110,13 @@ export function applySavedEpsPeFrame(
         eps: round2(row.eps * factor),
         pe: factor === 1 ? row.pe : round2(row.pe / factor),
       })),
-      bands: saved.bands?.map((band, i) => {
-        // Bands line up by position only when this run produced the same set of bands.
-        const fresh = incoming.bands?.length === saved.bands?.length ? incoming.bands?.[i] : undefined;
+      bands: saved.bands?.map((band) => {
+        // The saved label stays with its saved price. Fresh wording is taken only from a band
+        // with the same label; matching by position could put "Trim" on the thesis-stop price.
+        const fresh = incoming.bands?.find((row) => bandKey(row.label) === bandKey(band.label));
         return {
           ...band,
           price: round2(band.price * factor),
-          label: fresh?.label ?? band.label,
           note: fresh?.note ?? band.note,
         };
       }),

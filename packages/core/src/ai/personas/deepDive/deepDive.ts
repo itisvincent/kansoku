@@ -126,15 +126,21 @@ export async function executeDeepDive(symbol: string, deps: DeepDiveDeps): Promi
   const withDraft = (error: string) =>
     draftSaved ? `${error}. A draft of the note was saved; run again to finish it` : error;
 
+  // One budget for the whole run: the "please save" turn only gets what is left of it.
+  const deadline = now() + timeoutMs;
+  const MIN_RETRY_MS = 60_000;
   try {
     await session.runTurn(
       `Run the six-lens deep dive for ${symbol} (US Eastern date ${today}). Read the existing note at stocks/${noteName}.md first if it exists, then save the updated note with write_note.`,
       timeoutMs,
     );
-    if (!finalSaved && !session.agent.state?.errorMessage) {
-      await session.runTurn(DEEP_DIVE_RETRY_PROMPT, timeoutMs);
+    const remaining = deadline - now();
+    if (!finalSaved && !session.agent.state?.errorMessage && remaining >= MIN_RETRY_MS) {
+      await session.runTurn(DEEP_DIVE_RETRY_PROMPT, remaining);
     }
   } catch (error) {
+    // The final note can be saved in the same tool batch as a call that later fails.
+    if (finalSaved) return finish({ ok: true });
     if (error instanceof AgentTimeoutError) {
       return finish({
         ok: false,

@@ -73,8 +73,9 @@ export class AgentTimeoutError extends Error {}
 
 const NETWORK_RETRIES = 5;
 const NETWORK_BACKOFF_MS = 1000;
+// Status codes must stand alone: "prompt is too long: 204291 tokens" is not a 429.
 const NETWORK_ERROR =
-  /network|econnreset|etimedout|enotfound|econnrefused|eai_again|socket|fetch failed|undici|429|502|503|504|rate.?limit|too many requests|cloud_unavailable|流式响应中断|上游断|暂时不可用|过于频繁/i;
+  /network|econnreset|etimedout|enotfound|econnrefused|eai_again|socket|fetch failed|undici|(?<!\d)(?:429|502|503|504)(?!\d)|rate.?limit|too many requests|cloud_unavailable|流式响应中断|上游断|暂时不可用|过于频繁/i;
 
 function errorText(err: unknown): string {
   return err instanceof Error ? err.message : String(err);

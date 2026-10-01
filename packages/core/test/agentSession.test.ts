@@ -296,6 +296,28 @@ describe('createAgentSession', () => {
     }
   });
 
+  it('does not retry an error that only contains a status-like number', async () => {
+    let continues = 0;
+    const session = createAgentSession({
+      layer: 'chat',
+      symbol: 'MU.US',
+      model: fakeModel,
+      systemPrompt: 'system prompt',
+      tools: [],
+      agentFactory: () => ({
+        prompt: async () => {
+          throw new Error('prompt is too long: 204291 tokens');
+        },
+        continue: async () => {
+          continues += 1;
+        },
+        abort: () => {},
+      }),
+    });
+    await expect(session.runTurn('hi')).rejects.toThrow('204291');
+    expect(continues).toBe(0);
+  });
+
   it('retries a network error with increasing delays and settles', async () => {
     vi.useFakeTimers();
     try {

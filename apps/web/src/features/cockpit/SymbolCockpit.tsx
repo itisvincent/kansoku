@@ -34,6 +34,7 @@ import { useCockpitComments } from './useCockpitComments';
 import { useCockpitEnv } from './useCockpitEnv';
 import { useAnalystRun } from './useAnalystRun';
 import { RebuildEpsPe } from './RebuildEpsPe';
+import { consumeRunRequest } from './runRequests';
 import { useCockpitReviewState } from './useCockpitReviewState';
 import { useLatestAnalysis } from './useLatestAnalysis';
 import { colors, fontSizes, radii, sizes } from '../../theme/tokens.stylex';
@@ -223,14 +224,21 @@ export function SymbolCockpit({ sym }: { sym: string }) {
 
   // A finished run creates a new frozen snapshot; open it so the Prediction
   // panel shows the fresh result instead of the previously selected analysis.
+  // Only follow it when the page is tracking the latest analysis or the user asked for this run:
+  // a background scan finishing must not drop a pinned or live view.
   const runLastEnded = useAnalystRunLastEnded(sym);
-  const handledRunEndRef = useRef(runLastEnded?.endedAt ?? null);
+  const handledRunEndRef = useRef({ sym, endedAt: runLastEnded?.endedAt ?? null });
   useEffect(() => {
     const endedAt = runLastEnded?.endedAt ?? null;
-    if (!endedAt || handledRunEndRef.current === endedAt) return;
-    handledRunEndRef.current = endedAt;
-    jumpToLatest();
-  }, [runLastEnded, jumpToLatest]);
+    if (handledRunEndRef.current.sym !== sym) {
+      handledRunEndRef.current = { sym, endedAt };
+      return;
+    }
+    if (!endedAt || handledRunEndRef.current.endedAt === endedAt) return;
+    handledRunEndRef.current = { sym, endedAt };
+    const askedHere = consumeRunRequest(sym, endedAt);
+    if (mode === 'latest' || askedHere) jumpToLatest();
+  }, [sym, mode, runLastEnded, jumpToLatest]);
 
   useEffect(() => {
     if (doc || (latestChecked && !latestId && !latestError)) recordRecentSymbol(sym);

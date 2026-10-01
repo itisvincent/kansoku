@@ -97,6 +97,37 @@ function barCache(deps: ScorecardSourceDeps) {
   };
 }
 
+/** Chart files are several MB each; read a few at a time and keep only what the card needs. */
+const MAX_PARALLEL_DOCS = 3;
+
+interface PredictionSummary {
+  prediction: IntradayPrediction;
+  plan: OutcomePlan;
+}
+
+async function summarize(
+  deps: ScorecardSourceDeps,
+  id: string,
+): Promise<PredictionSummary | null> {
+  const doc = await deps.loadChart(id).catch(() => null);
+  if (!doc || doc.input.origin !== 'analyst') return null;
+  const prediction = (doc.input.prediction as IntradayPrediction | null | undefined) ?? null;
+  if (!prediction?.direction) return null;
+  // Copy out the few fields used below so the parsed document can be freed.
+  return {
+    prediction: {
+      direction: prediction.direction,
+      anchor: prediction.anchor,
+      range_plan: prediction.range_plan,
+      range_bound_plan: prediction.range_bound_plan,
+      analysis_windows: prediction.analysis_windows,
+      analysis_timeframes: prediction.analysis_timeframes,
+      conviction: prediction.conviction,
+    },
+    plan: planOf(doc),
+  };
+}
+
 /** Loads every AI prediction since `since`, judging the ones that have no cached verdict. */
 export async function loadScorecardRows(
   since: string | null,
@@ -105,18 +136,16 @@ export async function loadScorecardRows(
   const metas = (await deps.listCharts()).filter(
     (meta) => meta.symbol && (since === null || meta.created_at >= since),
   );
-  const docs = await Promise.all(metas.map((meta) => deps.loadChart(meta.id).catch(() => null)));
   const cached = await deps.getResolvedOutcomes(metas.map((meta) => meta.id));
   const bars = barCache(deps);
+  const limitDocs = createLimiter(MAX_PARALLEL_DOCS);
 
   const rows = await Promise.all(
-    metas.map(async (meta, i): Promise<ScorecardRow | null> => {
-      const doc = docs[i];
-      if (!doc || doc.input.origin !== 'analyst') return null;
-      const prediction = (doc.input.prediction as IntradayPrediction | null | undefined) ?? null;
-      if (!prediction?.direction) return null;
+    metas.map(async (meta): Promise<ScorecardRow | null> => {
+      const summary = await limitDocs(() => summarize(deps, meta.id));
+      if (!summary) return null;
+      const { prediction, plan } = summary;
       const symbol = meta.symbol!;
-      const plan = planOf(doc);
 
       let outcome = attachRMultiple(cached.get(meta.id) ?? null, prediction.direction, plan);
       if (!outcome && prediction.anchor) {
@@ -124,13 +153,15 @@ export async function loadScorecardRows(
         const zone = zoneFromPrediction(prediction);
         const primary = await bars(symbol, PRIMARY_PERIOD, PRIMARY_BARS);
         outcome = primary ? judgeOutcome(prediction.direction, anchor, plan, primary, zone) : null;
-        if (!outcome) {
+        // Settle on hourly bars only when the 15m bars loaded but no longer reach the anchor;
+        // a failed fetch is just "not judged this time". Hourly verdicts are coarser, so they
+        // are shown but never written to the shared cache the History tab also reads.
+        if (!outcome && primary) {
           const fallback = await bars(symbol, FALLBACK_PERIOD, FALLBACK_BARS);
           outcome = fallback
             ? judgeOutcome(prediction.direction, anchor, plan, fallback, zone)
             : null;
-        }
-        if (outcome && outcome.status !== 'open') {
+        } else if (outcome && outcome.status !== 'open') {
           void deps
             .saveResolvedOutcome(
               { chartId: meta.id, symbol, direction: prediction.direction },

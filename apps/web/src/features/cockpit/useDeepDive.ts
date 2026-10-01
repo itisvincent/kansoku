@@ -10,7 +10,7 @@ export const bareSymbol = (value: string) => value.toUpperCase().replace(/\.US$/
 const STATUS_POLL_MS = 10_000;
 
 export function useDeepDive(symbol: string, onNoteReady: () => void) {
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
   const [pending, setPending] = useState(false);
   const [running, setRunning] = useState(false);
   const [runningSymbol, setRunningSymbol] = useState<string | null>(null);
@@ -20,13 +20,24 @@ export function useDeepDive(symbol: string, onNoteReady: () => void) {
   const [successNote, setSuccessNote] = useState<string | null>(null);
   const seenFinishedAtRef = useRef<string | null>(null);
   const [initialStatusChecked, setInitialStatusChecked] = useState(false);
+  // Set when this view starts a run; the first status read must not overwrite that state,
+  // and only the view that started a run reports it as completed.
+  const startedHereRef = useRef(false);
 
   useEffect(() => {
     let active = true;
+    // The cockpit stays mounted across symbols: drop the previous symbol's messages.
+    startedHereRef.current = false;
+    setRunning(false);
+    setRunningSymbol(null);
+    setStartedAt(null);
+    setInlineMessage(null);
+    setSuccessNote(null);
+    setInitialStatusChecked(false);
     client.symbols
       .deepDiveStatus({ sym: symbol })
       .then((status) => {
-        if (!active) return;
+        if (!active || startedHereRef.current) return;
         if (status.running) {
           setRunning(true);
           setRunningSymbol(status.symbol ?? null);
@@ -37,7 +48,10 @@ export function useDeepDive(symbol: string, onNoteReady: () => void) {
           seenFinishedAtRef.current = last.finishedAt;
           // A failure is kept across restarts; show why the last run on this stock stopped.
           if (!status.running && !last.ok && bareSymbol(last.symbol) === bareSymbol(symbol)) {
-            setInlineMessage(last.error ?? 'local:cockpitDeepFailed');
+            const when = new Date(last.finishedAt).toLocaleString(locale);
+            setInlineMessage(
+              t('cockpitDeepLastFailed', { when, error: last.error ?? t('cockpitDeepFailed') }),
+            );
           }
         }
       })
@@ -67,10 +81,13 @@ export function useDeepDive(symbol: string, onNoteReady: () => void) {
         setRunning(false);
         setRunningSymbol(null);
         setStartedAt(null);
-        // Paired with the `started` above, so the two counts together show how many deep runs
-        // are abandoned or die mid-flight rather than reaching a report.
-        trackFeatureUsed('deep_research', { stage: 'completed' });
         const result = status.lastResult;
+        // Paired with the `started` event, so the two counts show how many deep runs are
+        // abandoned or die mid-flight. Only the view that started the run reports it.
+        if (startedHereRef.current && result?.ok) {
+          trackFeatureUsed('deep_research', { stage: 'completed' });
+        }
+        startedHereRef.current = false;
         if (
           result &&
           bareSymbol(result.symbol) === bareSymbol(symbol) &&
@@ -99,6 +116,7 @@ export function useDeepDive(symbol: string, onNoteReady: () => void) {
   }, [running, symbol, onNoteReady]);
 
   const start = useCallback(async () => {
+    startedHereRef.current = true;
     setInlineMessage(null);
     setSuccessNote(null);
     setPending(true);
@@ -106,6 +124,7 @@ export function useDeepDive(symbol: string, onNoteReady: () => void) {
       const result = await client.symbols.deepDive({ sym: symbol });
       // Desktop IPC hands a refusal back as a plain body instead of a 409/503 status.
       if (result && result.started === false) {
+        startedHereRef.current = false;
         if (result.reason === 'busy') {
           setInlineMessage('local:cockpitDeepBusy');
         } else {
@@ -119,6 +138,7 @@ export function useDeepDive(symbol: string, onNoteReady: () => void) {
       setRunningSymbol(symbol);
       setStartedAt(new Date().toISOString());
     } catch (error) {
+      startedHereRef.current = false;
       if (error instanceof ApiError && error.status === 409) {
         setInlineMessage('local:cockpitDeepBusy');
       } else if (error instanceof ApiError && error.status === 503) {

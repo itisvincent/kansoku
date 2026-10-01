@@ -132,6 +132,32 @@ describe('write_note', () => {
   });
 });
 
+describe('write_note against the note as it was before the run', () => {
+  const longNote = '# MU\n' + 'dated history line\n'.repeat(60);
+
+  it('does not let a chain of drafts shrink a note step by step', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'note-'));
+    const path = join(dir, 'MU.md');
+    writeFileSync(path, longNote);
+    const note = buildWriteNoteTool({ notePath: path, onWritten: () => {} });
+    const keep = Math.ceil(longNote.trim().length * 0.65);
+    await note.execute('d1', { content: longNote.slice(0, keep), final: false });
+    const shrunk = longNote.slice(0, Math.ceil(longNote.trim().length * 0.45));
+    const result = await note.execute('d2', { content: shrunk, final: false });
+    expect(textOf(result)).toContain('TD-NOTES-01');
+  });
+
+  it('accepts a final note that only looks short next to a long draft', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'note-'));
+    const path = join(dir, 'MU.md');
+    writeFileSync(path, longNote);
+    const note = buildWriteNoteTool({ notePath: path, onWritten: () => {} });
+    await note.execute('d', { content: longNote + 'raw lens data\n'.repeat(300), final: false });
+    const result = await note.execute('f', { content: longNote + '## Verdict' });
+    expect(textOf(result)).toContain('saved');
+  });
+});
+
 describe('executeDeepDive', () => {
   it('succeeds once the note is saved', async () => {
     const h = harness(async (tools) => {

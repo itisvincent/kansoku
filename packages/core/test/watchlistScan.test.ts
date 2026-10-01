@@ -279,6 +279,13 @@ describe('orderScanSymbols', () => {
     ]);
   });
 
+  it('skips symbols from markets it cannot place instead of treating them as US', () => {
+    expect(orderScanSymbols([], ['D05.SG', 'BTCUSD.HAS', 'NVDA.US', 'AAPL'], ['US'])).toEqual([
+      'NVDA.US',
+      'AAPL',
+    ]);
+  });
+
   it('only scans the configured watched markets', () => {
     expect(orderScanSymbols(['700.HK'], ['NVDA.US', '9988.HK'], ['US'])).toEqual(['NVDA.US']);
     expect(orderScanSymbols(['700.HK'], ['NVDA.US'], ['US', 'HK'])).toEqual(['700.HK', 'NVDA.US']);

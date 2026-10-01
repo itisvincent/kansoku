@@ -101,7 +101,9 @@ describe('applySavedEpsPeFrame', () => {
     expect(locked.plan.eps_growth_note).toBe('Consensus revised up');
     expect(locked.plan.black_swan?.triggers).toBe('Capex cut');
     expect(locked.plan.black_swan?.target).toBe(180);
-    expect(locked.plan.bands?.[0]).toMatchObject({ label: 'Add', note: 'Near bear', price: 312.48 });
+    // A band keeps its saved label and price; its note is refreshed only from a band with the
+    // same label, so a renamed band keeps its old wording rather than risk a wrong label.
+    expect(locked.plan.bands?.[0]).toMatchObject({ label: '加仓', note: '接近悲观', price: 312.48 });
     expect(locked.plan.sources).toEqual([locked.note, 'Zacks 2026-09-28']);
   });
 
@@ -109,6 +111,28 @@ describe('applySavedEpsPeFrame', () => {
     const saved = plan({ bands: [{ label: 'Add', price: 312.48, note: 'near bear' }] });
     const incoming = plan({ bands: [] });
     expect(applySavedEpsPeFrame(saved, incoming).plan.bands?.[0]?.note).toBe('near bear');
+  });
+});
+
+describe('band wording', () => {
+  it('matches bands by label, not by position', () => {
+    const saved = plan({
+      bands: [
+        { label: 'Starter buy', price: 312, note: 'old starter' },
+        { label: 'Thesis stop', price: 250, note: 'old stop' },
+      ],
+    });
+    const incoming = plan({
+      bands: [
+        { label: 'Thesis stop', price: 255, note: 'new stop' },
+        { label: 'Starter buy', price: 315, note: 'new starter' },
+      ],
+    });
+    const bands = applySavedEpsPeFrame(saved, incoming).plan.bands;
+    expect(bands).toEqual([
+      { label: 'Starter buy', price: 312, note: 'new starter' },
+      { label: 'Thesis stop', price: 250, note: 'new stop' },
+    ]);
   });
 });
 

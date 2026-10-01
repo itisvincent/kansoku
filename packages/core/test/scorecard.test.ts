@@ -219,7 +219,8 @@ describe('loadScorecardRows', () => {
     );
     expect(getKline.mock.calls.map((call) => call[1])).toEqual(['15m', '1h']);
     expect(rows[0].outcome?.status).toBe('hit_target');
-    expect(saveResolvedOutcome).toHaveBeenCalledOnce();
+    // Hourly verdicts are coarser; they are shown but not written to the shared cache.
+    expect(saveResolvedOutcome).not.toHaveBeenCalled();
   });
 
   it('fetches bars once per symbol and period', async () => {
@@ -235,6 +236,40 @@ describe('loadScorecardRows', () => {
       }),
     );
     expect(getKline).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not fall back to hourly bars when the 15-minute fetch failed', async () => {
+    const getKline = vi.fn(async (_symbol: string, period: string): Promise<RawBar[]> => {
+      if (period === '15m') throw new Error('timeout');
+      return [bar('2026-08-01T14:00:00Z', 101, 99, 100), bar('2026-08-02T14:00:00Z', 111, 99, 110)];
+    });
+    const rows = await loadScorecardRows(
+      null,
+      deps({
+        listCharts: async () => [meta('ai', '2026-08-01T14:00:00.000Z')],
+        loadChart: async () => doc('analyst', { direction: 'long', anchor }),
+        getKline,
+      }),
+    );
+    expect(getKline.mock.calls.map((call) => call[1])).toEqual(['15m']);
+    expect(rows[0].outcome).toBeNull();
+  });
+
+  it('saves a terminal verdict judged on 15-minute bars', async () => {
+    const saveResolvedOutcome = vi.fn(async () => {});
+    await loadScorecardRows(
+      null,
+      deps({
+        listCharts: async () => [meta('ai', '2026-08-01T14:00:00.000Z')],
+        loadChart: async () => doc('analyst', { direction: 'long', anchor }),
+        getKline: async () => [
+          bar('2026-08-01T14:00:00Z', 101, 99, 100),
+          bar('2026-08-01T14:15:00Z', 111, 99, 110),
+        ],
+        saveResolvedOutcome,
+      }),
+    );
+    expect(saveResolvedOutcome).toHaveBeenCalledOnce();
   });
 
   it('treats a failed bar fetch as unjudged instead of throwing', async () => {

@@ -769,6 +769,7 @@ const zhCN = {
   cockpitDeepDirty: '分析完成 ⚠️ 检测到笔记之外的改动',
   cockpitDeepComplete: '分析完成',
   cockpitDeepFailed: '分析失败',
+  cockpitDeepLastFailed: '上一次深度分析（{when}）失败：{error}',
   cockpitDeepBusy: '已有分析进行中',
   cockpitDeepUnconfigured: '未配置深度研究模型，请在 /settings 配置',
   cockpitExplainUnconfigured: 'AI 未配置（服务端缺点评模型），暂时无法解读',
