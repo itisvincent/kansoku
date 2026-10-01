@@ -13,6 +13,7 @@ import { WorkspaceSection } from './WorkspaceSection';
 import type { SettingsSectionId } from './types';
 import { useProComposition } from '../edition/useProComposition';
 import { useLocale } from '../../lib/i18n';
+import { FutuSection } from './FutuSection';
 
 function ProSections({ section }: { section: SettingsSectionId }) {
   const pro = useProComposition();
@@ -50,6 +51,7 @@ export function ConnectionsPane() {
   return (
     <>
       <LongbridgeSection />
+      <FutuSection />
       <OpencliSection />
       <WebSearchSection />
       <WorkspaceSection />

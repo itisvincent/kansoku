@@ -1,0 +1,256 @@
+import type { RawPortfolioHolding, RawPosition } from '../types.js';
+import { openOpenDSession, OpenDError, PROTO, type OpenDSession } from './openDClient.js';
+import { readFutuSettings, type FutuSettings } from './futuSettings.js';
+
+/**
+ * Read-only view of the user's Futu account through OpenD: positions, holdings and the
+ * watchlist, in Kansoku's symbol format. Nothing here places, changes or cancels orders.
+ */
+
+const TRD_ENV_REAL = 1;
+const POSITION_SIDE_SHORT = 1;
+const ACCOUNT_TTL_MS = 30_000;
+const WATCHLIST_TTL_MS = 5 * 60_000;
+const MAX_WATCH_GROUPS = 12;
+
+// Futu market codes → Kansoku market suffix. Trade (TrdSecMarket) and quote (QotMarket)
+// use different numbers for the same market.
+const TRD_SEC_MARKET: Record<number, string> = { 1: 'HK', 2: 'US', 31: 'SH', 32: 'SZ', 41: 'SG' };
+const QOT_MARKET: Record<number, string> = { 1: 'HK', 11: 'US', 21: 'SH', 22: 'SZ', 31: 'SG' };
+const CURRENCY: Record<number, string> = { 1: 'HKD', 2: 'USD', 3: 'CNH', 4: 'JPY', 5: 'SGD', 6: 'AUD' };
+const MARKET_CURRENCY: Record<string, string> = { HK: 'HKD', US: 'USD', SH: 'CNY', SZ: 'CNY', SG: 'SGD' };
+const POSITION_MARKET: Record<string, string> = { HK: 'HK', US: 'US', SH: 'CN', SZ: 'CN', SG: 'SG' };
+
+/** `00700` + HK → `700.HK`; `AAPL` + US → `AAPL.US`; `600519` + SH → `600519.SH`. */
+export function futuSymbol(code: string | undefined, suffix: string | undefined): string | null {
+  if (!code || !suffix) return null;
+  const trimmed = code.trim().toUpperCase();
+  if (!trimmed) return null;
+  // Longbridge writes Hong Kong codes without leading zeros; mainland codes keep them.
+  const body = suffix === 'HK' ? trimmed.replace(/^0+(?=\d)/, '') : trimmed;
+  return `${body}.${suffix}`;
+}
+
+interface FutuAcc {
+  trdEnv?: number;
+  accID?: string | number;
+  trdMarketAuthList?: number[];
+  accStatus?: number;
+}
+
+interface FutuPosition {
+  positionID?: string | number;
+  positionSide?: number;
+  code?: string;
+  name?: string;
+  qty?: number;
+  canSellQty?: number;
+  price?: number;
+  costPrice?: number;
+  averageCostPrice?: number;
+  val?: number;
+  secMarket?: number;
+  currency?: number;
+}
+
+const str = (value: number | undefined) =>
+  typeof value === 'number' && Number.isFinite(value) ? String(value) : '';
+
+export function mapPosition(p: FutuPosition): { position: RawPosition; holding: RawPortfolioHolding } | null {
+  const suffix = p.secMarket !== undefined ? TRD_SEC_MARKET[p.secMarket] : undefined;
+  const symbol = futuSymbol(p.code, suffix);
+  if (!symbol || !suffix) return null;
+  const qty = Number(p.qty ?? 0);
+  if (!Number.isFinite(qty) || qty === 0) return null;
+  // Futu reports a short as a positive quantity with positionSide = short; Kansoku signs it.
+  const signed = p.positionSide === POSITION_SIDE_SHORT ? -Math.abs(qty) : qty;
+  const cost = p.averageCostPrice ?? p.costPrice;
+  const currency =
+    (p.currency !== undefined ? CURRENCY[p.currency] : undefined) ?? MARKET_CURRENCY[suffix] ?? '';
+  const name = p.name ?? symbol;
+  return {
+    position: {
+      symbol,
+      name,
+      quantity: String(signed),
+      available: str(p.canSellQty),
+      cost_price: str(cost),
+      currency,
+      market: POSITION_MARKET[suffix] ?? suffix,
+    },
+    holding: {
+      symbol,
+      name,
+      currency,
+      quantity: String(signed),
+      cost_price: str(cost),
+      market_price: str(p.price),
+      market_value: str(p.val),
+      // Futu's position list has no previous close; the day change is left out.
+      prev_close: '',
+    },
+  };
+}
+
+async function withSession<T>(settings: FutuSettings, run: (s: OpenDSession) => Promise<T>): Promise<T> {
+  const session = await openOpenDSession({ host: settings.host, port: settings.port });
+  try {
+    return await run(session);
+  } finally {
+    session.close();
+  }
+}
+
+export interface FutuAccountSnapshot {
+  accounts: number;
+  positions: RawPosition[];
+  holdings: RawPortfolioHolding[];
+}
+
+async function fetchAccount(settings: FutuSettings): Promise<FutuAccountSnapshot> {
+  return withSession(settings, async (session) => {
+    const { accList = [] } = await session.request<{ accList?: FutuAcc[] }>(PROTO.getAccList, {
+      userID: 0,
+      needGeneralSecAccount: true,
+    });
+    const real = accList.filter((acc) => acc.trdEnv === TRD_ENV_REAL && acc.accID !== undefined);
+    const seen = new Set<string>();
+    const positions: RawPosition[] = [];
+    const holdings: RawPortfolioHolding[] = [];
+    for (const acc of real) {
+      // A universal account answers for every market at once; asking per authorised
+      // market covers single-market accounts too. Duplicates are dropped by position id.
+      const markets = acc.trdMarketAuthList?.length ? acc.trdMarketAuthList : [1];
+      for (const trdMarket of markets) {
+        let list: FutuPosition[] = [];
+        try {
+          const s2c = await session.request<{ positionList?: FutuPosition[] }>(
+            PROTO.getPositionList,
+            { header: { trdEnv: TRD_ENV_REAL, accID: String(acc.accID), trdMarket } },
+          );
+          list = s2c.positionList ?? [];
+        } catch (error) {
+          // One market the account cannot query (e.g. not opened) must not hide the rest.
+          if (error instanceof OpenDError && error.code === 'rejected') continue;
+          throw error;
+        }
+        for (const p of list) {
+          const key = `${acc.accID}:${p.positionID ?? `${p.secMarket}:${p.code}`}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          const mapped = mapPosition(p);
+          if (!mapped) continue;
+          positions.push(mapped.position);
+          holdings.push(mapped.holding);
+        }
+      }
+    }
+    return { accounts: real.length, positions, holdings };
+  });
+}
+
+interface FutuSecurity {
+  basic?: { security?: { market?: number; code?: string } };
+}
+
+async function fetchWatchlist(settings: FutuSettings): Promise<string[]> {
+  return withSession(settings, async (session) => {
+    const { groupList = [] } = await session.request<{
+      groupList?: Array<{ groupName?: string; groupType?: number }>;
+    }>(PROTO.getUserSecurityGroup, { groupType: 3 });
+    // The system "All" group already holds every watched security; otherwise read the
+    // groups one by one.
+    const all = groupList.find((g) => g.groupName === '全部' || /^all$/i.test(g.groupName ?? ''));
+    const names = (all ? [all] : groupList)
+      .map((g) => g.groupName)
+      .filter((name): name is string => Boolean(name))
+      .slice(0, MAX_WATCH_GROUPS);
+    const symbols = new Set<string>();
+    for (const groupName of names) {
+      const { staticInfoList = [] } = await session.request<{ staticInfoList?: FutuSecurity[] }>(
+        PROTO.getUserSecurity,
+        { groupName },
+      );
+      for (const info of staticInfoList) {
+        const security = info.basic?.security;
+        const suffix = security?.market !== undefined ? QOT_MARKET[security.market] : undefined;
+        const symbol = futuSymbol(security?.code, suffix);
+        if (symbol) symbols.add(symbol);
+      }
+    }
+    return [...symbols];
+  });
+}
+
+const cache = {
+  account: null as { at: number; key: string; value: Promise<FutuAccountSnapshot> } | null,
+  watchlist: null as { at: number; key: string; value: Promise<string[]> } | null,
+};
+
+export function resetFutuCacheForTests(): void {
+  cache.account = null;
+  cache.watchlist = null;
+}
+
+const settingsKey = (s: FutuSettings) => `${s.host}:${s.port}`;
+
+/** The Futu account (cached 30s, so a burst of callers makes one OpenD round trip). */
+export function readFutuAccount(settings = readFutuSettings()): Promise<FutuAccountSnapshot> {
+  const key = settingsKey(settings);
+  const hit = cache.account;
+  if (hit && hit.key === key && Date.now() - hit.at < ACCOUNT_TTL_MS) return hit.value;
+  const value = fetchAccount(settings);
+  cache.account = { at: Date.now(), key, value };
+  value.catch(() => {
+    if (cache.account?.value === value) cache.account = null;
+  });
+  return value;
+}
+
+/** The Futu watchlist (cached 5 min). */
+export function readFutuWatchlist(settings = readFutuSettings()): Promise<string[]> {
+  const key = settingsKey(settings);
+  const hit = cache.watchlist;
+  if (hit && hit.key === key && Date.now() - hit.at < WATCHLIST_TTL_MS) return hit.value;
+  const value = fetchWatchlist(settings);
+  cache.watchlist = { at: Date.now(), key, value };
+  value.catch(() => {
+    if (cache.watchlist?.value === value) cache.watchlist = null;
+  });
+  return value;
+}
+
+export interface FutuStatus {
+  enabled: boolean;
+  state: 'disabled' | 'connected' | 'unreachable' | 'error';
+  message: string | null;
+  accounts: number;
+  positions: number;
+}
+
+/** Probes OpenD now (no cache), for the Settings card. */
+export async function futuStatus(settings = readFutuSettings()): Promise<FutuStatus> {
+  if (!settings.enabled) {
+    return { enabled: false, state: 'disabled', message: null, accounts: 0, positions: 0 };
+  }
+  try {
+    resetFutuCacheForTests();
+    const snapshot = await readFutuAccount(settings);
+    return {
+      enabled: true,
+      state: 'connected',
+      message: null,
+      accounts: snapshot.accounts,
+      positions: snapshot.positions.length,
+    };
+  } catch (error) {
+    const unreachable = error instanceof OpenDError && error.code === 'unreachable';
+    return {
+      enabled: true,
+      state: unreachable ? 'unreachable' : 'error',
+      message: error instanceof Error ? error.message : String(error),
+      accounts: 0,
+      positions: 0,
+    };
+  }
+}

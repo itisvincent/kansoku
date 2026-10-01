@@ -10,6 +10,8 @@ import {
 } from '../marketdata/watchedMarketsStore.js';
 import { setCodexSearchEnabled } from '../ai/websearch/codexOptIn.js';
 import { webSearchStatus } from '../ai/websearch/index.js';
+import { futuStatus, resetFutuCacheForTests } from '../marketdata/futu/futuAccount.js';
+import { readFutuSettings, writeFutuSettings } from '../marketdata/futu/futuSettings.js';
 import type { SettingsApi } from '../contract/settings.js';
 import { aiSettingsService } from './aiSettings.service.js';
 import { settingsDeps } from './settings.deps.js';
@@ -81,6 +83,22 @@ export const settingsService: SettingsApi = {
     const store = getActiveWatchedMarketsStore();
     store.set(validateWatchedMarkets(input.markets));
     return { markets: store.get() };
+  },
+
+  async getFutu() {
+    const settings = readFutuSettings();
+    return { settings, status: await futuStatus(settings) };
+  },
+
+  async putFutu(input) {
+    const current = readFutuSettings();
+    const settings = writeFutuSettings({
+      enabled: input.enabled,
+      host: input.host ?? current.host,
+      port: input.port ?? current.port,
+    });
+    resetFutuCacheForTests();
+    return { settings, status: await futuStatus(settings) };
   },
 
   async getWebSearch() {

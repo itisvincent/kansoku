@@ -11,6 +11,17 @@ import type { Market } from '../symbols/symbol.utils.js';
 import { defineRoutes } from './defineRoutes.js';
 import type { InterfaceLocale } from '../settings/interfaceLocale.js';
 
+export interface FutuAccountOut {
+  settings: { enabled: boolean; host: string; port: number };
+  status: {
+    enabled: boolean;
+    state: 'disabled' | 'connected' | 'unreachable' | 'error';
+    message: string | null;
+    accounts: number;
+    positions: number;
+  };
+}
+
 export type {
   CatalogModel,
   CatalogProvider,
@@ -58,6 +69,9 @@ export interface SettingsApi {
   getUsageToday(): Promise<UsageTodayOut>;
   resetCredentials(): Promise<{ reset: true }>;
   getWatchedMarkets(): Promise<{ markets: Market[] }>;
+  /** The Futu account link (through OpenD on this computer) and a live status probe. */
+  getFutu(): Promise<FutuAccountOut>;
+  putFutu(input: { enabled: unknown; host?: unknown; port?: unknown }): Promise<FutuAccountOut>;
   putWatchedMarkets(input: { markets: unknown }): Promise<{ markets: Market[] }>;
   getWebSearch(): Promise<WebSearchStatus>;
   putWebSearchCodex(input: { enabled: unknown }): Promise<WebSearchStatus>;
@@ -103,6 +117,8 @@ export const settingsRoutes = defineRoutes<SettingsApi>('settings', {
   getUsageToday: { method: 'GET', path: '/ai/usage-today' },
   resetCredentials: { method: 'POST', path: '/ai/reset-credentials' },
   getWatchedMarkets: { method: 'GET', path: '/watched-markets' },
+  getFutu: { method: 'GET', path: '/futu' },
+  putFutu: { method: 'PUT', path: '/futu' },
   putWatchedMarkets: { method: 'PUT', path: '/watched-markets' },
   getWebSearch: { method: 'GET', path: '/web-search' },
   putWebSearchCodex: { method: 'PUT', path: '/web-search/codex' },

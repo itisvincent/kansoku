@@ -109,6 +109,21 @@ export class SettingsController {
     return { ok: true, data };
   }
 
+  @Get('/futu')
+  async getFutu() {
+    return { ok: true, data: await settingsService.getFutu() };
+  }
+
+  @Put('/futu')
+  async putFutu(@Body() body: { enabled?: unknown; host?: unknown; port?: unknown } | null) {
+    const data = await settingsService.putFutu({
+      enabled: body?.enabled,
+      host: body?.host,
+      port: body?.port,
+    });
+    return { ok: true, data };
+  }
+
   @Get('/web-search')
   async getWebSearch() {
     const data = await settingsService.getWebSearch();

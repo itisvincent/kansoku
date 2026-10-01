@@ -96,6 +96,16 @@ export class SettingsIpc extends IpcService implements WrapEnvelope<SettingsApi>
   }
 
   @IpcMethod()
+  getFutu() {
+    return toEnvelope('settings.getFutu', () => settingsService.getFutu());
+  }
+
+  @IpcMethod()
+  putFutu(input: Parameters<SettingsApi['putFutu']>[0]) {
+    return toEnvelope('settings.putFutu', () => settingsService.putFutu(input));
+  }
+
+  @IpcMethod()
   getWebSearch() {
     return toEnvelope('settings.getWebSearch', () => settingsService.getWebSearch());
   }
