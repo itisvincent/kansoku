@@ -125,7 +125,7 @@ function BarTime({ value }: { value: number }) {
 }
 
 export function Pattern123Item({ pat }: { pat: Pattern123 }) {
-  const { t: i18n } = useLocale();
+  const { t: i18n, locale } = useLocale();
   const confirmed = pat.status === 'confirmed';
   return (
     <div className={`check-item signal ${stylex.props(styles.checkItem).className}`}>
@@ -136,7 +136,7 @@ export function Pattern123Item({ pat }: { pat: Pattern123 }) {
       </div>
       <div>
         <div className={`check-label ${stylex.props(styles.checkLabel).className}`}>
-          {pat.label}
+          {analysisLabel(pat.label, locale)}
           <Badge
             tone={confirmed ? 'up' : 'accent'}
             className={`p123-badge ${stylex.props(styles.p123Badge).className}`}
@@ -152,7 +152,7 @@ export function Pattern123Item({ pat }: { pat: Pattern123 }) {
           <BarTime value={pat.p3.time} /> ${fmt(pat.p3.price)}
         </div>
         <div className={`check-val ${stylex.props(styles.checkValue).className}`}>
-          {pat.implication}
+          {analysisLabel(pat.implication, locale)}
         </div>
         {confirmed && pat.confirm && (
           <div className={`check-val ${stylex.props(styles.checkValue).className}`}>

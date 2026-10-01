@@ -8,13 +8,8 @@ import { tfDataOf, tfLabel, type ChartTf } from '../timeframes';
 import { useIntradayControls } from '../controlsContext';
 import { conclusionOutdated, ReassessCta, type ConclusionReassess } from '../ConclusionCard';
 import { DIRECTION_LABEL } from '../directionLabels';
-import {
-  AutoSignalItem,
-  Pattern123Item,
-  PriceZoneCard,
-  TargetContextCard,
-  TechRow,
-} from './predictionTabParts';
+import { PriceZoneCard, TargetContextCard, TechRow } from './predictionTabParts';
+import { AutoSignalsSection } from './AutoSignalsSection';
 import { MarketTime, SectionTitle, TimeAgo } from '@web/ui';
 import { colors, fontSizes, radii } from '../../../../theme/tokens.stylex';
 
@@ -704,35 +699,11 @@ export function PredictionTab({
         </>
       )}
 
-      {(() => {
-        const tfData = tfDataOf(built, activeTf);
-        const patterns123 = tfData?.pattern123 ?? [];
-        const autoItems = [
-          ...(tfData?.autoDivergence ?? []).map((d) => ({
-            kindKey: `divergence-${d.kind}`,
-            pair: d,
-          })),
-          ...(tfData?.autoBeichi ?? []).map((d) => ({ kindKey: `macdBeichi-${d.kind}`, pair: d })),
-        ];
-        if (!autoItems.length && !patterns123.length) return null;
-        return (
-          <>
-            <SectionTitle>
-              {i18n('chartAutoSignals')}
-              {tfLabel(activeTf, locale)}
-            </SectionTitle>
-            {patterns123.map((pat, i) => (
-              <Pattern123Item key={`p123-${i}`} pat={pat} />
-            ))}
-            {autoItems.map((it, i) => (
-              <AutoSignalItem key={i} kindKey={it.kindKey} pair={it.pair} />
-            ))}
-            <div className={`note-block ${stylex.props(styles.note).className}`}>
-              {i18n('chartAutoSignalsHelp')}
-            </div>
-          </>
-        );
-      })()}
+      <AutoSignalsSection
+        key={activeTf}
+        tf={tfDataOf(built, activeTf)}
+        activeTf={activeTf}
+      />
 
       {!p && (
         <>

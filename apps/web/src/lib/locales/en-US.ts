@@ -752,6 +752,8 @@ const enUS = {
   chartZones: 'Key zones',
   chartAnnotations: 'Key annotations',
   chartAutoSignals: 'Automatic signals · ',
+  chartAutoSignalsShowAll: 'Show all {value1}',
+  chartAutoSignalsShowFewer: 'Show only the latest',
   chartAutoSignalsHelp:
     'Automatically detected using a simplified algorithm based on confirmed swing points. For reference only, not a basis for trading.',
   chartTechnicalSummary: 'Technical summary',

@@ -4,6 +4,12 @@ import type { SeriesMarker } from '@kansoku/shared/types';
 // Older chart snapshots store computed labels as Chinese text. Translate only
 // the detector vocabulary here; authored notes and AI annotations keep their text.
 const labels: Record<string, string> = {
+  '123 顶': '123 top',
+  '123 底': '123 bottom',
+  '回调不破前低，收盘站上 ② 后结构成立，看反弹延续':
+    'The pullback held above the prior low; a close above ② confirms the pattern and points to a continued rebound.',
+  '反抽不过前高，收盘跌破 ② 后结构成立，看回落延续':
+    'The bounce failed below the prior high; a close below ② confirms the pattern and points to a continued decline.',
   '顶背离': 'Bearish divergence',
   '底背离': 'Bullish divergence',
   '顶 MACD 背离（K 线级）': 'Bearish MACD divergence (candle level)',

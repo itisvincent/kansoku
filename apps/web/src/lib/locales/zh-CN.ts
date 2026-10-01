@@ -725,6 +725,8 @@ const zhCN = {
   chartZones: '关键区间',
   chartAnnotations: '关键标注',
   chartAutoSignals: '自动信号 ·',
+  chartAutoSignalsShowAll: '显示全部 {value1} 条',
+  chartAutoSignalsShowFewer: '只看最近的',
   chartAutoSignalsHelp: '简化算法自动检测（基于已确认摆动点），仅供参考，不构成买卖依据',
   chartTechnicalSummary: '技术面摘要',
   chartConfirmed: '已确认',
