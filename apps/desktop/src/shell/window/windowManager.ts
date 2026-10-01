@@ -90,6 +90,10 @@ export async function createWindowManager(options: WindowManagerOptions): Promis
     win.on('closed', () => {
       registry.delete(windowId);
       if (quitting) return;
+      // On Windows and Linux, closing the last window quits the app, but 'closed' fires
+      // before 'before-quit'. Removing the entry here saved an empty layout, so the next
+      // launch never restored the window or its active tab.
+      if (process.platform !== 'darwin' && registry.size === 0) return;
       const withoutEntry = removeWindowEntry(state, windowId);
       if (withoutEntry === state) return;
       state = withoutEntry;

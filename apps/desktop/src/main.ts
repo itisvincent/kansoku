@@ -311,16 +311,26 @@ app.whenReady().then(async () => {
     // makes Sparkle treat the install as cancelled — the app exits with no
     // update applied and no relaunch. Flush synchronously instead.
     app.on('before-quit', () => {
-      try {
-        tabsFileStore.flushSync();
-        windowManager.flushSync();
-        telemetry?.close();
-        setProAssets(null);
-        disposeKernel().catch((error: unknown) => {
-          console.error('[desktop] kernel dispose failed', error);
-        });
-      } catch (error) {
-        console.error('[desktop] flush on quit failed', error);
+      // Each step on its own: one failed save must not skip the others.
+      const steps: Array<[string, () => void]> = [
+        ['tabs flush', () => tabsFileStore.flushSync()],
+        ['window flush', () => windowManager.flushSync()],
+        ['telemetry close', () => telemetry?.close()],
+        ['pro assets', () => setProAssets(null)],
+        [
+          'kernel dispose',
+          () =>
+            void disposeKernel().catch((error: unknown) => {
+              console.error('[desktop] kernel dispose failed', error);
+            }),
+        ],
+      ];
+      for (const [label, step] of steps) {
+        try {
+          step();
+        } catch (error) {
+          console.error(`[desktop] ${label} on quit failed`, error);
+        }
       }
     });
 

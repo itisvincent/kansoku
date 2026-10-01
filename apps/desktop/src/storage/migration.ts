@@ -32,6 +32,8 @@ export interface StorageMigrationState {
   phase: StorageMigrationPhase;
   startedAt: string;
   updatedAt: string;
+  /** Where the database that was in place got copied before migration replaced it. */
+  databaseBackupPath?: string;
   files: {
     copied: number;
     identical: number;
@@ -145,6 +147,7 @@ export async function migrateLegacyStorage(
     );
   }
 
+  let databaseBackupPath: string | null = null;
   try {
     const customDatabasePath = join(sourceRoot, LEGACY_DB_REL);
     const defaultDatabasePath = join(input.userDataPath, LEGACY_DB_REL);
@@ -159,7 +162,7 @@ export async function migrateLegacyStorage(
         startedAt,
       });
     }
-    await migrateDatabase({
+    databaseBackupPath = await migrateDatabase({
       sourcePath:
         (await pathExists(customDatabasePath)) || (await samePath(sourceRoot, input.userDataPath))
           ? customDatabasePath
@@ -176,7 +179,12 @@ export async function migrateLegacyStorage(
     );
   }
 
-  state = { ...state, phase: 'database-backed-up', updatedAt: now().toISOString() };
+  state = {
+    ...state,
+    phase: 'database-backed-up',
+    updatedAt: now().toISOString(),
+    ...(databaseBackupPath ? { databaseBackupPath } : {}),
+  };
   await writeMigrationState(statePath, state);
   await assertDatabaseIntegrity(input.databasePath);
 
@@ -378,7 +386,7 @@ async function migrateDatabase(input: {
   sourcePath: string;
   targetPath: string;
   startedAt: string;
-}): Promise<void> {
+}): Promise<string | null> {
   await mkdir(dirname(input.targetPath), { recursive: true });
 
   if (!(await pathExists(input.sourcePath))) {
@@ -387,18 +395,19 @@ async function migrateDatabase(input: {
       empty.close();
     }
     await assertDatabaseIntegrity(input.targetPath);
-    return;
+    return null;
   }
 
   if (await samePath(input.sourcePath, input.targetPath)) {
     await assertDatabaseIntegrity(input.targetPath);
-    return;
+    return null;
   }
 
+  let backupPath: string | null = null;
   if (await pathExists(input.targetPath)) {
     const backupDir = join(dirname(input.targetPath), 'backups');
     await mkdir(backupDir, { recursive: true });
-    const backupPath = join(backupDir, `app-before-migration-${safeTimestamp(input.startedAt)}.db`);
+    backupPath = join(backupDir, `app-before-migration-${safeTimestamp(input.startedAt)}.db`);
     await backupSqlite(input.targetPath, backupPath);
   }
 
@@ -412,6 +421,7 @@ async function migrateDatabase(input: {
   } finally {
     await rm(tempPath, { force: true });
   }
+  return backupPath;
 }
 
 async function preserveLegacyDatabase(input: {

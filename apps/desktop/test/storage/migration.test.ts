@@ -56,6 +56,30 @@ describe('migrateLegacyStorage', () => {
     migratedDb.close();
   });
 
+  it('records where the database from an empty-workspace session was backed up', async () => {
+    const p = paths();
+    await mkdir(join(p.sourceRoot, 'journal', 'charts', 'data'), { recursive: true });
+    await mkdir(join(p.userDataPath, 'State'), { recursive: true });
+    await writeFile(join(p.userDataPath, 'data-root.json'), JSON.stringify({ path: p.sourceRoot }));
+    for (const [path, value] of [
+      [join(p.sourceRoot, 'journal', 'charts', 'data', 'app.db'), 'old data'],
+      [p.databasePath, 'empty-session data'],
+    ] as const) {
+      const db = new DatabaseSync(path);
+      db.exec('CREATE TABLE sample (value TEXT);');
+      db.prepare('INSERT INTO sample VALUES (?)').run(value);
+      db.close();
+    }
+
+    const result = await migrateLegacyStorage({ ...p, now: NOW });
+
+    const backupPath = result.state.databaseBackupPath!;
+    expect(backupPath).toContain('app-before-migration-');
+    const backup = new DatabaseSync(backupPath, { readOnly: true });
+    expect(backup.prepare('SELECT value FROM sample').get()).toEqual({ value: 'empty-session data' });
+    backup.close();
+  });
+
   it('preserves both versions when a target file has different content', async () => {
     const p = paths();
     await mkdir(join(p.sourceRoot, 'journal'), { recursive: true });

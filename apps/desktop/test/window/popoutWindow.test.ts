@@ -60,6 +60,7 @@ vi.mock('@desktop/boot/env.js', () => ({ IS_DEV: false }));
 const {
   createPopoutWindow,
   cascadePosition,
+  cascadeStep,
   isPopoutWindow,
   isValidPopoutSymbol,
   popoutRoute,
@@ -154,5 +155,21 @@ describe('createPopoutWindow', () => {
     (win1 as unknown as FakeWindow).emitClosed();
     expect(isPopoutWindow(win1)).toBe(false);
     expect(isPopoutWindow(win2)).toBe(true);
+  });
+});
+
+describe('cascadeStep', () => {
+  const workArea = { width: 1280, height: 800 };
+
+  it('steps once per pop-out that is still open', () => {
+    expect(cascadeStep(0, workArea)).toBe(0);
+    expect(cascadeStep(3, workArea)).toBe(3);
+  });
+
+  it('wraps back before a pop-out would run off the screen', () => {
+    // (800 - 420 - 80) / 24 = 12.5, so steps 0..12 fit.
+    expect(cascadeStep(12, workArea)).toBe(12);
+    expect(cascadeStep(13, workArea)).toBe(0);
+    expect(cascadeStep(200, workArea)).toBeLessThan(13);
   });
 });

@@ -37,3 +37,32 @@ export function dispatchDeepLink(win: DeepLinkWindow, url: string): boolean {
   win.focus();
   return true;
 }
+
+/**
+ * Holds a deep link that arrives before anyone listens (the page sends on load, React
+ * subscribes later) and hands the latest one to the first subscriber.
+ */
+export function createDeepLinkInbox() {
+  const subscribers = new Set<(target: DeepLinkTarget) => void>();
+  let held: DeepLinkTarget | null = null;
+  return {
+    receive(target: DeepLinkTarget): void {
+      if (subscribers.size === 0) {
+        held = target;
+        return;
+      }
+      for (const cb of subscribers) cb(target);
+    },
+    subscribe(cb: (target: DeepLinkTarget) => void): () => void {
+      subscribers.add(cb);
+      if (held) {
+        const target = held;
+        held = null;
+        queueMicrotask(() => cb(target));
+      }
+      return () => {
+        subscribers.delete(cb);
+      };
+    },
+  };
+}

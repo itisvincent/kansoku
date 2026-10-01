@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
+  createDeepLinkInbox,
   DEEP_LINK_NAVIGATE_CHANNEL,
   dispatchDeepLink,
   findDeepLinkArg,
@@ -83,5 +84,26 @@ describe('dispatchDeepLink', () => {
     expect(ok).toBe(false);
     expect(win.webContents.send).not.toHaveBeenCalled();
     expect(win.focus).not.toHaveBeenCalled();
+  });
+});
+
+describe('createDeepLinkInbox', () => {
+  it('hands a link that arrived before anyone listened to the first subscriber', async () => {
+    const inbox = createDeepLinkInbox();
+    inbox.receive({ path: '/symbol/MU.US', search: '' });
+    const cb = vi.fn();
+    inbox.subscribe(cb);
+    await Promise.resolve();
+    expect(cb).toHaveBeenCalledWith({ path: '/symbol/MU.US', search: '' });
+  });
+
+  it('delivers later links straight to subscribers and stops after unsubscribe', () => {
+    const inbox = createDeepLinkInbox();
+    const cb = vi.fn();
+    const stop = inbox.subscribe(cb);
+    inbox.receive({ path: '/a', search: '' });
+    stop();
+    inbox.receive({ path: '/b', search: '' });
+    expect(cb).toHaveBeenCalledTimes(1);
   });
 });

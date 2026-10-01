@@ -131,6 +131,22 @@ describe('createWindowManager', () => {
     expect(manager.windowCount()).toBe(1);
   });
 
+  it('keeps the last window entry on Windows, where closing it quits the app', async () => {
+    const platform = Object.getOwnPropertyDescriptor(process, 'platform')!;
+    Object.defineProperty(process, 'platform', { value: 'win32' });
+    try {
+      dir = await mkdtemp(join(tmpdir(), 'window-manager-'));
+      const manager = await createWindowManager({ userDataDir: dir, debounceMs: 10 });
+      const w1 = manager.openWindow();
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      asFake(w1).emitClosed();
+      await new Promise((resolve) => setTimeout(resolve, 30));
+      expect(await readWindowsJson()).toEqual([{ id: 'win-1', activeTabId: '' }]);
+    } finally {
+      Object.defineProperty(process, 'platform', platform);
+    }
+  });
+
   it('does not remove entries when windows close as part of app quit', async () => {
     dir = await mkdtemp(join(tmpdir(), 'window-manager-'));
     const manager = await createWindowManager({ userDataDir: dir, debounceMs: 10 });

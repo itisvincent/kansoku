@@ -1,3 +1,4 @@
+import { dirname, join } from 'node:path';
 import { desktopText } from '../shell/i18n.js';
 import { app, dialog, shell } from 'electron';
 import { dataRoot, databasePath, prepareDesktopStorage, userDataPath } from '../boot/env.js';
@@ -80,8 +81,8 @@ async function chooseRecoveryAction(
           'The previous folder location will be kept. Migration will be offered again at the next launch.',
         ),
         detail: desktopText(
-          `本次新数据会写入：\n${dataRoot}`,
-          `New data for this session will be written to:\n${dataRoot}`,
+          `本次新数据会写入：\n${dataRoot}\n\n如果以后找到旧目录并完成迁移，旧数据会替换本次的数据库；本次的数据库会先备份到：\n${join(dirname(databasePath), 'backups')}`,
+          `New data for this session will be written to:\n${dataRoot}\n\nIf the previous folder is found and migrated at a later launch, its database replaces this session's. This session's database is backed up first, to:\n${join(dirname(databasePath), 'backups')}`,
         ),
       });
       return confirm.response === 1 ? { kind: 'start-empty' } : { kind: 'retry' };
@@ -106,7 +107,9 @@ async function chooseRecoveryAction(
 }
 
 async function showMigrationSummary(result: StorageMigrationResult | null): Promise<void> {
-  if (!result?.performed || result.state.sourceRoot === userDataPath) return;
+  if (!result?.performed) return;
+  // A replaced database must always be reported, even for an in-place migration.
+  if (result.state.sourceRoot === userDataPath && !result.state.databaseBackupPath) return;
   const { files } = result.state;
   const choice = await dialog.showMessageBox({
     type: files.conflicts.length > 0 || files.skippedSymlinks.length > 0 ? 'warning' : 'info',
@@ -127,6 +130,12 @@ async function showMigrationSummary(result: StorageMigrationResult | null): Prom
         `旧目录仍保留：${result.state.sourceRoot}`,
         `Previous folder preserved: ${result.state.sourceRoot}`,
       ),
+      result.state.databaseBackupPath
+        ? desktopText(
+            `迁移前的数据库已备份到：${result.state.databaseBackupPath}`,
+            `The database that was in place was backed up to: ${result.state.databaseBackupPath}`,
+          )
+        : '',
       desktopText(
         `复制 ${files.copied} 个，内容相同 ${files.identical} 个。`,
         `${files.copied} files copied; ${files.identical} already identical.`,

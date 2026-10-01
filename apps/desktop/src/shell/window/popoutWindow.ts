@@ -39,7 +39,25 @@ export function cascadePosition(
 }
 
 const popoutWindows = new Set<BrowserWindow>();
-let cascadeIndex = 0;
+
+/**
+ * Which cascade step the next pop-out takes: one per pop-out still open, wrapping back
+ * to the first step before a window would run off the work area. A counter that only
+ * grew pushed every new pop-out 24px further until they opened off-screen.
+ */
+export function cascadeStep(
+  openCount: number,
+  workArea: { width: number; height: number },
+  size: { width: number; height: number } = {
+    width: POPOUT_DEFAULT_WIDTH,
+    height: POPOUT_DEFAULT_HEIGHT,
+  },
+  offset: number = POPOUT_CASCADE_OFFSET,
+): number {
+  const room = Math.min(workArea.width - size.width, workArea.height - size.height) - 80;
+  const steps = Math.max(1, Math.floor(room / offset) + 1);
+  return openCount % steps;
+}
 
 export function isPopoutWindow(win: BrowserWindow): boolean {
   return popoutWindows.has(win);
@@ -48,9 +66,7 @@ export function isPopoutWindow(win: BrowserWindow): boolean {
 function nextCascadePosition(): { x: number; y: number } {
   const { workArea } = screen.getPrimaryDisplay();
   const anchor = { x: workArea.x + 80, y: workArea.y + 80 };
-  const position = cascadePosition(anchor, cascadeIndex);
-  cascadeIndex += 1;
-  return position;
+  return cascadePosition(anchor, cascadeStep(popoutWindows.size, workArea));
 }
 
 export function createPopoutWindow(symbol: string): BrowserWindow {

@@ -3,6 +3,7 @@ import { LOCAL_APP_ORIGIN } from '@kansoku/shared/localApp';
 import { CREDENTIALS_CHANNELS } from './data/credentials/channels.js';
 import { IPC_GROUPS } from './kernel/ipc/groups.js';
 import {
+  createDeepLinkInbox,
   DEEP_LINK_NAVIGATE_CHANNEL,
   type DeepLinkTarget,
 } from './platform/deepLink/deepLink.js';
@@ -121,11 +122,16 @@ if (isPrivilegedOrigin) {
     },
   };
 
+  // Listen from preload time, before the page runs: the main process sends a startup or
+  // post-reload link on did-finish-load, which is before React subscribes. A link with
+  // no subscriber yet is held (the latest one) and handed to the first subscriber.
+  const deepLinks = createDeepLinkInbox();
+  ipcRenderer.on(DEEP_LINK_NAVIGATE_CHANNEL, (_event, target: DeepLinkTarget) =>
+    deepLinks.receive(target),
+  );
   desktopApi.deepLink = {
     onNavigate(cb: (target: DeepLinkTarget) => void) {
-      const listener = (_event: Electron.IpcRendererEvent, target: DeepLinkTarget) => cb(target);
-      ipcRenderer.on(DEEP_LINK_NAVIGATE_CHANNEL, listener);
-      return () => ipcRenderer.removeListener(DEEP_LINK_NAVIGATE_CHANNEL, listener);
+      return deepLinks.subscribe(cb);
     },
   };
 }
