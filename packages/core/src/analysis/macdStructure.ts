@@ -174,7 +174,8 @@ export function classifyMacdStructure(
       }
       lastDeath = c;
     }
-    push(kind, c.i, true);
+    // A cross on the newest bar can still undo itself before that bar closes.
+    push(kind, c.i, c.i < n - 1);
   }
 
   const zeroCrossings: { i: number; up: boolean }[] = [];

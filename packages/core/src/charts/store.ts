@@ -12,6 +12,7 @@ import { isFeatureActive } from '../pro/features.js';
 import { stripProAnnotations } from '../pro/stripProAnnotations.js';
 import { publishAnalysisCreated } from '../realtime/analyses.js';
 import { migrateLegacyDoc, type BuildResult } from './build.js';
+import { withMarketSuffix } from '../symbols/symbol.utils.js';
 
 function toMeta(doc: ChartDoc): ChartMeta {
   return {
@@ -107,8 +108,7 @@ export interface ListFilter {
 }
 
 function canonicalSymbol(raw: string): string {
-  const sym = raw.trim().toUpperCase();
-  return sym.includes('.') ? sym : `${sym}.US`;
+  return withMarketSuffix(raw);
 }
 
 export async function listCharts(filter: ListFilter = {}, db: Db = getDb()): Promise<ChartMeta[]> {

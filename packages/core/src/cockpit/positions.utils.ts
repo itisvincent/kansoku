@@ -26,7 +26,7 @@ export function summarizePortfolio(raw: RawPortfolio): PortfolioSummary {
         last,
         market_value: num(h.market_value),
         pnl: (last - cost) * quantity,
-        pnl_pct: cost > 0 ? (last / cost - 1) * 100 : 0,
+        pnl_pct: cost > 0 ? Math.sign(quantity) * (last / cost - 1) * 100 : 0,
       };
     }),
   };

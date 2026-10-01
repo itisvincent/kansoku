@@ -1,4 +1,5 @@
 import type { FollowTick } from '@kansoku/shared/types';
+import { withMarketSuffix } from '../../symbols/symbol.utils.js';
 
 type Listener = (tick: FollowTick) => void;
 
@@ -6,8 +7,7 @@ const listeners = new Map<string, Set<Listener>>();
 const anyListeners = new Set<Listener>();
 
 function key(symbol: string): string {
-  const normalized = symbol.trim().toUpperCase();
-  return normalized.includes('.') ? normalized : `${normalized}.US`;
+  return withMarketSuffix(symbol);
 }
 
 export function onFollowTick(symbol: string, listener: Listener): () => void {

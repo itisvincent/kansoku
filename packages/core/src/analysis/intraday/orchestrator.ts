@@ -320,7 +320,13 @@ export function buildIntraday(input: IntradayInput): { built: IntradayBuilt; met
   const cost = input.position?.cost;
   const position =
     shares && cost
-      ? { shares, cost, unrealized: (last - cost) * shares, unrealizedPct: (last / cost - 1) * 100 }
+      ? {
+          shares,
+          cost,
+          unrealized: (last - cost) * shares,
+          // A short (negative shares) gains when the price falls below cost.
+          unrealizedPct: Math.sign(shares) * (last / cost - 1) * 100,
+        }
       : null;
 
   const built: IntradayBuilt = {

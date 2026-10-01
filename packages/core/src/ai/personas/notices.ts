@@ -1,4 +1,5 @@
 import type { Notice } from '@kansoku/shared/types';
+import { withMarketSuffix } from '../../symbols/symbol.utils.js';
 
 type Listener = (notice: Notice) => void;
 
@@ -6,8 +7,7 @@ const listeners = new Map<string, Set<Listener>>();
 const anyListeners = new Set<Listener>();
 
 function key(symbol: string): string {
-  const normalized = symbol.trim().toUpperCase();
-  return normalized.includes('.') ? normalized : `${normalized}.US`;
+  return withMarketSuffix(symbol);
 }
 
 export function onNotice(symbol: string, listener: Listener): () => void {

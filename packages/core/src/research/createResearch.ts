@@ -12,6 +12,7 @@ import { noteFileName } from '../symbols/symbol.utils.js';
 import { z } from 'zod';
 import { createResearchService, writeMarkdownFileAtomic } from './research.service.js';
 import { journalSkeleton, stockSkeleton } from './templates.js';
+import { withMarketSuffix } from '../symbols/symbol.utils.js';
 
 const UNSAFE_PATH_CHARS_RE = /[\\/:*?"<>|\p{Cc}]/gu;
 const createKindSchema = z.enum(['stock', 'journal']);
@@ -53,7 +54,7 @@ async function createStockDocument(
     throw new ClientError('research stock symbol is required', 'expected a string "symbol" field');
   }
   const fileSymbol = noteFileName(symbol);
-  const fullSymbol = fileSymbol.includes('.') ? fileSymbol : `${fileSymbol}.US`;
+  const fullSymbol = withMarketSuffix(fileSymbol);
   const relativePath = `stocks/${fileSymbol}.md`;
   const service = createResearchService(deps.rootDir);
 

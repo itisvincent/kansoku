@@ -14,7 +14,8 @@ export function buildCockpitPosition(
 
   const cost = Number(position.cost_price);
   const unrealized = (last - cost) * shares;
-  const unrealizedPct = (last / cost - 1) * 100;
+  // A short (negative quantity) gains when the price falls below cost.
+  const unrealizedPct = cost > 0 ? Math.sign(shares) * (last / cost - 1) * 100 : 0;
 
   const distances = plan
     ? {
