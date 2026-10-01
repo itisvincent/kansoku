@@ -1,4 +1,4 @@
-import { inArray, lt } from 'drizzle-orm';
+import { eq, inArray, lt } from 'drizzle-orm';
 import type { AnalysisOutcome, OutcomeStatus } from '@kansoku/shared/types';
 import { getDb, type Db } from '../db/index.js';
 import { outcomes } from '../db/schema.js';
@@ -73,4 +73,18 @@ export async function saveResolvedOutcome(
       set: values,
       setWhere: lt(outcomes.rules, OUTCOME_RULES),
     });
+}
+
+/** Forgets a chart's verdict, e.g. after its prediction was edited. */
+export async function deleteResolvedOutcome(chartId: string, db: Db = getDb()): Promise<void> {
+  await db.delete(outcomes).where(eq(outcomes.chartId, chartId));
+}
+
+/**
+ * When a call counts from: the later of the chart's creation and the prediction's own
+ * stamp, which an edit moves forward so a changed plan is not judged on earlier bars.
+ */
+export function callMadeAt(createdAt: string, madeAt: string | undefined): string {
+  if (!madeAt || !Number.isFinite(Date.parse(madeAt))) return createdAt;
+  return Date.parse(madeAt) > Date.parse(createdAt) ? madeAt : createdAt;
 }

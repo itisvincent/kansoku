@@ -5,6 +5,9 @@ import { marketOf, type Market } from '../symbols/symbol.utils.js';
 
 const EARNINGS_TTL_MS = 6 * 60 * 60_000;
 const MACRO_TTL_MS = 60 * 60_000;
+// A failed lookup is retried after this long. Parking it for the full TTL hid an
+// upcoming earnings report or CPI release for hours after one broker hiccup.
+const FAILURE_RETRY_MS = 2 * 60_000;
 const MACRO_WINDOW_DAYS = 3;
 const MAX_MACRO_ITEMS = 8;
 const MACRO_MIN_STAR = 3;
@@ -18,7 +21,7 @@ interface EarningsEntry {
 }
 
 const earningsCache = new Map<string, EarningsEntry>();
-const macroCache = new Map<Market, { at: number; val: MacroEventItem[] }>();
+const macroCache = new Map<Market, { at: number; val: MacroEventItem[]; failed?: boolean }>();
 const relevanceCache = new Map<
   string,
   { at: number; fingerprint: string; val: MacroEventItem[] }
@@ -30,8 +33,9 @@ export function resetEventCachesForTests(): void {
   relevanceCache.clear();
 }
 
-function fresh(entry: EarningsEntry | undefined): entry is EarningsEntry {
-  return entry !== undefined && Date.now() - entry.at < EARNINGS_TTL_MS;
+function fresh(entry: EarningsEntry | undefined): boolean {
+  if (entry === undefined) return false;
+  return Date.now() - entry.at < (entry.failed ? FAILURE_RETRY_MS : EARNINGS_TTL_MS);
 }
 
 // Shares the cache with nextEarnings but not its failure contract: a caller that has
@@ -42,7 +46,7 @@ export async function nextEarningsStrict(
   now: Date,
 ): Promise<IntradayEventRisk['next_earnings']> {
   const hit = earningsCache.get(symbol);
-  if (fresh(hit) && !hit.failed) return hit.val;
+  if (hit && fresh(hit) && !hit.failed) return hit.val;
   const today = easternDate(now);
   const provider = getProvider(marketOf(symbol));
   const val = (await provider.getEarningsCalendar?.(symbol, today)) ?? null;
@@ -54,23 +58,25 @@ export async function nextEarnings(
   symbol: string,
   now: Date,
 ): Promise<IntradayEventRisk['next_earnings']> {
-  // Reads the failure entries too: a failed lookup is remembered as "none" for the
-  // TTL, the same as before, because the sidebar would otherwise retry on every
-  // render.
+  // Reads the failure entries too, so the sidebar does not retry on every render; a
+  // failure is retried after FAILURE_RETRY_MS. The last good answer is kept through a
+  // failure: a known report date is still right when the broker blips.
   const hit = earningsCache.get(symbol);
-  if (fresh(hit)) return hit.val;
+  if (hit && fresh(hit)) return hit.val;
   try {
     return await nextEarningsStrict(symbol, now);
   } catch {
-    earningsCache.set(symbol, { at: Date.now(), val: null, failed: true });
-    return null;
+    const known = hit?.val ?? null;
+    earningsCache.set(symbol, { at: Date.now(), val: known, failed: true });
+    return known;
   }
 }
 
 async function macroReleases(now: Date, market: Market): Promise<MacroEventItem[]> {
   const hit = macroCache.get(market);
-  if (hit && Date.now() - hit.at < MACRO_TTL_MS) return hit.val;
+  if (hit && Date.now() - hit.at < (hit.failed ? FAILURE_RETRY_MS : MACRO_TTL_MS)) return hit.val;
   let val: MacroEventItem[] = [];
+  let failed = false;
   try {
     const start = easternDate(now);
     const end = easternDate(new Date(now.getTime() + MACRO_WINDOW_DAYS * 86_400_000));
@@ -80,9 +86,11 @@ async function macroReleases(now: Date, market: Market): Promise<MacroEventItem[
       val = [...result.items].sort((a, b) => (a.ts < b.ts ? -1 : 1)).slice(0, MAX_MACRO_ITEMS);
     }
   } catch {
-    val = [];
+    // Keep the last good list; retry soon.
+    val = hit?.val ?? [];
+    failed = true;
   }
-  macroCache.set(market, { at: Date.now(), val });
+  macroCache.set(market, { at: Date.now(), val, failed });
   return val;
 }
 

@@ -10,7 +10,7 @@ vi.mock('@web/lib/ws/wsHub', () => ({
   subscribeChannel: (...args: unknown[]) => subscribeChannel(...args),
 }));
 
-const { useLiveBuilt } = await import('./useLiveBuilt');
+const { livePriceFor, useLiveBuilt } = await import('./useLiveBuilt');
 const { tfDataOf } = await import('./timeframes');
 
 const built = {
@@ -34,11 +34,13 @@ beforeEach(() => {
   );
 });
 
-function push(last: number) {
+function push(last: number, regularLast = last) {
   act(() => {
     subs[0].onPayload({
       type: 'data',
-      data: { quotes: [{ symbol: 'NVDA.US', last, pct: 0, session: '日盘', asOf: '' }] },
+      data: {
+        quotes: [{ symbol: 'NVDA.US', last, regularLast, pct: 0, session: '日盘', asOf: '' }],
+      },
     });
   });
 }
@@ -67,5 +69,20 @@ describe('useLiveBuilt', () => {
     const { result } = renderHook(() => useLiveBuilt(built, 'day', 'NVDA.US', false));
     expect(subscribeChannel).not.toHaveBeenCalled();
     expect(result.current).toBe(built);
+  });
+});
+
+describe('livePriceFor', () => {
+  const quote = { last: 105, regularLast: 100 };
+
+  it('patches daily, weekly and monthly candles with the regular-session price', () => {
+    expect(livePriceFor('day', quote)).toBe(100);
+    expect(livePriceFor('week', quote)).toBe(100);
+    expect(livePriceFor('month', quote)).toBe(100);
+  });
+
+  it('patches intraday bars with the session price, after-hours included', () => {
+    expect(livePriceFor('30m', quote)).toBe(105);
+    expect(livePriceFor('4h', quote)).toBe(105);
   });
 });

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { AnalysisOutcome } from '@kansoku/shared/types';
 import { createDb } from '../src/db/index.js';
 import {
+  callMadeAt,
   currentVerdict,
+  deleteResolvedOutcome,
   getResolvedOutcomes,
   legacyVerdict,
   OUTCOME_RULES,
@@ -95,5 +97,19 @@ describe('outcome cache', () => {
   it('returns an empty map for no ids', async () => {
     const db = createDb(':memory:');
     expect((await getResolvedOutcomes([], db)).size).toBe(0);
+  });
+  it('forgets a verdict when the prediction is edited', async () => {
+    const db = createDb(':memory:');
+    const key = { chartId: 'c1', symbol: 'MU.US', direction: 'long' as const };
+    await saveResolvedOutcome(key, outcome('hit_target'), db);
+    await deleteResolvedOutcome('c1', db);
+    expect((await getResolvedOutcomes(['c1'], db)).size).toBe(0);
+  });
+
+  it('counts an edited call from the edit, never from before the chart existed', () => {
+    const created = '2026-09-01T14:00:00.000Z';
+    expect(callMadeAt(created, '2026-09-02T15:00:00.000Z')).toBe('2026-09-02T15:00:00.000Z');
+    expect(callMadeAt(created, '2026-08-01T00:00:00.000Z')).toBe(created);
+    expect(callMadeAt(created, undefined)).toBe(created);
   });
 });

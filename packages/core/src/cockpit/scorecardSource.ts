@@ -13,6 +13,7 @@ import { marketOf } from '../symbols/symbol.utils.js';
 import { attachRMultiple, judgeOutcome, zoneFromPrediction } from './outcome.js';
 import {
   type CachedOutcome,
+  callMadeAt,
   currentVerdict,
   getResolvedOutcomes,
   legacyVerdict,
@@ -129,6 +130,7 @@ async function summarize(
       analysis_windows: prediction.analysis_windows,
       analysis_timeframes: prediction.analysis_timeframes,
       conviction: prediction.conviction,
+      made_at: prediction.made_at,
     },
     plan: planOf(doc),
   };
@@ -162,7 +164,7 @@ export async function loadScorecardRows(
         const anchor = {
           time: prediction.anchor.time,
           price: prediction.anchor.price,
-          madeAt: meta.created_at,
+          madeAt: callMadeAt(meta.created_at, prediction.made_at),
         };
         const zone = zoneFromPrediction(prediction);
         const primary = await bars(symbol, PRIMARY_PERIOD, PRIMARY_BARS);

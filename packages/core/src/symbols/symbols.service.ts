@@ -27,6 +27,7 @@ import {
   zoneFromPrediction,
 } from '../cockpit/outcome.js';
 import {
+  callMadeAt,
   currentVerdict,
   getResolvedOutcomes,
   legacyVerdict,
@@ -122,7 +123,7 @@ export const symbolsService: SymbolsApi = withFeatureGates(symbolsRoutes, {
       if (!outcome && direction && anchor && bars) {
         outcome = judgeOutcome(
           direction,
-          { ...anchor, madeAt: meta.created_at },
+          { ...anchor, madeAt: callMadeAt(meta.created_at, prediction?.made_at) },
           plan,
           bars,
           zoneFromPrediction(prediction),

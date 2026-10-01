@@ -19,6 +19,7 @@ import {
   zoneFromPrediction,
 } from '../cockpit/outcome.js';
 import {
+  callMadeAt,
   currentVerdict,
   getResolvedOutcomes,
   legacyVerdict,
@@ -140,7 +141,7 @@ async function buildRecap(date: string): Promise<OverviewRecap> {
         outcome = bars
           ? judgeOutcome(
               direction,
-              { ...anchor, madeAt: meta.created_at },
+              { ...anchor, madeAt: callMadeAt(meta.created_at, prediction?.made_at) },
               plan,
               bars,
               zoneFromPrediction(prediction),
@@ -268,7 +269,7 @@ export const overviewService: OverviewApi = {
           anchor && bars
             ? judgeOutcome(
                 prediction.direction,
-                { ...anchor, madeAt: meta.created_at },
+                { ...anchor, madeAt: callMadeAt(meta.created_at, prediction?.made_at) },
                 plan,
                 bars,
                 zoneFromPrediction(prediction),

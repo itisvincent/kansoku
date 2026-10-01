@@ -14,6 +14,7 @@ import { createChart, deleteChart, listCharts, loadChart, saveChart } from './st
 import { buildViewTimeframe } from './viewTimeframe.js';
 import { localizeChartDocName } from '../symbols/securityName.js';
 import { featureStateSync } from '../pro/features.js';
+import { deleteResolvedOutcome } from '../cockpit/outcomeCache.js';
 
 const viewCountSchema = z.union([z.string(), z.number()]).transform((value, ctx) => {
   const count = clampViewCount(String(value));
@@ -160,7 +161,14 @@ export const chartsService: ChartsApi = {
     if (doc.type === 'intraday' && 'prediction' in parsed && parsed.prediction != null) {
       assertPredictionValid(parsed.prediction);
     }
-    const merged = mergeForPatch(doc.type, doc.input, parsed);
+    const editsPrediction = doc.type === 'intraday' && 'prediction' in parsed;
+    const patched = mergeForPatch(doc.type, doc.input, parsed);
+    // An edited call counts from the edit: its old verdict is dropped below, and it is
+    // judged only on bars after now, so a plan changed after the move cannot score it.
+    const merged =
+      editsPrediction && patched.prediction && typeof patched.prediction === 'object'
+        ? { ...patched, prediction: { ...patched.prediction, made_at: new Date().toISOString() } }
+        : patched;
     const title = typeof parsed.title === 'string' && parsed.title ? parsed.title : doc.title;
     const refreshable = parsed.refresh === true ? refreshBody(doc.type, merged) : null;
     const result = refreshable
@@ -182,6 +190,7 @@ export const chartsService: ChartsApi = {
       ...('prediction' in parsed ? { prediction_updated_at: new Date().toISOString() } : {}),
     };
     await saveChart(updated);
+    if (editsPrediction) await deleteResolvedOutcome(id).catch(() => {});
     return {
       data: {
         id,
