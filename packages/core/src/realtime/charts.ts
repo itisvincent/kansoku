@@ -8,7 +8,7 @@ import {
   refreshBody,
 } from '../charts/build.js';
 import { getEventRisk } from '../marketdata/events.js';
-import { TIMEFRAME_ORDER } from '../analysis/intraday/constants.js';
+import { MACD_MIN_BARS, TIMEFRAME_ORDER } from '../analysis/intraday/constants.js';
 import { activeProDetectors } from '../pro/detectors.js';
 import { featureStateSync } from '../pro/features.js';
 import { getStream } from '../marketdata/registry.js';
@@ -54,7 +54,10 @@ export function tailFetchCount(
   fullCount = FULL_FETCH_COUNT,
 ): number {
   const elapsed = Math.max(0, now - lastFetchAt);
-  return Math.min(fullCount, Math.ceil(elapsed / TAIL_BASE_TF_MS) + TAIL_MARGIN_BARS);
+  const needed = Math.ceil(elapsed / TAIL_BASE_TF_MS) + TAIL_MARGIN_BARS;
+  // The refetch goes through buildChart, which rebuilds every indicator and refuses fewer
+  // than MACD_MIN_BARS bars; a smaller tail made every poll fail.
+  return Math.min(fullCount, Math.max(MACD_MIN_BARS, needed));
 }
 
 function chartIntervalMs(key?: string): number {

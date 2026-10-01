@@ -4,15 +4,15 @@ import { tailFetchCount } from '../src/realtime/charts.js';
 const M5 = 5 * 60_000;
 
 describe('tailFetchCount', () => {
-  it('returns only the margin right after a fetch', () => {
+  it('never asks for fewer bars than the chart builder accepts', () => {
     const now = 1_000_000_000;
-    expect(tailFetchCount(now, now)).toBe(5);
+    expect(tailFetchCount(now, now)).toBe(60);
+    expect(tailFetchCount(now - 30 * 60_000, now)).toBe(60);
   });
 
-  it('grows with elapsed time at m5 granularity', () => {
+  it('grows with elapsed time at m5 granularity once past the floor', () => {
     const now = 1_000_000_000;
-    expect(tailFetchCount(now - 30 * 60_000, now)).toBe(6 + 5);
-    expect(tailFetchCount(now - 4 * 60 * 60_000, now)).toBe(48 + 5);
+    expect(tailFetchCount(now - 6 * 60 * 60_000, now)).toBe(72 + 5);
   });
 
   it('caps at the full fetch count after long idling', () => {
@@ -24,6 +24,6 @@ describe('tailFetchCount', () => {
   it('respects an enlarged full count for history views', () => {
     const now = 1_000_000_000;
     expect(tailFetchCount(0, now, 2000)).toBe(2000);
-    expect(tailFetchCount(now, now, 2000)).toBe(5);
+    expect(tailFetchCount(now, now, 2000)).toBe(60);
   });
 });

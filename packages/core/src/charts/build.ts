@@ -20,6 +20,7 @@ const TF_PERIODS: Record<string, string> = { m5: '5m', m15: '15m', h1: '1h' };
 // Daily bars barely move intraday; without this every 60s live rebuild would
 // re-hit the provider for the same 60 bars.
 const DAY_KLINE_TTL_MS = 10 * 60_000;
+const MAX_INTRADAY_BARS = 1000;
 const dayKlineCache = new Map<string, { at: number; bars: RawBar[] }>();
 const dayKlineInflight = new Map<string, Promise<RawBar[]>>();
 
@@ -123,7 +124,8 @@ async function prepareInput(type: ChartType, body: Body): Promise<Record<string,
     }
     case 'intraday': {
       const symbol = requireSymbol(body, 'intraday');
-      const count = Number(body.count ?? 1000);
+      // Longbridge rejects intraday requests above 1,000 candles.
+      const count = Math.min(MAX_INTRADAY_BARS, Number(body.count ?? MAX_INTRADAY_BARS));
       const session = typeof body.session === 'string' ? body.session : 'all';
       let timeframes = body.timeframes as Record<string, RawBar[]> | undefined;
       let dayKline = body.day_kline as RawBar[] | undefined;

@@ -198,7 +198,7 @@ describe('SEC EDGAR event adapter — filings', () => {
       class: 'filing',
       dedupeKey: '0000320193-26-000075',
       kind: '8-K',
-      occurredAt: '2026-08-20T16:30:12.000Z',
+      occurredAt: '2026-08-20T20:30:12.000Z', // 16:30 New York (EDT)
       source: SEC_SOURCE,
       symbols: ['AAPL.US'],
       trust: 'official',

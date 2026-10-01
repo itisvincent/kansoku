@@ -8,7 +8,7 @@ import {
   type HighWaterCursor,
 } from './highWaterCursor.js';
 import { fetchJsonCapped } from './httpFetch.js';
-import { dateOnlyInstant } from './instants.js';
+import { dateOnlyInstant, newYorkWallClockInstant } from './instants.js';
 
 export const SEC_SOURCE = 'sec-edgar';
 
@@ -138,12 +138,15 @@ function severityOf(form: string): MarketEventSeverity {
 function acceptedAt(acceptance: string, filingDate: string): string | null {
   // A bare date is a date wherever it appears, acceptance field included: parsing it
   // as midnight UTC would file the document on the previous evening in New York.
+  // EDGAR writes acceptanceDateTime in New York time with a literal "Z" (it only accepts
+  // filings 06:00-22:00 ET, yet 06:xx-09:xx values are routine). Read as UTC, every filing
+  // landed 4-5h early: an after-close 8-K showed up mid-session.
   for (const candidate of [acceptance, filingDate]) {
     if (!candidate) continue;
     const dateOnly = dateOnlyInstant(candidate);
     if (dateOnly) return dateOnly;
-    const at = Date.parse(candidate);
-    if (Number.isFinite(at)) return new Date(at).toISOString();
+    const at = newYorkWallClockInstant(candidate);
+    if (at) return at;
   }
   return null;
 }

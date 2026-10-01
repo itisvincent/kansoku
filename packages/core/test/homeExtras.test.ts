@@ -165,4 +165,29 @@ describe('buildHomeExtras', () => {
     await homeExtrasWarm();
     expect(order.indexOf('caps')).toBeGreaterThan(order.lastIndexOf('flow'));
   });
+  it('does not ask again for a cap that failed or is missing, and stays quiet when nothing changed', async () => {
+    provider.getMarketCaps = vi.fn(async () => ({ 'NVDA.US': 1 })); // MU.US never comes back
+    const listener = vi.fn();
+    onHomeExtrasChange(listener);
+    await buildHomeExtras([]);
+    await homeExtrasWarm();
+    const notices = listener.mock.calls.length;
+    for (let i = 0; i < 5; i++) {
+      await buildHomeExtras([]);
+      await homeExtrasWarm();
+    }
+    expect(provider.getMarketCaps).toHaveBeenCalledTimes(1);
+    expect(listener.mock.calls.length).toBe(notices);
+  });
+
+  it('remembers a failed cap fetch instead of retrying on every warm-up', async () => {
+    provider.getMarketCaps = vi.fn(async () => {
+      throw new Error('longbridge unavailable');
+    });
+    for (let i = 0; i < 4; i++) {
+      await buildHomeExtras([]);
+      await homeExtrasWarm();
+    }
+    expect(provider.getMarketCaps).toHaveBeenCalledTimes(1);
+  });
 });

@@ -14,6 +14,7 @@ const WATCH_TTL_MS = 10 * 60_000;
 const FLOW_CONCURRENCY = 1;
 
 const CAPS_TTL_MS = 30 * 60_000;
+const CAPS_RETRY_MS = 5 * 60_000;
 
 interface HomeExtras {
   flows: Record<string, number | null>;
@@ -26,6 +27,7 @@ let flowCache = new Map<string, { at: number; value: number | null }>();
 let tempCache: { at: number; value: MarketTemp | null } | null = null;
 let watchCache: { at: number; symbols: string[] } | null = null;
 let capsCache: { at: number; value: Record<string, number> } | null = null;
+let capsAskedAt = new Map<string, number>();
 let warming: Promise<void> | null = null;
 let warmQueued: string[] | null = null;
 const extrasListeners = new Set<() => void>();
@@ -35,6 +37,7 @@ export function resetHomeExtrasForTests(): void {
   tempCache = null;
   watchCache = null;
   capsCache = null;
+  capsAskedAt = new Map();
   warming = null;
   warmQueued = null;
   extrasListeners.clear();
@@ -51,21 +54,32 @@ export function homeExtrasWarm(): Promise<void> {
   return warming ?? Promise.resolve();
 }
 
+/**
+ * Whether a symbol's market cap was asked for recently enough. Failures and symbols the
+ * provider has no cap for are remembered too: otherwise every warm-up asks again, its
+ * change notice rebuilds the board, which warms again, in a tight loop of CLI calls.
+ */
+function capAskedRecently(symbol: string, now: number): boolean {
+  const asked = capsAskedAt.get(symbol);
+  if (asked === undefined) return false;
+  const known = capsCache !== null && symbol in capsCache.value;
+  return now - asked < (known ? CAPS_TTL_MS : CAPS_RETRY_MS);
+}
+
 async function getCaps(symbols: string[]): Promise<Record<string, number>> {
   if (!symbols.length) return {};
-  if (capsCache && Date.now() - capsCache.at < CAPS_TTL_MS) {
-    const missing = symbols.filter((s) => !(s in capsCache!.value));
-    if (!missing.length) return capsCache.value;
-  }
   const provider = getProvider();
-  if (!provider.getMarketCaps) return capsCache?.value ?? {};
+  const now = Date.now();
+  const due = symbols.filter((s) => !capAskedRecently(s, now));
+  if (!due.length || !provider.getMarketCaps) return capsCache?.value ?? {};
+  for (const symbol of due) capsAskedAt.set(symbol, now);
   try {
-    const value = await provider.getMarketCaps(symbols);
-    capsCache = { at: Date.now(), value };
-    return value;
+    const value = await provider.getMarketCaps(due);
+    capsCache = { at: Date.now(), value: { ...(capsCache?.value ?? {}), ...value } };
   } catch {
-    return capsCache?.value ?? {};
+    // Remembered in capsAskedAt; retried after CAPS_RETRY_MS.
   }
+  return capsCache?.value ?? {};
 }
 
 export function netInflow(rows: FlowRow[]): number {
@@ -202,8 +216,14 @@ function flowsNeedRefresh(symbols: string[]): boolean {
 function capsNeedRefresh(symbols: string[]): boolean {
   if (!symbols.length) return false;
   if (!getProvider().getMarketCaps) return false;
-  if (!capsCache || Date.now() - capsCache.at >= CAPS_TTL_MS) return true;
-  return symbols.some((s) => !(s in capsCache!.value));
+  const now = Date.now();
+  return symbols.some((s) => !capAskedRecently(s, now));
+}
+
+function extrasSignature(symbols: string[]): string {
+  return JSON.stringify(
+    symbols.map((s) => [flowCache.get(s)?.value ?? null, capsCache?.value[s] ?? null]),
+  );
 }
 
 function notifyExtrasChange(): void {
@@ -217,9 +237,11 @@ function startWarm(symbols: string[]): void {
   }
   if (!flowsNeedRefresh(symbols) && !capsNeedRefresh(symbols)) return;
   warming = (async () => {
+    const before = extrasSignature(symbols);
     if (symbols.length) await getFlows(symbols).catch(() => {});
     await getCaps(symbols);
-    notifyExtrasChange();
+    // A notice rebuilds the board, which warms again; only send one when something changed.
+    if (extrasSignature(symbols) !== before) notifyExtrasChange();
   })().finally(() => {
     warming = null;
     const next = warmQueued;
