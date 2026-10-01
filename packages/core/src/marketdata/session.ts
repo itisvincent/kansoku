@@ -1,5 +1,6 @@
 import type { OffSessionSegment, SessionKind } from '@kansoku/shared/types';
 import { marketOf, type Market } from '../symbols/symbol.utils.js';
+import { isUsEarlyClose, isUsMarketHoliday } from './usHolidays.js';
 
 interface MarketSessionConfig {
   timeZone: string;
@@ -9,6 +10,7 @@ interface MarketSessionConfig {
 
 const PRE_START = 4 * 60;
 const POST_END = 20 * 60;
+const US_EARLY_CLOSE = 13 * 60;
 
 const MARKET_CONFIG: Record<Market, MarketSessionConfig> = {
   US: {
@@ -125,6 +127,15 @@ export function classifySession(ts: number, market: Market = 'US'): SessionKind 
   const { weekday, hour, minute } = readClockParts(market, ts);
   if (weekday === 'Sat' || weekday === 'Sun') return 'overnight';
   const min = (hour % 24) * 60 + minute;
+  if (market === 'US') {
+    // Exchange holidays and 13:00 early closes. Hong Kong and China holidays follow the
+    // lunar calendar and official notices, so those markets still check weekdays only.
+    const date = marketDate('US', new Date(ts * 1000));
+    if (isUsMarketHoliday(date)) return 'overnight';
+    if (isUsEarlyClose(date) && min >= US_EARLY_CLOSE) {
+      return min < US_EARLY_CLOSE + 4 * 60 ? 'post' : 'overnight';
+    }
+  }
   return classifyByMinute(market, min);
 }
 
