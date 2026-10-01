@@ -6,84 +6,8 @@ import { signed } from '@web/lib/format';
 import { Tooltip } from '@web/ui';
 import { colors, fontSizes, fonts } from '../../theme/tokens.stylex';
 import { heatStyle } from './panoramaHeat';
-import { squarify } from './treemap';
-import type { PanoramaGroup, PanoramaTile } from './MarketPanorama';
-
-/** How big a tile is: money held (positions) or a softened market cap (watchlist). */
-export type TileWeight = (tile: PanoramaTile) => number;
-
-export const positionWeight: TileWeight = (t) =>
-  t.value != null && t.value > 0 ? t.value : t.cap && t.cap > 0 ? Math.sqrt(t.cap) : 1;
-
-// The square root keeps a $3T company from flattening a $5B one into a sliver.
-export const watchWeight: TileWeight = (t) =>
-  t.cap && t.cap > 0 ? Math.sqrt(t.cap) : t.turnover > 0 ? Math.sqrt(t.turnover) : 1;
-
-const HEADER_PX = 18;
-const GAP_PX = 2;
-
-export interface HeatmapBox {
-  x: number;
-  y: number;
-  w: number;
-  h: number;
-}
-
-export interface HeatmapLayout {
-  sectors: Array<{ group: PanoramaGroup; box: HeatmapBox; header: boolean }>;
-  tiles: Array<{ tile: PanoramaTile; box: HeatmapBox }>;
-}
-
-/**
- * One treemap: sectors sized by their stocks' total weight, stocks laid out inside each
- * sector under a thin header. Replaces stacked square panels, which on a wide screen
- * made a two-stock sector a thousand pixels tall.
- */
-export function layoutHeatmap(
-  groups: PanoramaGroup[],
-  weightOf: TileWeight,
-  width: number,
-  height: number,
-): HeatmapLayout {
-  const layout: HeatmapLayout = { sectors: [], tiles: [] };
-  if (width <= 0 || height <= 0 || !groups.length) return layout;
-  const weights = new Map(groups.map((g) => [g.industry, g.tiles.reduce((s, t) => s + weightOf(t), 0)]));
-  const sectorRects = squarify(
-    groups.map((g) => ({ key: g.industry, value: Math.max(weights.get(g.industry) ?? 0, 1e-9) })),
-    width,
-    height,
-  );
-  const byKey = new Map(groups.map((g) => [g.industry, g]));
-  for (const rect of sectorRects) {
-    const group = byKey.get(rect.key);
-    if (!group) continue;
-    const box = { x: rect.x, y: rect.y, w: rect.w, h: rect.h };
-    const header = rect.h >= HEADER_PX * 2.5 && rect.w >= 60;
-    layout.sectors.push({ group, box, header });
-    const inner = {
-      x: rect.x + GAP_PX / 2,
-      y: rect.y + (header ? HEADER_PX : GAP_PX / 2),
-      w: Math.max(0, rect.w - GAP_PX),
-      h: Math.max(0, rect.h - (header ? HEADER_PX + GAP_PX / 2 : GAP_PX)),
-    };
-    const tileRects = squarify(
-      group.tiles.map((t) => ({ key: t.symbol, value: Math.max(weightOf(t), 1e-9) })),
-      inner.w,
-      inner.h,
-    );
-    const tilesByKey = new Map(group.tiles.map((t) => [t.symbol, t]));
-    for (const r of tileRects) {
-      const tile = tilesByKey.get(r.key);
-      if (tile) layout.tiles.push({ tile, box: { x: inner.x + r.x, y: inner.y + r.y, w: r.w, h: r.h } });
-    }
-  }
-  return layout;
-}
-
-/** Text size grows with the tile, within readable bounds. */
-export function tileFontPx(box: HeatmapBox): number {
-  return Math.round(Math.min(22, Math.max(10, Math.min(box.w / 5, box.h / 3))));
-}
+import type { PanoramaGroup } from './MarketPanorama';
+import { fitTileLabels, heatmapHeight, layoutHeatmap, type TileWeight } from './heatmapLayout';
 
 const styles = stylex.create({
   frame: {
@@ -92,6 +16,12 @@ const styles = stylex.create({
     position: 'relative',
     width: '100%',
   },
+  sectorName: {
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
   sectorHead: {
     alignItems: 'center',
     color: colors.textSecondary,
@@ -99,7 +29,7 @@ const styles = stylex.create({
     fontSize: fontSizes.sm,
     fontWeight: 600,
     gap: '6px',
-    height: `${HEADER_PX}px`,
+    height: '18px', // = HEADER_PX in heatmapLayout.ts
     overflow: 'hidden',
     paddingInline: '4px',
     position: 'absolute',
@@ -171,7 +101,8 @@ export function PanoramaHeatmap({
   const { locale } = useLocale();
   const [ref, width] = useWidth();
   // A wide, short frame like a market heatmap; bounded so it never fills the screen.
-  const height = Math.round(Math.min(520, Math.max(280, width * 0.36)));
+  const tileCount = groups.reduce((n, g) => n + g.tiles.length, 0);
+  const height = heatmapHeight(width, tileCount, markOwned ? 'watch' : 'positions');
   const layout = useMemo(
     () => layoutHeatmap(groups, weightOf, width, height),
     [groups, weightOf, width, height],
@@ -191,7 +122,7 @@ export function PanoramaHeatmap({
             className={`pano-heatmap-head ${stylex.props(styles.sectorHead).className}`}
             style={{ left: `${box.x}px`, top: `${box.y}px`, width: `${box.w}px` }}
           >
-            <span>{industryLabel(group.industry, locale)}</span>
+            <span {...stylex.props(styles.sectorName)}>{industryLabel(group.industry, locale)}</span>
             {group.weightedPct != null && (
               <span
                 {...stylex.props(
@@ -206,11 +137,9 @@ export function PanoramaHeatmap({
         ))}
       {layout.tiles.map(({ tile, box }) => {
         if (box.w < 3 || box.h < 3) return null;
-        const font = tileFontPx(box);
         const label = tile.symbol.replace(/\.US$/, '');
         const pctLabel = tile.pct == null ? '—' : `${signed(tile.pct)}%`;
-        const showSym = box.w >= font * 1.6 && box.h >= font * 1.1;
-        const showPct = showSym && box.h >= font * 2.4 && box.w >= font * 3;
+        const fit = fitTileLabels(box, label, pctLabel);
         return (
           <Tooltip
             key={tile.symbol}
@@ -225,14 +154,17 @@ export function PanoramaHeatmap({
                   top: `${box.y}px`,
                   width: `${box.w}px`,
                   height: `${box.h}px`,
-                  fontSize: `${font}px`,
                 }}
               />
             }
           >
-            {showSym && <span {...stylex.props(styles.sym)}>{label}</span>}
-            {showPct && (
-              <span {...stylex.props(styles.pct)} style={{ fontSize: `${Math.max(10, Math.round(font * 0.72))}px` }}>
+            {fit.symbolPx != null && (
+              <span {...stylex.props(styles.sym)} style={{ fontSize: `${fit.symbolPx}px` }}>
+                {label}
+              </span>
+            )}
+            {fit.pctPx != null && (
+              <span {...stylex.props(styles.pct)} style={{ fontSize: `${fit.pctPx}px` }}>
                 {pctLabel}
               </span>
             )}

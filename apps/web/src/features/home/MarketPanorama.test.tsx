@@ -81,7 +81,7 @@ describe('buildPanoramaGroups', () => {
 });
 
 describe('splitPanorama', () => {
-  it('sends tool industries to chips and merges small groups', () => {
+  it('sends cash and volatility to chips, keeps unknown stocks in the heatmap, merges small groups', () => {
     const groups = buildPanoramaGroups(
       [
         quote('NVDA.US', 1, 1000),
@@ -96,11 +96,11 @@ describe('splitPanorama', () => {
       null,
     );
     const { main, tools } = splitPanorama(groups);
-    expect(tools.map((g) => g.industry)).toEqual(expect.arrayContaining(['波动率', '未分类']));
+    expect(tools.map((g) => g.industry)).toEqual(['波动率']);
     const merged = main.find((g) => g.industry.includes(' · '));
     expect(merged).toBeTruthy();
     expect(merged!.tiles.map((t) => t.symbol)).toEqual(
-      expect.arrayContaining(['KO.US', 'VST.US', 'MU.US']),
+      expect.arrayContaining(['KO.US', 'VST.US', 'MU.US', 'ZZZZ.US']),
     );
     expect(main.map((g) => g.industry)).toContain('半导体');
   });

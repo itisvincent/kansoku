@@ -14,7 +14,8 @@ import { INDEX_SYMBOLS } from './HomeTopStrip';
 import { isCardWorthySymbol } from './SymbolGrid';
 import { squarify } from './treemap';
 import { heatStyle } from './panoramaHeat';
-import { PanoramaHeatmap, positionWeight, watchWeight } from './PanoramaHeatmap';
+import { PanoramaHeatmap } from './PanoramaHeatmap';
+import { positionWeight, watchWeight } from './heatmapLayout';
 import { readStorage, writeStorage } from '@web/lib/safeStorage';
 
 export interface PanoramaTile {
@@ -96,15 +97,23 @@ export function buildPanoramaGroups(
   });
 }
 
-const TOOL_INDUSTRIES = new Set(['现金类', '波动率', UNCLASSIFIED_INDUSTRY]);
+// Cash and volatility products are shown as chips; everything else, including stocks the
+// sector map does not know (shown as 'Other'), goes into the heatmap.
+const TOOL_INDUSTRIES = new Set(['现金类', '波动率']);
 const MERGE_BELOW = 3;
 
-export function splitPanorama(groups: PanoramaGroup[]): {
+export function splitPanorama(
+  groups: PanoramaGroup[],
+  // Folding sectors with one or two stocks into one block keeps a long watchlist
+  // readable; with a handful of positions it would hide which sector each one is in.
+  options: { mergeSmall?: boolean } = {},
+): {
   main: PanoramaGroup[];
   tools: PanoramaGroup[];
 } {
   const tools = groups.filter((g) => TOOL_INDUSTRIES.has(g.industry));
   const rest = groups.filter((g) => !TOOL_INDUSTRIES.has(g.industry));
+  if (options.mergeSmall === false) return { main: rest, tools };
   const main = rest.filter((g) => g.tiles.length >= MERGE_BELOW);
   const small = rest.filter((g) => g.tiles.length < MERGE_BELOW);
   if (small.length === 1) main.push(small[0]);
@@ -124,7 +133,12 @@ export function splitPanorama(groups: PanoramaGroup[]): {
 }
 
 export function panoramaReadLine(groups: PanoramaGroup[], locale: Locale = 'zh-CN'): string | null {
-  const rated = groups.filter((g) => g.weightedPct != null && !TOOL_INDUSTRIES.has(g.industry));
+  const rated = groups.filter(
+    (g) =>
+      g.weightedPct != null &&
+      !TOOL_INDUSTRIES.has(g.industry) &&
+      g.industry !== UNCLASSIFIED_INDUSTRY,
+  );
   if (rated.length < 2) return null;
   const top = rated.reduce((a, b) => (b.weightedPct! > a.weightedPct! ? b : a));
   const bottom = rated.reduce((a, b) => (b.weightedPct! < a.weightedPct! ? b : a));
@@ -297,7 +311,11 @@ const styles = stylex.create({
     fontFamily: fonts.ui,
     fontSize: fontSizes.sm,
     fontVariantNumeric: 'tabular-nums',
+    // A long chip wraps instead of widening the page past the window.
+    flexWrap: 'wrap',
     gap: '8px',
+    maxWidth: '100%',
+    minWidth: 0,
     padding: '3px 9px',
   },
   chipLink: {
@@ -333,7 +351,7 @@ function ToolChips({ tools }: { tools: PanoramaGroup[] }) {
           key={industryLabel(g.industry, locale)}
         >
           <span className={`pano-chip-label ${stylex.props(styles.chipLabel).className}`}>
-            {g.industry}
+            {industryLabel(g.industry, locale)}
           </span>
           {sortByPct(g.tiles).map((t) => (
             <a
@@ -389,7 +407,10 @@ function WatchPanorama({
     () => buildPanoramaGroups(quotes, portfolio, caps, { positionsOnly }),
     [quotes, portfolio, caps, positionsOnly],
   );
-  const { main, tools } = useMemo(() => splitPanorama(groups), [groups]);
+  const { main, tools } = useMemo(
+    () => splitPanorama(groups, { mergeSmall: !positionsOnly }),
+    [groups, positionsOnly],
+  );
   if (!groups.length) {
     return (
       <NoteBlock>

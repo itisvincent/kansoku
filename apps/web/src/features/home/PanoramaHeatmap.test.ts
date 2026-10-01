@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { PortfolioSummary, QuoteCell } from '@kansoku/shared/types';
 import { buildPanoramaGroups, type PanoramaGroup, type PanoramaTile } from './MarketPanorama';
-import { layoutHeatmap, positionWeight, tileFontPx, watchWeight } from './PanoramaHeatmap';
+import {
+  fitTileLabels,
+  heatmapHeight,
+  layoutHeatmap,
+  positionWeight,
+  tileFontPx,
+  watchWeight,
+} from './heatmapLayout';
 
 const tile = (symbol: string, extra: Partial<PanoramaTile> = {}): PanoramaTile => ({
   symbol,
@@ -51,8 +58,8 @@ describe('layoutHeatmap', () => {
   it('softens market cap so a giant does not flatten a small company', () => {
     const giant = tile('AAPL.US', { cap: 3e12 });
     const small = tile('AEHR.US', { cap: 1e9 });
-    // Linear cap would be 3000:1; the square root is about 55:1.
-    expect(watchWeight(giant) / watchWeight(small)).toBeCloseTo(Math.sqrt(3000), 0);
+    // Linear cap would be 3000:1; to the power 0.4 it is about 25:1.
+    expect(watchWeight(giant) / watchWeight(small)).toBeCloseTo(3000 ** 0.4, 0);
   });
 
   it('scales the label with the tile, within readable bounds', () => {
@@ -77,5 +84,31 @@ describe('buildPanoramaGroups positions view', () => {
     const tiles = groups.flatMap((g) => g.tiles);
     expect(tiles.map((t) => t.symbol).sort()).toEqual(['GRAB.US', 'NVDA.US']);
     expect(tiles.find((t) => t.symbol === 'GRAB.US')).toMatchObject({ pct: null, value: 300 });
+  });
+});
+
+describe('fitTileLabels', () => {
+  it('shrinks a symbol to fit instead of clipping it', () => {
+    const fit = fitTileLabels({ x: 0, y: 0, w: 44, h: 30 }, 'SQQQ', '+1.20%');
+    expect(fit.symbolPx).not.toBeNull();
+    expect(fit.symbolPx! * 4 * 0.66).toBeLessThanOrEqual(44 - 6);
+  });
+
+  it('hides text that cannot fit at a readable size', () => {
+    expect(fitTileLabels({ x: 0, y: 0, w: 14, h: 40 }, 'GOOGL', '-1.11%')).toEqual({ symbolPx: null, pctPx: null });
+  });
+
+  it('drops the % line before the symbol when the tile is short', () => {
+    const fit = fitTileLabels({ x: 0, y: 0, w: 90, h: 16 }, 'MU', '-2.02%');
+    expect(fit.symbolPx).not.toBeNull();
+    expect(fit.pctPx).toBeNull();
+  });
+});
+
+describe('heatmapHeight', () => {
+  it('keeps positions short and gives a long watchlist more room, within a cap', () => {
+    expect(heatmapHeight(1880, 21, 'positions')).toBe(520);
+    expect(heatmapHeight(1880, 132, 'watch')).toBe(702);
+    expect(heatmapHeight(1880, 600, 'watch')).toBe(900);
   });
 });

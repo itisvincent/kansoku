@@ -28,6 +28,18 @@ const industries: Record<string, MessageKey> = {
   '大盘 ETF': 'industryBroadEtf',
   '波动率': 'industryVolatility',
   '现金类': 'industryCash',
+  '网络通信': 'industryNetworking',
+  '互联网': 'industryInternet',
+  '金融': 'industryFinancials',
+  '中概股': 'industryChinaAdr',
+  '医疗': 'industryHealthcare',
+  '工业': 'industryIndustrials',
+  '加密': 'industryCrypto',
+  '核能铀': 'industryNuclear',
+  '材料矿业': 'industryMaterials',
+  '量子计算': 'industryQuantum',
+  '主题 ETF': 'industryThemeEtf',
+  '杠杆 ETF': 'industryLeveragedEtf',
   '未分类': 'industryUnclassified',
 };
 export function marketSessionLabel(value: string, locale: Locale): string {
