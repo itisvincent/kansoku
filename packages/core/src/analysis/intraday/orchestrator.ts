@@ -292,7 +292,7 @@ export function buildIntraday(input: IntradayInput): { built: IntradayBuilt; met
     technicals[k] = tfs[k].summary;
   }
   const extraPeriods: Array<[string, RawBar[] | undefined]> = [
-    ['4h', tfRaw.h1?.length ? aggregateFourHour(tfRaw.h1) : undefined],
+    ['4h', tfRaw.h1?.length ? aggregateFourHour(tfRaw.h1, marketOf(symbol)) : undefined],
     ['day', input.day_kline],
   ];
   for (const [key, bars] of extraPeriods) {

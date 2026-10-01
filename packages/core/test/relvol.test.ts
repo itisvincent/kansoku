@@ -65,4 +65,19 @@ describe('computeRelativeVolume', () => {
     const bars = [bar('2026-07-01T13:30:00Z', 0), bar('2026-07-02T13:30:00Z', 100)];
     expect(computeRelativeVolume(bars, NOW)).toBeNull();
   });
+  it('leaves out the bar that is still forming', () => {
+    // At 10:07 New York the 10:00 bar has 7 minutes of volume; yesterday's 10:00 bar is full.
+    const bars = [
+      bar('2026-07-01T13:30:00Z', 100),
+      bar('2026-07-01T13:45:00Z', 100),
+      bar('2026-07-01T14:00:00Z', 100),
+      bar('2026-07-02T13:30:00Z', 100),
+      bar('2026-07-02T13:45:00Z', 100),
+      bar('2026-07-02T14:00:00Z', 20),
+    ];
+    const out = computeRelativeVolume(bars, new Date('2026-07-02T14:07:00Z'));
+    expect(out!.today_cum).toBe(200);
+    expect(out!.baseline_avg).toBe(200);
+    expect(out!.ratio).toBe(1);
+  });
 });

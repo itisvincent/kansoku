@@ -12,11 +12,18 @@ const { buildViewTimeframe, VIEW_PERIODS } = await import('../src/charts/viewTim
 
 // 11:00Z is 07:00 in New York — pre-market — so a 300-minute run crosses into
 // the regular session and exercises the off-session mask.
-function bars(count: number, startMs = Date.parse('2026-07-20T11:00:00.000Z')): RawBar[] {
+// 00:00 New York (EDT), so hourly bars fill whole 4h blocks of the market clock.
+const HOURLY_START = Date.parse('2026-07-20T04:00:00.000Z');
+
+function bars(
+  count: number,
+  startMs = Date.parse('2026-07-20T11:00:00.000Z'),
+  stepMs = 60_000,
+): RawBar[] {
   return Array.from({ length: count }, (_, i) => {
     const close = 100 + Math.sin(i / 3) * 5;
     return {
-      time: new Date(startMs + i * 60_000).toISOString(),
+      time: new Date(startMs + i * stepMs).toISOString(),
       open: String(close - 0.2),
       high: String(close + 0.4),
       low: String(close - 0.5),
@@ -33,7 +40,7 @@ beforeEach(() => {
   provider.getKline = vi.fn(
     async (symbol: string, period: string, count: number, session?: string) => {
       fetched.push({ symbol, period, count, session });
-      return bars(300);
+      return period === '1h' ? bars(300, HOURLY_START, 3_600_000) : bars(300);
     },
   );
 });
@@ -61,10 +68,9 @@ describe('buildViewTimeframe', () => {
     }
   });
 
-  it('builds four-hour candles from four consecutive hourly bars', async () => {
-    const source = bars(240).map((bar, i) => ({
+  it('builds four-hour candles from the hourly bars in each 4h block of the clock', async () => {
+    const source = bars(240, HOURLY_START, 3_600_000).map((bar, i) => ({
       ...bar,
-      time: new Date(Date.parse(bar.time) + i * 60 * 60 * 1000).toISOString(),
       open: String(100 + i),
       high: String(101 + i),
       low: String(99 + i),

@@ -161,9 +161,9 @@ export function computeChecks(
 
   const c1 = last > ma150 && last > ma200;
   const c2 = ma150 > ma200;
-  const slope1m = ma2001m ? ((ma200 - ma2001m) / ma2001m) * 100 : 0;
-  const slope4m = ma2004m ? ((ma200 - ma2004m) / ma2004m) * 100 : 0;
-  const c3 = slope1m > 0;
+  const slope1m = ma2001m ? ((ma200 - ma2001m) / ma2001m) * 100 : null;
+  const slope4m = ma2004m ? ((ma200 - ma2004m) / ma2004m) * 100 : null;
+  const c3 = slope1m !== null && slope1m > 0;
   const c4 = ma50 > ma150 && ma50 > ma200;
   const c5 = last > ma50;
   const c6 = last >= low52w * 1.3;
@@ -194,8 +194,8 @@ export function computeChecks(
     },
     {
       label: '200MA 上行 ≥ 1 月',
-      status: status(c3),
-      val: `1月斜率 ${signed(slope1m, 2)}%, 4月 ${signed(slope4m, 2)}%`,
+      status: slope1m === null ? 'unknown' : status(c3),
+      val: `1月斜率 ${slope1m === null ? '—' : `${signed(slope1m, 2)}%`}, 4月 ${slope4m === null ? '—' : `${signed(slope4m, 2)}%`}`,
     },
     {
       label: '50MA > 150MA 且 > 200MA',
@@ -228,6 +228,35 @@ export function computeChecks(
           : '无 SPY 数据，未计算',
     },
   ];
+}
+
+/**
+ * A young stock has no 150- or 200-day average yet; the chart stands the price in for it
+ * so lines still draw, but a check against that stand-in would pass or fail on a number
+ * nobody measured (TD-DATA-01). Such checks are marked unknown instead.
+ */
+function markShortHistory(
+  checks: SepaCheck[],
+  bars: number,
+  have: { ma50: boolean; ma150: boolean; ma200: boolean },
+): void {
+  const needs: Array<Array<keyof typeof have>> = [
+    ['ma150', 'ma200'],
+    ['ma150', 'ma200'],
+    ['ma200'],
+    ['ma50', 'ma150', 'ma200'],
+    ['ma50'],
+  ];
+  needs.forEach((required, i) => {
+    const missing = required.filter((key) => !have[key]);
+    if (!missing.length || !checks[i]) return;
+    const days = Math.max(...missing.map((key) => Number(key.slice(2))));
+    checks[i] = {
+      ...checks[i],
+      status: 'unknown',
+      val: `历史不足：只有 ${bars} 根日线，${days}MA 需要 ${days} 根`,
+    };
+  });
 }
 
 export function autoVerdict(checks: SepaCheck[], last: number, ma50: number): SepaVerdict {
@@ -390,6 +419,12 @@ export function buildSepa(input: SepaInput): { built: SepaBuilt; meta: SepaMeta 
     spyExcess21d,
     spyExcess126d,
   );
+
+  markShortHistory(checks, closes.length, {
+    ma50: ma50Arr.at(-1) != null,
+    ma150: ma150Arr.at(-1) != null,
+    ma200: ma200Arr.at(-1) != null,
+  });
 
   const verdict = context.verdict ?? autoVerdict(checks, last, ma50Now);
 

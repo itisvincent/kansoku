@@ -3,6 +3,17 @@ import { toTs } from './indicators.js';
 import { classifySession, easternDate, easternMinuteOfDay } from '../marketdata/session.js';
 
 const BASELINE_DAYS = 5;
+const DEFAULT_BAR_MINUTES = 15;
+
+function smallestStep(minutes: number[]): number {
+  const sorted = [...minutes].sort((a, b) => a - b);
+  let best = Infinity;
+  for (let i = 1; i < sorted.length; i++) {
+    const gap = sorted[i] - sorted[i - 1];
+    if (gap > 0 && gap < best) best = gap;
+  }
+  return Number.isFinite(best) ? best : DEFAULT_BAR_MINUTES;
+}
 
 export function computeRelativeVolume(
   bars: RawBar[],
@@ -22,8 +33,14 @@ export function computeRelativeVolume(
     else byDay.set(date, [entry]);
   }
 
-  const todayEntries = byDay.get(today);
-  if (!todayEntries?.length) return null;
+  const todayAll = byDay.get(today);
+  if (!todayAll?.length) return null;
+  // The newest bar may still be forming: its partial volume would be compared with the
+  // full bar of earlier days and read low. Only bars that have closed count.
+  const barMinutes = smallestStep(todayAll.map((e) => e.minute));
+  const nowMinute = easternMinuteOfDay(Math.floor(now.getTime() / 1000));
+  const todayEntries = todayAll.filter((e) => e.minute + barMinutes <= nowMinute);
+  if (!todayEntries.length) return null;
   const cutoff = Math.max(...todayEntries.map((e) => e.minute));
   const todayCum = todayEntries.reduce((sum, e) => sum + e.volume, 0);
 

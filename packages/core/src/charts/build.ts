@@ -96,7 +96,8 @@ async function prepareInput(type: ChartType, body: Body): Promise<Record<string,
   switch (type) {
     case 'sepa': {
       const symbol = requireSymbol(body, 'sepa');
-      const count = Number(body.count ?? 260);
+      // 200-day average plus its 4-month (84-day) slope needs 284 days of bars.
+      const count = Number(body.count ?? 300);
       const provider = getProvider(marketOf(symbol));
       const [kline, spyKline, news, name] = await Promise.all([
         (async () =>

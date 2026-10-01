@@ -1,5 +1,6 @@
 import type { RawBar } from '@kansoku/shared/types';
 import { aggregateFourHour } from '../../charts/aggregateFourHour.js';
+import { marketOf } from '../../symbols/symbol.utils.js';
 
 export const DEFAULT_REASSESS_TFS = ['m5', 'm15', 'h1'] as const;
 export const MAX_REASSESS_TFS = 3;
@@ -51,7 +52,7 @@ export async function fetchAnalysisBars(
 ): Promise<RawBar[]> {
   if (tf === '4h') {
     const source = await fetchKline(symbol, '1h', Math.min(1000, Math.max(count * 4, count)));
-    return aggregateFourHour(source).slice(-count);
+    return aggregateFourHour(source, marketOf(symbol)).slice(-count);
   }
   return fetchKline(symbol, PROVIDER_PERIOD[tf], count);
 }

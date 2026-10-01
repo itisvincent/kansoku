@@ -28,8 +28,10 @@ describe('fetchAnalysisBars', () => {
       volume: 10,
     }));
     const bars = await fetchAnalysisBars(async () => hourly, 'MU.US', '4h', 60);
-    expect(bars.length).toBe(2);
+    // 09:30 New York start: blocks 08-12 (3 bars), 12-16 (4 bars), 16-20 (1 bar).
+    expect(bars.length).toBe(3);
     expect(bars[0].open).toBe(100);
-    expect(bars[0].close).toBe(103.5);
+    expect(bars[0].close).toBe(102.5);
+    expect(bars[1].close).toBe(106.5);
   });
 });

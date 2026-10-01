@@ -81,7 +81,9 @@ export async function buildViewTimeframe(input: {
     sourceBars = history.bars;
     historyStatus = history.status;
   }
-  const bars = (period === '4h' ? aggregateFourHour(sourceBars) : sourceBars).slice(-count);
+  const bars = (
+    period === '4h' ? aggregateFourHour(sourceBars, marketOf(symbol)) : sourceBars
+  ).slice(-count);
   if (bars.length < MACD_MIN_BARS) {
     throw new ClientError(
       asOf

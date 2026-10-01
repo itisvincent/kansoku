@@ -1,8 +1,24 @@
 import type { RawBar } from '@kansoku/shared/types';
+import { marketDate, marketMinuteOfDay } from '../marketdata/session.js';
+import type { Market } from '../symbols/symbol.utils.js';
 
-export function aggregateFourHour(bars: RawBar[]): RawBar[] {
+const BUCKET_MINUTES = 4 * 60;
+
+/**
+ * Which 4h block of the market's own clock a bar starts in (00-04, 04-08, ... local).
+ * Grouping by the clock keeps every 4h candle on the same hours: grouping every four
+ * source bars drifted whenever a bar was missing or a session had an odd count.
+ */
+function bucketOf(bar: RawBar, market: Market): string {
+  const ts = Math.floor(Date.parse(bar.time) / 1000);
+  const block = Math.floor(marketMinuteOfDay(market, ts) / BUCKET_MINUTES);
+  return `${marketDate(market, new Date(ts * 1000))}#${block}`;
+}
+
+export function aggregateFourHour(bars: RawBar[], market: Market = 'US'): RawBar[] {
   const result: RawBar[] = [];
   let group: RawBar[] = [];
+  let groupKey: string | null = null;
   const flush = () => {
     if (!group.length) return;
     result.push({
@@ -17,14 +33,12 @@ export function aggregateFourHour(bars: RawBar[]): RawBar[] {
   };
 
   for (const bar of bars) {
-    const previous = group.at(-1);
-    // A long gap marks a new market session (overnight/weekend). Do not make
-    // a synthetic candle that spans the gap just because the source is 1h.
-    if (previous && Date.parse(bar.time) - Date.parse(previous.time) > 2 * 60 * 60 * 1000) {
+    const key = bucketOf(bar, market);
+    if (key !== groupKey) {
       flush();
+      groupKey = key;
     }
     group.push(bar);
-    if (group.length === 4) flush();
   }
   flush();
   return result;
