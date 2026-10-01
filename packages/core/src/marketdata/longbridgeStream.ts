@@ -197,12 +197,7 @@ export class LongbridgeStream implements QuoteStream {
       }
     }
     if (drop.length) await this.socket.unsubscribe(drop, [SUB_TYPE_QUOTE]);
-    for (const symbol of drop) {
-      this.snapshots.delete(symbol);
-      this.prevCloseCache.delete(symbol);
-      this.lastRegular.delete(symbol);
-      this.lastPush.delete(symbol);
-    }
+    for (const symbol of drop) this.forgetSymbol(symbol);
     if (this.quoteRefs.size === 0) {
       if (this.prevCloseTimer) {
         clearInterval(this.prevCloseTimer);
@@ -238,19 +233,33 @@ export class LongbridgeStream implements QuoteStream {
         this.candleRefs.delete(key);
         this.candleListeners.delete(key);
         this.aggregator.remove(symbol, period);
-        if (!this.hasCandleForSymbol(symbol)) {
-          const types = this.quoteRefs.has(symbol)
-            ? [SUB_TYPE_TRADE]
-            : [SUB_TYPE_QUOTE, SUB_TYPE_TRADE];
-          void this.socket.unsubscribe([symbol], types).catch(() => {});
-        }
+        this.releaseCandleSocket(symbol);
       } else {
         this.candleRefs.set(key, next);
       }
     };
   }
 
+  /** Drops the trade (and, when no quote subscriber is left, quote) feed of a symbol. */
+  private releaseCandleSocket(symbol: string): void {
+    if (this.hasCandleForSymbol(symbol)) return;
+    const keepQuotes = this.quoteRefs.has(symbol);
+    const types = keepQuotes ? [SUB_TYPE_TRADE] : [SUB_TYPE_QUOTE, SUB_TYPE_TRADE];
+    void this.socket.unsubscribe([symbol], types).catch(() => {});
+    // No one receives this symbol's pushes any more; a kept snapshot would be served as
+    // a current quote while it goes stale.
+    if (!keepQuotes) this.forgetSymbol(symbol);
+  }
+
+  private forgetSymbol(symbol: string): void {
+    this.snapshots.delete(symbol);
+    this.prevCloseCache.delete(symbol);
+    this.lastRegular.delete(symbol);
+    this.lastPush.delete(symbol);
+  }
+
   private async activateCandle(symbol: string, period: CandlePeriod, seed?: RawBar): Promise<void> {
+    const key = candleKey(symbol, period);
     try {
       let last = seed;
       if (!last) {
@@ -258,8 +267,12 @@ export class LongbridgeStream implements QuoteStream {
         const rows = await getProvider().getKline(symbol, cliPeriod, 2, 'all');
         last = rows.at(-1);
       }
+      // The chart may have closed while the seed bar loaded; subscribing now would leave
+      // a feed no one releases.
+      if (!this.candleRefs.has(key)) return;
       if (last) this.aggregator.seed(symbol, period, last);
       await this.socket.subscribe([symbol], [SUB_TYPE_QUOTE, SUB_TYPE_TRADE]);
+      if (!this.candleRefs.has(key)) this.releaseCandleSocket(symbol);
     } catch (error) {
       console.warn('[longbridge-stream] candlestick subscribe failed', symbol, period, error);
     }

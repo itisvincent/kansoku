@@ -147,8 +147,11 @@ export function createLongbridgeProvider(
   let quotaCooldownUntil = 0;
   let cliFallbackCooldownUntil = 0;
   let cliFallbackInFlight = false;
+  // The account-wide history limit (301607) blocks every symbol; any other failure only
+  // cools down the symbol that failed.
   let historyCooldownUntil = 0;
   let historyFailure: unknown;
+  const symbolHistoryCooldown = new Map<string, { until: number; failure: unknown }>();
   let historyQueue: Promise<unknown> = Promise.resolve();
 
   function quotaError(label: string): ClientError {
@@ -268,6 +271,8 @@ export function createLongbridgeProvider(
         .then(async () => {
           if (Date.now() < historyCooldownUntil) throw historyFailure;
           if (Date.now() < quotaCooldownUntil) throw quotaError('history');
+          const symbolCooldown = symbolHistoryCooldown.get(symbol);
+          if (symbolCooldown && Date.now() < symbolCooldown.until) throw symbolCooldown.failure;
           const args = [
             'kline',
             'history',
@@ -291,13 +296,13 @@ export function createLongbridgeProvider(
               volume: row.volume,
             }));
           } catch (error) {
-            historyFailure = error;
             const message = error instanceof Error ? error.message : String(error);
-            historyCooldownUntil =
-              Date.now() +
-              (/301607|history candlestick symbol count out of limit/.test(message)
-                ? 30 * 60_000
-                : 60_000);
+            if (/301607|history candlestick symbol count out of limit/.test(message)) {
+              historyFailure = error;
+              historyCooldownUntil = Date.now() + 30 * 60_000;
+            } else {
+              symbolHistoryCooldown.set(symbol, { until: Date.now() + 60_000, failure: error });
+            }
             if (isQuotaError(message)) quotaCooldownUntil = Date.now() + QUOTA_COOLDOWN_MS;
             throw error;
           }

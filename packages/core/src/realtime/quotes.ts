@@ -90,8 +90,13 @@ async function refreshBaseSymbols(): Promise<void> {
       const added = next.filter((s) => !baseSymbols.includes(s));
       baseSymbols = next;
       baseFetchedAt = Date.now();
-      if (added.length) await retainSymbols(added).catch(() => {});
-      if (dropped.length) await releaseSymbols(dropped).catch(() => {});
+      // Only adjust a list that is already held. Before that, ensureBase retains the whole
+      // list once; retaining the additions here as well counted every symbol twice, so the
+      // last release left it subscribed.
+      if (baseRetained) {
+        if (added.length) await retainSymbols(added).catch(() => {});
+        if (dropped.length) await releaseSymbols(dropped).catch(() => {});
+      }
     }
   })().finally(() => {
     baseRefreshInFlight = null;

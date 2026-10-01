@@ -19,7 +19,15 @@ async function attachComments(
     if (ready) push(JSON.stringify({ type: 'comment', comment }));
     else buffered.push(comment);
   });
-  const comments = await listComments(symbol, easternDate());
+  let comments: CockpitComment[];
+  try {
+    comments = await listComments(symbol, easternDate());
+  } catch (error) {
+    // Failing up is only safe with nothing left behind: a half-open listener would keep
+    // buffering comments for a channel that never opened.
+    unsubComment();
+    throw error;
+  }
   push(JSON.stringify({ type: 'init', comments }));
   const seen = new Set(comments.map((c) => `${c.ts} ${c.text}`));
   for (const comment of buffered) {

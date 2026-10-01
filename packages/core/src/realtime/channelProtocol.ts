@@ -135,7 +135,13 @@ async function attachAnnotations(
     if (ready) pushAnnotationsUpdate(push, event);
     else buffered.push(event);
   });
-  const annotations = await loadAnnotations(symbol);
+  let annotations: Awaited<ReturnType<typeof loadAnnotations>>;
+  try {
+    annotations = await loadAnnotations(symbol);
+  } catch (error) {
+    unsub();
+    throw error;
+  }
   push(JSON.stringify({ type: 'init', annotations }));
   ready = true;
   for (const event of buffered) pushAnnotationsUpdate(push, event);
@@ -165,7 +171,9 @@ async function attachChannel(msg: WsSub, push: (envelope: string) => void): Prom
 }
 
 export function handleConnection(conn: Connection): void {
-  const subs = new Map<string, () => void>();
+  // Each attach gets its own token, so a fast unsub + resub of the same key cannot let the
+  // first attach finish late and overwrite (and so leak) the second one's cleanup.
+  const subs = new Map<string, { token: object; unsub: () => void }>();
   let closed = false;
 
   const send = (key: string, envelope: string) => {
@@ -181,20 +189,34 @@ export function handleConnection(conn: Connection): void {
     }
     if (!msg || closed) return;
     if (msg.op === 'unsub') {
-      subs.get(msg.key)?.();
+      subs.get(msg.key)?.unsub();
       subs.delete(msg.key);
       return;
     }
-    if (subs.has(msg.key) || subs.size >= MAX_CHANNELS_PER_SOCKET) return;
-    subs.set(msg.key, () => {});
+    if (subs.has(msg.key)) return;
+    if (subs.size >= MAX_CHANNELS_PER_SOCKET) {
+      send(
+        msg.key,
+        JSON.stringify({
+          type: 'status',
+          degraded: true,
+          error: `too many live channels on one connection (limit ${MAX_CHANNELS_PER_SOCKET})`,
+        }),
+      );
+      return;
+    }
+    const token = {};
+    subs.set(msg.key, { token, unsub: () => {} });
+    const stillMine = () => !closed && subs.get(msg.key)?.token === token;
     try {
       const unsub = await attachChannel(msg, (envelope) => send(msg.key, envelope));
-      if (closed || !subs.has(msg.key)) {
+      if (!stillMine()) {
         unsub();
         return;
       }
-      subs.set(msg.key, unsub);
+      subs.set(msg.key, { token, unsub });
     } catch (err) {
+      if (!stillMine()) return;
       subs.delete(msg.key);
       send(
         msg.key,
@@ -212,7 +234,7 @@ export function handleConnection(conn: Connection): void {
   });
   conn.onClose(() => {
     closed = true;
-    for (const unsub of subs.values()) unsub();
+    for (const { unsub } of subs.values()) unsub();
     subs.clear();
   });
 }

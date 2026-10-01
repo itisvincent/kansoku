@@ -186,6 +186,9 @@ async function messageBytes(data: unknown): Promise<Uint8Array> {
 
 export class LongbridgeQuoteSocket {
   private socket: WebSocketLike | null = null;
+  // Open is not ready: until AUTH (or RECONNECT) is answered the server drops or rejects
+  // other requests, so callers wait for this instead of readyState.
+  private authenticated = false;
   private connecting: Promise<void> | null = null;
   private requestId = 0;
   private pending = new Map<number, Pending>();
@@ -215,8 +218,12 @@ export class LongbridgeQuoteSocket {
     return () => this.tradeListeners.delete(listener);
   }
 
+  private isReady(): boolean {
+    return this.authenticated && this.socket?.readyState === 1;
+  }
+
   async connect(): Promise<void> {
-    if (this.socket?.readyState === 1) return;
+    if (this.isReady()) return;
     if (this.connecting) return this.connecting;
     this.closedExplicitly = false;
     this.connecting = this.openAndAuthenticate().finally(() => {
@@ -243,9 +250,10 @@ export class LongbridgeQuoteSocket {
     const socket = (this.deps.createSocket ?? defaultCreateSocket)(url.toString());
     socket.binaryType = 'arraybuffer';
     this.socket = socket;
+    this.authenticated = false;
     socket.addEventListener('message', (event) => void this.handleMessage(event.data));
     socket.addEventListener('close', () =>
-      this.handleClose(new Error('Longbridge WebSocket closed')),
+      this.handleClose(socket, new Error('Longbridge WebSocket closed')),
     );
 
     const connectTimeoutMs = this.deps.connectTimeoutMs ?? CONNECT_TIMEOUT_MS;
@@ -300,10 +308,14 @@ export class LongbridgeQuoteSocket {
       };
       this.reconnectAttempt = 0;
       await this.restoreSubscriptions();
+      if (this.socket === socket) this.authenticated = true;
     } catch (error) {
       if (error instanceof LongbridgeNetworkError)
         (this.deps.reportEndpointFailure ?? reportLongbridgeEndpointFailure)();
-      if (this.socket === socket) this.socket = null;
+      if (this.socket === socket) {
+        this.socket = null;
+        this.authenticated = false;
+      }
       try {
         socket.close();
       } catch {
@@ -472,8 +484,16 @@ export class LongbridgeQuoteSocket {
     }
   }
 
-  private handleClose(error: Error): void {
-    if (this.socket) this.socket = null;
+  private handleClose(socket: WebSocketLike, error: Error): void {
+    // A socket that was already replaced closing late must not tear down the new one.
+    if (this.socket !== socket) return;
+    this.socket = null;
+    this.authenticated = false;
+    this.failOutstanding(error);
+    if (!this.closedExplicitly && this.desired.size > 0) this.scheduleReconnect();
+  }
+
+  private failOutstanding(error: Error): void {
     for (const pending of this.pending.values()) {
       clearTimeout(pending.timer);
       pending.reject(error);
@@ -482,7 +502,6 @@ export class LongbridgeQuoteSocket {
     for (const queued of this.requestQueue.splice(0)) queued.reject(error);
     if (this.requestQueueTimer) clearTimeout(this.requestQueueTimer);
     this.requestQueueTimer = null;
-    if (!this.closedExplicitly && this.desired.size > 0) this.scheduleReconnect();
   }
 
   private scheduleReconnect(): void {
@@ -566,7 +585,8 @@ export class LongbridgeQuoteSocket {
   }
 
   async subscribe(symbols: string[], subTypes: number[]): Promise<void> {
-    const alreadyConnected = this.socket?.readyState === 1;
+    // When not ready, connect() replays every desired subscription after login.
+    const alreadyConnected = this.isReady();
     for (const symbol of symbols) {
       const current = this.desired.get(symbol) ?? new Set<number>();
       for (const type of subTypes) current.add(type);
@@ -584,10 +604,20 @@ export class LongbridgeQuoteSocket {
       for (const type of subTypes) current.delete(type);
       if (current.size === 0) this.desired.delete(symbol);
     }
-    if (this.socket?.readyState === 1) {
+    if (this.isReady()) {
       await this.request(COMMAND_UNSUBSCRIBE, encodeUnsubscribeRequest(symbols, subTypes));
     }
-    if (this.desired.size === 0 && this.pending.size === 0) this.close();
+    // Close only when nothing is waiting: queued queries would be rejected as "closed"
+    // and fall back to the CLI.
+    if (
+      this.desired.size === 0 &&
+      this.pending.size === 0 &&
+      this.requestQueue.length === 0 &&
+      this.activeRequests === 0 &&
+      !this.connecting
+    ) {
+      this.close();
+    }
   }
 
   private async restoreSubscriptions(): Promise<void> {
@@ -608,11 +638,12 @@ export class LongbridgeQuoteSocket {
     this.closedExplicitly = true;
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
     this.reconnectTimer = null;
-    if (this.requestQueueTimer) clearTimeout(this.requestQueueTimer);
-    this.requestQueueTimer = null;
-    const error = new Error('Longbridge WebSocket closed');
-    for (const queued of this.requestQueue.splice(0)) queued.reject(error);
-    this.socket?.close();
+    // The close event of this socket is ignored once it is detached below, so fail what
+    // is still waiting here instead of leaving it to time out.
+    this.failOutstanding(new Error('Longbridge WebSocket closed'));
+    const socket = this.socket;
     this.socket = null;
+    this.authenticated = false;
+    socket?.close();
   }
 }
