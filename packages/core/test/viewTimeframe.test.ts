@@ -8,7 +8,7 @@ vi.mock('../src/marketdata/registry.js', () => ({
   getProvider: () => provider,
 }));
 
-const { buildViewTimeframe, VIEW_PERIODS } = await import('../src/charts/viewTimeframe.js');
+const { barClosedBy, buildViewTimeframe, VIEW_PERIODS } = await import('../src/charts/viewTimeframe.js');
 
 // 11:00Z is 07:00 in New York — pre-market — so a 300-minute run crosses into
 // the regular session and exercises the off-session mask.
@@ -130,13 +130,25 @@ describe('buildViewTimeframe', () => {
   });
 
   it('truncates to as_of so a frozen chart never shows bars from after its analysis', async () => {
-    const all = bars(300);
-    const cutoff = all[199].time;
+    const all = bars(300, Date.parse('2026-07-20T11:00:00.000Z'), 30 * 60_000);
+    provider.getKline = vi.fn(async () => all);
+    // Bar 199 closed 30 minutes after it started.
+    const cutoff = new Date(Date.parse(all[199].time) + 30 * 60_000).toISOString();
 
     const result = await buildViewTimeframe({ symbol: 'CUT.US', period: '30m', as_of: cutoff });
 
     expect(result.bars).toBe(200);
-    expect(result.tf.candles.at(-1)?.time).toBe(Math.floor(Date.parse(cutoff) / 1000));
+    expect(result.tf.candles.at(-1)?.time).toBe(Math.floor(Date.parse(all[199].time) / 1000));
+  });
+
+  it('leaves out the bar that was still forming at as_of', async () => {
+    const all = bars(300, Date.parse('2026-07-20T11:00:00.000Z'), 30 * 60_000);
+    provider.getKline = vi.fn(async () => all);
+    const cutoff = new Date(Date.parse(all[199].time) + 10 * 60_000).toISOString();
+
+    const result = await buildViewTimeframe({ symbol: 'FORM.US', period: '30m', as_of: cutoff });
+
+    expect(result.bars).toBe(199);
   });
 
   it('errors instead of silently showing fresh bars when as_of predates the available history', async () => {
@@ -167,5 +179,18 @@ describe('buildViewTimeframe', () => {
 
     expect(fetched.map((f) => f.count)).toEqual([2000, 60, 1000]);
     expect(fetched.every((f) => f.session === 'all')).toBe(true);
+  });
+});
+
+describe('barClosedBy', () => {
+  const day = '2026-09-30T04:00:00.000Z'; // the 30 Sep bar, stamped at midnight New York
+
+  it('does not count a daily bar as closed during its own session', () => {
+    expect(barClosedBy(day, 'day', Date.parse('2026-09-30T17:00:00.000Z'), 'US')).toBe(false);
+  });
+
+  it('counts it once the regular session is over', () => {
+    expect(barClosedBy(day, 'day', Date.parse('2026-09-30T21:00:00.000Z'), 'US')).toBe(true);
+    expect(barClosedBy(day, 'day', Date.parse('2026-10-01T14:00:00.000Z'), 'US')).toBe(true);
   });
 });

@@ -1,6 +1,7 @@
 import type { IntradayDayContext, RawBar, SessionKind } from '@kansoku/shared/types';
 import { sma, toTs } from './indicators.js';
-import { classifySession, easternDate } from '../marketdata/session.js';
+import { classifySession, marketDate } from '../marketdata/session.js';
+import type { Market } from '../symbols/symbol.utils.js';
 
 const OPENING_RANGE_BARS = 6;
 
@@ -31,24 +32,30 @@ function rangeOf(bars: RawBar[]): PriceRange | null {
   return Number.isFinite(high) && Number.isFinite(low) ? { high, low } : null;
 }
 
-function todaySessionBars(bars: RawBar[], now: Date, kind: SessionKind): RawBar[] {
-  const today = easternDate(now);
+function todaySessionBars(bars: RawBar[], now: Date, kind: SessionKind, market: Market): RawBar[] {
+  const today = marketDate(market, now);
   return bars.filter((bar) => {
     const ts = toTs(bar.time);
-    return classifySession(ts) === kind && easternDate(new Date(ts * 1000)) === today;
+    return (
+      classifySession(ts, market) === kind && marketDate(market, new Date(ts * 1000)) === today
+    );
   });
 }
 
-export function preMarketRange(bars: RawBar[], now: Date): PriceRange | null {
-  return rangeOf(todaySessionBars(bars, now, 'pre'));
+export function preMarketRange(
+  bars: RawBar[],
+  now: Date,
+  market: Market = 'US',
+): PriceRange | null {
+  return rangeOf(todaySessionBars(bars, now, 'pre', market));
 }
 
-export function regularRange(bars: RawBar[], now: Date): PriceRange | null {
-  return rangeOf(todaySessionBars(bars, now, 'regular'));
+export function regularRange(bars: RawBar[], now: Date, market: Market = 'US'): PriceRange | null {
+  return rangeOf(todaySessionBars(bars, now, 'regular', market));
 }
 
-export function openingRange(bars: RawBar[], now: Date): PriceRange | null {
-  const regular = todaySessionBars(bars, now, 'regular');
+export function openingRange(bars: RawBar[], now: Date, market: Market = 'US'): PriceRange | null {
+  const regular = todaySessionBars(bars, now, 'regular', market);
   if (regular.length <= OPENING_RANGE_BARS) return null;
   return rangeOf(regular.slice(0, OPENING_RANGE_BARS));
 }
@@ -66,6 +73,7 @@ export function buildDayContext(
   m5Bars: RawBar[],
   now: Date,
   vwap: number | null,
+  market: Market = 'US',
 ): IntradayDayContext {
   const closes = dayBars.map((b) => Number(b.close)).filter(Number.isFinite);
   const close = closes.at(-1) ?? null;
@@ -86,16 +94,22 @@ export function buildDayContext(
     daily_ma50: ma50,
     high_20d: range20?.high ?? null,
     low_20d: range20?.low ?? null,
-    prev_day: prevDayLevels(dayBars, now),
-    pre_market: preMarketRange(m5Bars, now),
-    opening_range: openingRange(m5Bars, now),
+    prev_day: prevDayLevels(dayBars, now, market),
+    pre_market: preMarketRange(m5Bars, now, market),
+    opening_range: openingRange(m5Bars, now, market),
     vwap,
   };
 }
 
-export function prevDayLevels(dayBars: RawBar[], now: Date): PrevDayLevels | null {
-  const today = easternDate(now);
-  const prior = dayBars.filter((bar) => easternDate(new Date(toTs(bar.time) * 1000)) < today);
+export function prevDayLevels(
+  dayBars: RawBar[],
+  now: Date,
+  market: Market = 'US',
+): PrevDayLevels | null {
+  const today = marketDate(market, now);
+  const prior = dayBars.filter(
+    (bar) => marketDate(market, new Date(toTs(bar.time) * 1000)) < today,
+  );
   if (!prior.length) return null;
   const last = prior.at(-1)!;
   const high = Number(last.high);

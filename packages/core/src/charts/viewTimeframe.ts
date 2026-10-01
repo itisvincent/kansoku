@@ -4,7 +4,8 @@ import { MACD_MIN_BARS } from '../analysis/intraday/constants.js';
 import { buildTimeframeView } from '../analysis/intraday/orchestrator.js';
 import { coerceIntradayTimeframe } from '../analysis/intraday/timeframe.js';
 import { getProvider } from '../marketdata/registry.js';
-import { marketOf } from '../symbols/symbol.utils.js';
+import { marketOf, type Market } from '../symbols/symbol.utils.js';
+import { classifySession, marketDate } from '../marketdata/session.js';
 import { loadViewHistory, type HistoryStatus } from './viewHistory.js';
 import { aggregateFourHour } from './aggregateFourHour.js';
 
@@ -39,11 +40,56 @@ function clampCount(raw: number | string | undefined): number {
   return Math.min(MAX_COUNT, Math.max(MACD_MIN_BARS, count));
 }
 
-function truncateAt(bars: RawBar[], asOf: string | undefined): RawBar[] {
+const INTRADAY_SOURCE_MS: Record<string, number> = {
+  '1m': 60_000,
+  '30m': 30 * 60_000,
+  '1h': 60 * 60_000,
+};
+const WEEK_MS = 7 * 86_400_000;
+
+/**
+ * Whether a bar had finished by the cutoff. A bar fetched today carries its whole range,
+ * so keeping the bar that contains the analysis time would show the analysis a high and
+ * low that came after it.
+ */
+export function barClosedBy(
+  barTime: string,
+  period: string,
+  cutoffMs: number,
+  market: Market,
+): boolean {
+  const start = Date.parse(barTime);
+  if (!Number.isFinite(start)) return false;
+  const length = INTRADAY_SOURCE_MS[period];
+  if (length !== undefined) return start + length <= cutoffMs;
+  if (period === 'day') {
+    const barDate = marketDate(market, new Date(start));
+    const cutoffDate = marketDate(market, new Date(cutoffMs));
+    if (barDate !== cutoffDate) return barDate < cutoffDate;
+    // Same day: complete only once the regular session is over.
+    const session = classifySession(Math.floor(cutoffMs / 1000), market);
+    return session === 'post' || session === 'overnight';
+  }
+  if (period === 'week') return start + WEEK_MS <= cutoffMs;
+  if (period === 'month') {
+    return (
+      marketDate(market, new Date(start)).slice(0, 7) <
+      marketDate(market, new Date(cutoffMs)).slice(0, 7)
+    );
+  }
+  return start <= cutoffMs;
+}
+
+function truncateAt(
+  bars: RawBar[],
+  asOf: string | undefined,
+  period: string,
+  market: Market,
+): RawBar[] {
   if (!asOf) return bars;
   const cutoff = Date.parse(asOf);
   if (!Number.isFinite(cutoff)) return bars;
-  return bars.filter((b) => Date.parse(b.time) <= cutoff);
+  return bars.filter((b) => barClosedBy(b.time, period, cutoff, market));
 }
 
 export async function buildViewTimeframe(input: {
@@ -70,15 +116,18 @@ export async function buildViewTimeframe(input: {
 
   const sourcePeriod = period === '4h' ? '1h' : period;
   const sourceCount = period === '4h' ? Math.min(MAX_SOURCE_COUNT, count * 4) : count;
-  const provider = getProvider(marketOf(symbol));
+  const market = marketOf(symbol);
+  const provider = getProvider(market);
   let sourceBars = truncateAt(
     await provider.getKline(symbol, sourcePeriod, sourceCount, 'all'),
     asOf,
+    sourcePeriod,
+    market,
   );
   let historyStatus: HistoryStatus | undefined;
   if (period === '4h') {
     const history = await loadViewHistory(provider, symbol, sourceBars, count * 4, asOf);
-    sourceBars = history.bars;
+    sourceBars = truncateAt(history.bars, asOf, sourcePeriod, market);
     historyStatus = history.status;
   }
   const bars = (

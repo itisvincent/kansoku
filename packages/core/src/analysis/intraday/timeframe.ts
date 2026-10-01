@@ -120,7 +120,7 @@ export function coerceIntradayTimeframe(
     return null;
   };
 
-  const vwap = VWAP_TIMEFRAMES.has(key) ? sessionVwap(bars) : undefined;
+  const vwap = VWAP_TIMEFRAMES.has(key) ? sessionVwap(bars, market) : undefined;
   const macdCrosses = findMacdCrosses(hist, timesTs);
   const structure = classifyMacdStructure(dif, hist, timesTs);
   const fvgZones = detectFvgZones(candles);

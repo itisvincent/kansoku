@@ -1,17 +1,18 @@
 import type { LinePoint, RawBar } from '@kansoku/shared/types';
 import { toTs } from './indicators.js';
-import { easternDate } from '../marketdata/session.js';
+import { marketDate } from '../marketdata/session.js';
+import type { Market } from '../symbols/symbol.utils.js';
 
-// Anchored per US-Eastern trading day, extended hours included — matches how
-// the chart displays ETH bars, so the line never jumps mid-view.
-export function sessionVwap(bars: RawBar[]): LinePoint[] {
+// Anchored per trading day on the market's own clock, extended hours included —
+// matches how the chart displays ETH bars, so the line never jumps mid-view.
+export function sessionVwap(bars: RawBar[], market: Market = 'US'): LinePoint[] {
   const out: LinePoint[] = [];
   let day = '';
   let pv = 0;
   let vol = 0;
   for (const bar of bars) {
     const ts = toTs(bar.time);
-    const d = easternDate(new Date(ts * 1000));
+    const d = marketDate(market, new Date(ts * 1000));
     if (d !== day) {
       day = d;
       pv = 0;

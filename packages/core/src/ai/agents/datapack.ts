@@ -231,11 +231,11 @@ export async function buildCommentPack(
     prediction: predictionSummary(doc),
     recent_comments: comments.slice(-RECENT_COMMENTS),
     day_levels: {
-      prev_day: prevDayLevels(dayBars, now),
-      pre_market: preMarketRange(m5Bars, now),
-      opening_range: openingRange(m5Bars, now),
+      prev_day: prevDayLevels(dayBars, now, marketOf(symbol)),
+      pre_market: preMarketRange(m5Bars, now, marketOf(symbol)),
+      opening_range: openingRange(m5Bars, now, marketOf(symbol)),
     },
-    rel_volume: computeRelativeVolume(m15Bars, now),
+    rel_volume: computeRelativeVolume(m15Bars, now, marketOf(symbol)),
   };
 }
 
@@ -351,13 +351,19 @@ export async function buildReassessPack(
     analysis_timeframes: keys,
     timeframes,
     flow,
-    rel_volume: relvolBars.length ? computeRelativeVolume(relvolBars, now) : null,
+    rel_volume: relvolBars.length ? computeRelativeVolume(relvolBars, now, marketOf(symbol)) : null,
     day_levels: {
-      prev_day: prevDayLevels(dayBars, now),
-      pre_market: preMarketRange(m5Bars, now),
-      opening_range: openingRange(m5Bars, now),
+      prev_day: prevDayLevels(dayBars, now, marketOf(symbol)),
+      pre_market: preMarketRange(m5Bars, now, marketOf(symbol)),
+      opening_range: openingRange(m5Bars, now, marketOf(symbol)),
     },
-    day_context: buildDayContext(dayBars, m5Bars, now, lastVwap(sessionVwap(m5Bars))),
+    day_context: buildDayContext(
+      dayBars,
+      m5Bars,
+      now,
+      lastVwap(sessionVwap(m5Bars, marketOf(symbol))),
+      marketOf(symbol),
+    ),
     options_levels: optionsLevels,
     event_risk: eventRisk,
     lessons,

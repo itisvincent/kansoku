@@ -313,6 +313,7 @@ export function buildIntraday(input: IntradayInput): { built: IntradayBuilt; met
     tfRaw.m5 as RawBar[],
     new Date(lastM5.time * 1000),
     tfs.m5.summary.last_vwap ?? null,
+    marketOf(symbol),
   );
 
   const shares = input.position?.shares;

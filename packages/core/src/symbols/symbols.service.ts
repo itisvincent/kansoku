@@ -143,7 +143,7 @@ export const symbolsService: SymbolsApi = withFeatureGates(symbolsRoutes, {
   async relvol(input) {
     const sym = normalizeSymbol(input.sym);
     const bars = await getProvider(marketOf(sym)).getKline(sym, '15m', 500);
-    return computeRelativeVolume(bars);
+    return computeRelativeVolume(bars, new Date(), marketOf(sym));
   },
 
   async news(input) {

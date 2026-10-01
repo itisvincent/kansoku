@@ -1,10 +1,6 @@
 import type { CockpitPosition, RelativeVolume } from '@kansoku/shared/types';
 import { buildCockpitPosition } from '../cockpit/position.js';
-import {
-  entryPlanFromDoc,
-  latestIntradayDoc,
-  type EntryPlan,
-} from '../cockpit/entryPlan.js';
+import { entryPlanFromDoc, latestIntradayDoc, type EntryPlan } from '../cockpit/entryPlan.js';
 import { getProvider, getStream } from '../marketdata/registry.js';
 import type { RawPosition } from '../marketdata/types.js';
 import { computeRelativeVolume } from '../analysis/relvol.js';
@@ -73,7 +69,9 @@ async function refresh(symbol: string, state: State): Promise<void> {
       ]);
       state.positions = positions;
       state.plan = entryPlanFromDoc(doc);
-      state.relvol = bars ? computeRelativeVolume(bars) : state.relvol;
+      state.relvol = bars
+        ? computeRelativeVolume(bars, new Date(), marketOf(symbol))
+        : state.relvol;
       emitStatus(state.emitter, false);
       pushLatest(state, symbol);
     } catch (err) {

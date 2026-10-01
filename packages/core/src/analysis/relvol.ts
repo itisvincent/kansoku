@@ -1,6 +1,7 @@
 import type { RawBar, RelativeVolume } from '@kansoku/shared/types';
 import { toTs } from './indicators.js';
-import { classifySession, easternDate, easternMinuteOfDay } from '../marketdata/session.js';
+import { classifySession, marketDate, marketMinuteOfDay } from '../marketdata/session.js';
+import type { Market } from '../symbols/symbol.utils.js';
 
 const BASELINE_DAYS = 5;
 const DEFAULT_BAR_MINUTES = 15;
@@ -18,16 +19,17 @@ function smallestStep(minutes: number[]): number {
 export function computeRelativeVolume(
   bars: RawBar[],
   now: Date = new Date(),
+  market: Market = 'US',
 ): RelativeVolume | null {
-  const today = easternDate(now);
+  const today = marketDate(market, now);
   const byDay = new Map<string, { minute: number; volume: number }[]>();
   for (const bar of bars) {
     const ts = toTs(bar.time);
-    if (classifySession(ts) !== 'regular') continue;
+    if (classifySession(ts, market) !== 'regular') continue;
     const volume = Number(bar.volume);
     if (!Number.isFinite(volume)) continue;
-    const date = easternDate(new Date(ts * 1000));
-    const entry = { minute: easternMinuteOfDay(ts), volume };
+    const date = marketDate(market, new Date(ts * 1000));
+    const entry = { minute: marketMinuteOfDay(market, ts), volume };
     const list = byDay.get(date);
     if (list) list.push(entry);
     else byDay.set(date, [entry]);
@@ -38,7 +40,7 @@ export function computeRelativeVolume(
   // The newest bar may still be forming: its partial volume would be compared with the
   // full bar of earlier days and read low. Only bars that have closed count.
   const barMinutes = smallestStep(todayAll.map((e) => e.minute));
-  const nowMinute = easternMinuteOfDay(Math.floor(now.getTime() / 1000));
+  const nowMinute = marketMinuteOfDay(market, Math.floor(now.getTime() / 1000));
   const todayEntries = todayAll.filter((e) => e.minute + barMinutes <= nowMinute);
   if (!todayEntries.length) return null;
   const cutoff = Math.max(...todayEntries.map((e) => e.minute));
