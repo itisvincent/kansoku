@@ -6,9 +6,31 @@ import type {
 } from '../types.js';
 import { readFutuAccount, readFutuWatchlist, type FutuAccountSnapshot } from './futuAccount.js';
 import { readFutuSettings, type FutuSettings } from './futuSettings.js';
+import { getActiveWatchedMarketsStore } from '../watchedMarketsStore.js';
+
+const MARKET_SUFFIXES: Record<string, string[]> = { US: ['.US'], HK: ['.HK'], CN: ['.SH', '.SZ'] };
+
+/**
+ * Keeps the symbols in the user's watched markets (Settings > Display). A Futu "All"
+ * watchlist mixes every market; Kansoku's market-wide views follow the configured
+ * markets (TD-LANG-03), so the rest stays out.
+ */
+export function inWatchedMarkets(symbols: string[], markets: readonly string[]): string[] {
+  const suffixes = markets.flatMap((m) => MARKET_SUFFIXES[m] ?? []);
+  return symbols.filter((s) => suffixes.some((suffix) => s.toUpperCase().endsWith(suffix)));
+}
+
+export function watchedMarketsOrDefault(): string[] {
+  try {
+    return getActiveWatchedMarketsStore().get();
+  } catch {
+    return ['US'];
+  }
+}
 
 export interface WithFutuDeps {
   settings: () => FutuSettings;
+  watchedMarkets?: () => readonly string[];
   account: (settings: FutuSettings) => Promise<FutuAccountSnapshot>;
   watchlist: (settings: FutuSettings) => Promise<string[]>;
   warn: (message: string) => void;
@@ -75,6 +97,36 @@ export function mergeHoldings(lists: RawPortfolioHolding[][]): RawPortfolioHoldi
   return [...bySymbol.values()];
 }
 
+type Settled<T> = { ok: true; value: T } | { ok: false; error: unknown };
+
+function settle<T>(promise: Promise<T>): Promise<Settled<T>> {
+  return promise.then(
+    (value) => ({ ok: true as const, value }),
+    (error: unknown) => ({ ok: false as const, error }),
+  );
+}
+
+function unwrap<T>(result: Settled<T>): T {
+  if (result.ok) return result.value;
+  throw result.error;
+}
+
+function combineOverview(
+  own: RawPortfolio['overview'],
+  futu: RawPortfolio['overview'] | null,
+): RawPortfolio['overview'] {
+  if (!futu || own.currency !== futu.currency) return own;
+  const add = (a: string, b: string) => String(num(a) + num(b));
+  return {
+    currency: own.currency,
+    total_asset: add(own.total_asset, futu.total_asset),
+    market_cap: add(own.market_cap, futu.market_cap),
+    total_cash: add(own.total_cash, futu.total_cash),
+    total_pl: add(own.total_pl, futu.total_pl),
+    total_today_pl: add(own.total_today_pl, futu.total_today_pl),
+  };
+}
+
 /**
  * Adds the user's Futu account (through OpenD) to a market-data provider: positions,
  * portfolio holdings and the watchlist. Prices, candles and everything else still come
@@ -89,9 +141,13 @@ export function withFutu(
     const settings = deps.settings();
     return settings.enabled ? settings : null;
   };
-  const futuPart = async <T>(label: string, read: (s: FutuSettings) => Promise<T>) => {
+  const futuPart = async <T>(
+    label: string,
+    read: (s: FutuSettings) => Promise<T>,
+    when: (s: FutuSettings) => boolean = () => true,
+  ) => {
     const settings = futuOn();
-    if (!settings) return null;
+    if (!settings || !when(settings)) return null;
     try {
       return await read(settings);
     } catch (error) {
@@ -103,32 +159,44 @@ export function withFutu(
   return {
     ...base,
 
+    // The base broker can fail on its own (e.g. a Longbridge login without the trading
+    // scope); the Futu answer is then still returned. Only when both fail does it throw.
     async getPositions(): Promise<RawPosition[]> {
       const [own, futu] = await Promise.all([
-        base.getPositions ? base.getPositions() : Promise.resolve([]),
+        settle(base.getPositions ? base.getPositions() : Promise.resolve([])),
         futuPart('positions', deps.account),
       ]);
-      return futu ? mergePositions([own, futu.positions]) : own;
+      if (!futu) return unwrap(own);
+      return own.ok ? mergePositions([own.value, futu.positions]) : futu.positions;
     },
 
     async getWatchlistSymbols(): Promise<string[]> {
       const [own, futu] = await Promise.all([
-        base.getWatchlistSymbols ? base.getWatchlistSymbols() : Promise.resolve([]),
-        futuPart('watchlist', deps.watchlist),
+        settle(base.getWatchlistSymbols ? base.getWatchlistSymbols() : Promise.resolve([])),
+        futuPart('watchlist', deps.watchlist, (s) => s.watchlist),
       ]);
-      return futu ? [...new Set([...own, ...futu])] : own;
+      if (!futu) return unwrap(own);
+      const added = inWatchedMarkets(futu, (deps.watchedMarkets ?? watchedMarketsOrDefault)());
+      return own.ok ? [...new Set([...own.value, ...added])] : added;
     },
 
     ...(base.getPortfolio
       ? {
           async getPortfolio(): Promise<RawPortfolio> {
             const [own, futu] = await Promise.all([
-              base.getPortfolio!(),
+              settle(base.getPortfolio!()),
               futuPart('portfolio', deps.account),
             ]);
-            // The account totals stay the base broker's: Futu reports its own cash in its
-            // own currencies, and adding them up would need FX rates.
-            return futu ? { ...own, holdings: mergeHoldings([own.holdings, futu.holdings]) } : own;
+            if (!futu) return unwrap(own);
+            if (!own.ok) {
+              if (!futu.overview) throw own.error;
+              return { overview: futu.overview, holdings: futu.holdings };
+            }
+            return {
+              // Totals add up only in one currency; otherwise the base broker's stand.
+              overview: combineOverview(own.value.overview, futu.overview),
+              holdings: mergeHoldings([own.value.holdings, futu.holdings]),
+            };
           },
         }
       : {}),

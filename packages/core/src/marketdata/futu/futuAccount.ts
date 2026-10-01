@@ -1,4 +1,4 @@
-import type { RawPortfolioHolding, RawPosition } from '../types.js';
+import type { RawPortfolio, RawPortfolioHolding, RawPosition } from '../types.js';
 import { openOpenDSession, OpenDError, PROTO, type OpenDSession } from './openDClient.js';
 import { readFutuSettings, type FutuSettings } from './futuSettings.js';
 
@@ -8,6 +8,10 @@ import { readFutuSettings, type FutuSettings } from './futuSettings.js';
  */
 
 const TRD_ENV_REAL = 1;
+// accStatus 1 = closed/disabled. Old single-market accounts stay listed after a move to
+// a universal account; they are empty and not worth a request each.
+const ACC_STATUS_DISABLED = 1;
+const CURRENCY_USD = 2;
 const POSITION_SIDE_SHORT = 1;
 const ACCOUNT_TTL_MS = 30_000;
 const WATCHLIST_TTL_MS = 5 * 60_000;
@@ -36,6 +40,13 @@ interface FutuAcc {
   accID?: string | number;
   trdMarketAuthList?: number[];
   accStatus?: number;
+}
+
+interface FutuFunds {
+  totalAssets?: number;
+  cash?: number;
+  marketVal?: number;
+  unrealizedPL?: number;
 }
 
 interface FutuPosition {
@@ -105,6 +116,8 @@ export interface FutuAccountSnapshot {
   accounts: number;
   positions: RawPosition[];
   holdings: RawPortfolioHolding[];
+  /** Account totals in USD (OpenD converts a universal account's assets), or null. */
+  overview: RawPortfolio['overview'] | null;
 }
 
 async function fetchAccount(settings: FutuSettings): Promise<FutuAccountSnapshot> {
@@ -113,7 +126,12 @@ async function fetchAccount(settings: FutuSettings): Promise<FutuAccountSnapshot
       userID: 0,
       needGeneralSecAccount: true,
     });
-    const real = accList.filter((acc) => acc.trdEnv === TRD_ENV_REAL && acc.accID !== undefined);
+    const real = accList.filter(
+      (acc) =>
+        acc.trdEnv === TRD_ENV_REAL &&
+        acc.accID !== undefined &&
+        acc.accStatus !== ACC_STATUS_DISABLED,
+    );
     const seen = new Set<string>();
     const positions: RawPosition[] = [];
     const holdings: RawPortfolioHolding[] = [];
@@ -145,7 +163,42 @@ async function fetchAccount(settings: FutuSettings): Promise<FutuAccountSnapshot
         }
       }
     }
-    return { accounts: real.length, positions, holdings };
+    // Totals in USD: OpenD converts a universal account's assets into the requested
+    // currency, so accounts can be added up without exchange rates here.
+    const totals = { assets: 0, cash: 0, market: 0, pl: 0, any: false };
+    for (const acc of real) {
+      try {
+        const { funds } = await session.request<{ funds?: FutuFunds }>(PROTO.getFunds, {
+          header: {
+            trdEnv: TRD_ENV_REAL,
+            accID: String(acc.accID),
+            trdMarket: acc.trdMarketAuthList?.[0] ?? 1,
+          },
+          currency: CURRENCY_USD,
+        });
+        if (!funds) continue;
+        totals.any = true;
+        totals.assets += Number(funds.totalAssets ?? 0) || 0;
+        totals.cash += Number(funds.cash ?? 0) || 0;
+        totals.market += Number(funds.marketVal ?? 0) || 0;
+        totals.pl += Number(funds.unrealizedPL ?? 0) || 0;
+      } catch (error) {
+        if (error instanceof OpenDError && error.code === 'rejected') continue;
+        throw error;
+      }
+    }
+    const overview = totals.any
+      ? {
+          total_asset: String(totals.assets),
+          market_cap: String(totals.market),
+          total_cash: String(totals.cash),
+          total_pl: String(totals.pl),
+          // The funds answer has no "today" P&L.
+          total_today_pl: '0',
+          currency: 'USD',
+        }
+      : null;
+    return { accounts: real.length, positions, holdings, overview };
   });
 }
 
@@ -226,22 +279,38 @@ export interface FutuStatus {
   message: string | null;
   accounts: number;
   positions: number;
+  /** Watchlist symbols Kansoku adds (after the market filter), or null when that is off. */
+  watchlist: number | null;
 }
 
 /** Probes OpenD now (no cache), for the Settings card. */
-export async function futuStatus(settings = readFutuSettings()): Promise<FutuStatus> {
+export async function futuStatus(
+  settings = readFutuSettings(),
+  countWatchlist: (symbols: string[]) => number = (symbols) => symbols.length,
+): Promise<FutuStatus> {
   if (!settings.enabled) {
-    return { enabled: false, state: 'disabled', message: null, accounts: 0, positions: 0 };
+    return {
+      enabled: false,
+      state: 'disabled',
+      message: null,
+      accounts: 0,
+      positions: 0,
+      watchlist: null,
+    };
   }
   try {
     resetFutuCacheForTests();
     const snapshot = await readFutuAccount(settings);
+    const watchlist = settings.watchlist
+      ? countWatchlist(await readFutuWatchlist(settings))
+      : null;
     return {
       enabled: true,
       state: 'connected',
       message: null,
       accounts: snapshot.accounts,
       positions: snapshot.positions.length,
+      watchlist,
     };
   } catch (error) {
     const unreachable = error instanceof OpenDError && error.code === 'unreachable';
@@ -251,6 +320,7 @@ export async function futuStatus(settings = readFutuSettings()): Promise<FutuSta
       message: error instanceof Error ? error.message : String(error),
       accounts: 0,
       positions: 0,
+      watchlist: null,
     };
   }
 }

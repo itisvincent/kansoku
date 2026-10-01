@@ -12,13 +12,14 @@ import { defineRoutes } from './defineRoutes.js';
 import type { InterfaceLocale } from '../settings/interfaceLocale.js';
 
 export interface FutuAccountOut {
-  settings: { enabled: boolean; host: string; port: number };
+  settings: { enabled: boolean; watchlist: boolean; host: string; port: number };
   status: {
     enabled: boolean;
     state: 'disabled' | 'connected' | 'unreachable' | 'error';
     message: string | null;
     accounts: number;
     positions: number;
+    watchlist: number | null;
   };
 }
 
@@ -71,7 +72,12 @@ export interface SettingsApi {
   getWatchedMarkets(): Promise<{ markets: Market[] }>;
   /** The Futu account link (through OpenD on this computer) and a live status probe. */
   getFutu(): Promise<FutuAccountOut>;
-  putFutu(input: { enabled: unknown; host?: unknown; port?: unknown }): Promise<FutuAccountOut>;
+  putFutu(input: {
+    enabled?: unknown;
+    watchlist?: unknown;
+    host?: unknown;
+    port?: unknown;
+  }): Promise<FutuAccountOut>;
   putWatchedMarkets(input: { markets: unknown }): Promise<{ markets: Market[] }>;
   getWebSearch(): Promise<WebSearchStatus>;
   putWebSearchCodex(input: { enabled: unknown }): Promise<WebSearchStatus>;

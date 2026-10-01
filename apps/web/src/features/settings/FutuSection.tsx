@@ -11,7 +11,8 @@ const QUERY_KEY = 'settings.getFutu';
 
 /**
  * Read-only link to the user's Futu account through OpenD, Futu's own gateway running on
- * this computer. Kansoku reads positions and the watchlist; it never places orders.
+ * this computer. Kansoku reads positions, account totals and (optionally) the watchlist;
+ * it never places orders.
  */
 export function FutuSection() {
   const { t } = useLocale();
@@ -25,11 +26,11 @@ export function FutuSection() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const setEnabled = async (enabled: boolean) => {
+  const save = async (patch: { enabled?: boolean; watchlist?: boolean }) => {
     setSaving(true);
     setError(null);
     try {
-      const next = await client.settings.putFutu({ enabled });
+      const next = await client.settings.putFutu(patch);
       queryClient.setQueryData([QUERY_KEY], next);
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -58,19 +59,36 @@ export function FutuSection() {
           ariaLabel={t('futuReadAccount')}
           checked={data?.settings.enabled ?? false}
           disabled={saving || !data}
-          onCheckedChange={(checked) => void setEnabled(checked)}
+          onCheckedChange={(checked) => void save({ enabled: checked })}
         />
       </SettingsRow>
       {data?.settings.enabled && (
-        <SettingsRow
-          label={t('futuStatus')}
-          description={statusText}
-          mono={`${data.settings.host}:${data.settings.port}`}
-        >
-          <Button size="sm" disabled={loading} onClick={() => reload()}>
-            {t('futuCheckAgain')}
-          </Button>
-        </SettingsRow>
+        <>
+          <SettingsRow
+            label={t('futuAddWatchlist')}
+            description={
+              status?.watchlist != null
+                ? t('futuWatchlistCount', { value1: String(status.watchlist) })
+                : t('futuWatchlistDescription')
+            }
+          >
+            <Switch
+              ariaLabel={t('futuAddWatchlist')}
+              checked={data.settings.watchlist}
+              disabled={saving}
+              onCheckedChange={(checked) => void save({ watchlist: checked })}
+            />
+          </SettingsRow>
+          <SettingsRow
+            label={t('futuStatus')}
+            description={statusText}
+            mono={`${data.settings.host}:${data.settings.port}`}
+          >
+            <Button size="sm" disabled={loading} onClick={() => reload()}>
+              {t('futuCheckAgain')}
+            </Button>
+          </SettingsRow>
+        </>
       )}
     </SettingsGroup>
   );

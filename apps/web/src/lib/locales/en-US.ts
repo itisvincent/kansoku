@@ -1402,13 +1402,17 @@ const enUS = {
   futuAccount: 'Futu account',
   futuReadAccount: 'Read my Futu account',
   futuDescription:
-    'Adds your Futu positions and watchlist to Kansoku, read through OpenD on this computer. Open OpenD and log in first. Read-only: Kansoku never places orders.',
+    'Adds your Futu positions and account totals to Kansoku, read through OpenD on this computer. Open OpenD and log in first. Read-only: Kansoku never places orders.',
   futuStatus: 'OpenD',
   futuChecking: 'Checking OpenD…',
   futuConnected: 'Connected: {value1} account(s), {value2} position(s)',
   futuUnreachable: 'OpenD is not reachable. Open OpenD and log in, then check again.',
   futuError: 'OpenD answered with an error: {value1}',
   futuCheckAgain: 'Check again',
+  futuAddWatchlist: 'Add my Futu watchlist',
+  futuWatchlistDescription:
+    'Adds the symbols from your Futu watchlist that are in your watched markets. Every symbol gets live quotes, so a long list adds load.',
+  futuWatchlistCount: 'Adding {value1} symbols from your Futu watchlist (your watched markets only).',
   watchedMarkets: 'Watched markets',
   keepOneMarket: 'Keep at least one market selected',
   marketConnected: 'Connected',

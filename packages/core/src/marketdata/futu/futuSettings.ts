@@ -7,12 +7,18 @@ import { ClientError } from '../../platform/errors.js';
 /** Whether Kansoku reads the user's Futu account through OpenD, and where OpenD listens. */
 export interface FutuSettings {
   enabled: boolean;
+  /**
+   * Also add the Futu watchlist. Off by default: a Futu "All" group easily holds hundreds
+   * of symbols, and each one adds live quotes and a money-flow lookup on Longbridge.
+   */
+  watchlist: boolean;
   host: string;
   port: number;
 }
 
 export const DEFAULT_FUTU_SETTINGS: FutuSettings = {
   enabled: false,
+  watchlist: false,
   host: '127.0.0.1',
   port: 11111,
 };
@@ -25,6 +31,7 @@ const LOCAL_HOST = /^(?:127\.0\.0\.1|localhost|::1)$/i;
 
 const futuSettingsSchema = z.object({
   enabled: z.boolean(),
+  watchlist: z.boolean().default(false),
   host: z.string().trim().regex(LOCAL_HOST, 'OpenD must run on this computer (127.0.0.1)'),
   port: z.number().int().min(1).max(65535),
 });

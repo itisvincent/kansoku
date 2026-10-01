@@ -115,9 +115,12 @@ export class SettingsController {
   }
 
   @Put('/futu')
-  async putFutu(@Body() body: { enabled?: unknown; host?: unknown; port?: unknown } | null) {
+  async putFutu(
+    @Body() body: { enabled?: unknown; watchlist?: unknown; host?: unknown; port?: unknown } | null,
+  ) {
     const data = await settingsService.putFutu({
       enabled: body?.enabled,
+      watchlist: body?.watchlist,
       host: body?.host,
       port: body?.port,
     });

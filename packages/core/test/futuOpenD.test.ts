@@ -9,7 +9,7 @@ import {
   readFutuWatchlist,
   resetFutuCacheForTests,
 } from '../src/marketdata/futu/futuAccount.js';
-import { mergePositions, withFutu } from '../src/marketdata/futu/withFutu.js';
+import { inWatchedMarkets, mergePositions, withFutu } from '../src/marketdata/futu/withFutu.js';
 import type { MarketDataProvider, RawPosition } from '../src/marketdata/types.js';
 
 /** A fake OpenD that answers like the real one (JSON bodies, OpenAPI headers). */
@@ -89,6 +89,7 @@ describe('reading a Futu account through OpenD', () => {
           accList: [
             { trdEnv: 1, accID: '281756479859383816', trdMarketAuthList: [1, 2] },
             { trdEnv: 0, accID: '999', trdMarketAuthList: [2] }, // paper account: ignored
+            { trdEnv: 1, accID: '777', trdMarketAuthList: [2], accStatus: 1 }, // closed: ignored
           ],
         };
       }
@@ -107,6 +108,9 @@ describe('reading a Futu account through OpenD', () => {
             { positionID: '22', code: 'TSLA', name: 'Tesla', qty: 5, canSellQty: 0, costPrice: 300, price: 280, val: 1400, secMarket: 2, positionSide: 1 },
           ],
         };
+      }
+      if (protoId === PROTO.getFunds) {
+        return { funds: { totalAssets: 18471.24, cash: -16697.98, marketVal: 28327.56, currency: 2 } };
       }
       if (protoId === PROTO.getUserSecurityGroup) {
         return { groupList: [{ groupName: '全部', groupType: 2 }, { groupName: 'AI', groupType: 1 }] };
@@ -128,7 +132,7 @@ describe('reading a Futu account through OpenD', () => {
 
   afterEach(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
-  const settings = () => ({ enabled: true, host: '127.0.0.1', port });
+  const settings = () => ({ enabled: true, watchlist: true, host: '127.0.0.1', port });
 
   it('reads real-account positions in Kansoku form, shorts negative, paper accounts skipped', async () => {
     const account = await readFutuAccount(settings());
@@ -139,10 +143,13 @@ describe('reading a Futu account through OpenD', () => {
       { symbol: 'TSLA.US', name: 'Tesla', quantity: '-5', available: '0', cost_price: '300', currency: 'USD', market: 'US' },
     ]);
     expect(seen[0].protoId).toBe(PROTO.initConnect);
-    // Only queries are sent: account list and positions, never an order.
+    expect(account.overview).toMatchObject({ total_asset: '18471.24', total_cash: '-16697.98', currency: 'USD' });
+    // Only queries are sent: account list, positions and funds, never an order.
     expect(new Set(seen.map((s) => s.protoId))).toEqual(
-      new Set([PROTO.initConnect, PROTO.getAccList, PROTO.getPositionList]),
+      new Set([PROTO.initConnect, PROTO.getAccList, PROTO.getPositionList, PROTO.getFunds]),
     );
+    // The closed account is never asked for positions.
+    expect(seen.some((s) => (s.c2s.header as { accID?: string } | undefined)?.accID === '777')).toBe(false);
   });
 
   it('reads the watchlist from the system All group', async () => {
@@ -155,7 +162,7 @@ describe('reading a Futu account through OpenD', () => {
   });
 
   it('reports OpenD as unreachable when nothing listens', async () => {
-    const status = await futuStatus({ enabled: true, host: '127.0.0.1', port: 1 });
+    const status = await futuStatus({ enabled: true, watchlist: false, host: '127.0.0.1', port: 1 });
     expect(status.state).toBe('unreachable');
     expect(status.message).toMatch(/OpenD/);
   });
@@ -180,10 +187,16 @@ describe('withFutu', () => {
     let down = false;
     const warnings: string[] = [];
     const provider = withFutu(base, {
-      settings: () => ({ enabled, host: '127.0.0.1', port: 11111 }),
+      settings: () => ({ enabled, watchlist: true, host: '127.0.0.1', port: 11111 }),
+      watchedMarkets: () => ['US', 'HK'],
       account: async () => {
         if (down) throw new Error('OpenD is not reachable');
-        return { accounts: 1, positions: [{ ...futu, symbol: '700.HK', market: 'HK' }], holdings: [] };
+        return {
+          accounts: 1,
+          positions: [{ ...futu, symbol: '700.HK', market: 'HK' }],
+          holdings: [],
+          overview: null,
+        };
       },
       watchlist: async () => ['9988.HK'],
       warn: (m) => warnings.push(m),
@@ -196,5 +209,48 @@ describe('withFutu', () => {
     down = true;
     expect((await provider.getPositions!()).map((p) => p.symbol)).toEqual(['NVDA.US']);
     expect(warnings[0]).toMatch(/positions unavailable/);
+  });
+
+  it('still returns Futu positions and totals when the base broker refuses', async () => {
+    const scopeError = new Error('API error (code 403308): Target API scope is not in authorized scopes');
+    const base = {
+      getPositions: async () => {
+        throw scopeError;
+      },
+      getPortfolio: async () => {
+        throw scopeError;
+      },
+      getWatchlistSymbols: async () => ['NVDA.US'],
+    } as unknown as MarketDataProvider;
+    const overview = { total_asset: '100', market_cap: '80', total_cash: '20', total_pl: '0', total_today_pl: '0', currency: 'USD' };
+    const provider = withFutu(base, {
+      settings: () => ({ enabled: true, watchlist: false, host: '127.0.0.1', port: 11111 }),
+      account: async () => ({ accounts: 1, positions: [futu], holdings: [], overview }),
+      watchlist: async () => ['9988.HK'],
+      warn: () => {},
+    });
+    expect(await provider.getPositions!()).toEqual([futu]);
+    expect((await provider.getPortfolio!()).overview).toEqual(overview);
+    // The Futu watchlist stays out until its own switch is on.
+    expect(await provider.getWatchlistSymbols!()).toEqual(['NVDA.US']);
+  });
+
+  it('throws the base error when Futu is off', async () => {
+    const base = { getPositions: async () => { throw new Error('denied'); } } as unknown as MarketDataProvider;
+    const provider = withFutu(base, {
+      settings: () => ({ enabled: false, watchlist: false, host: '127.0.0.1', port: 11111 }),
+      account: async () => { throw new Error('unused'); },
+      watchlist: async () => [],
+      warn: () => {},
+    });
+    await expect(provider.getPositions!()).rejects.toThrow('denied');
+  });
+});
+
+describe('inWatchedMarkets', () => {
+  it('keeps only the Futu watchlist symbols in the watched markets', () => {
+    const symbols = ['MU.US', '700.HK', '600519.SH', 'BTC.HAS'];
+    expect(inWatchedMarkets(symbols, ['US'])).toEqual(['MU.US']);
+    expect(inWatchedMarkets(symbols, ['US', 'HK', 'CN'])).toEqual(['MU.US', '700.HK', '600519.SH']);
   });
 });
