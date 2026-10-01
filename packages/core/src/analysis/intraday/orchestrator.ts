@@ -244,7 +244,10 @@ export function buildIntraday(input: IntradayInput): { built: IntradayBuilt; met
     : null;
   const emaPeriods = sanitizeEmaPeriods(input.ema_periods);
   const tfs = Object.fromEntries(
-    TIMEFRAME_ORDER.map((k) => [k, coerceIntradayTimeframe(tfRaw[k] as RawBar[], k, emaPeriods)]),
+    TIMEFRAME_ORDER.map((k) => [
+      k,
+      coerceIntradayTimeframe(tfRaw[k] as RawBar[], k, emaPeriods, marketOf(symbol)),
+    ]),
   ) as Record<TimeframeKey, CoercedTimeframe>;
   const last = tfs.m5.lastClose;
 
@@ -295,7 +298,7 @@ export function buildIntraday(input: IntradayInput): { built: IntradayBuilt; met
   for (const [key, bars] of extraPeriods) {
     if (!bars || bars.length < MACD_MIN_BARS) continue;
     try {
-      const coerced = coerceIntradayTimeframe(bars, key, emaPeriods);
+      const coerced = coerceIntradayTimeframe(bars, key, emaPeriods, marketOf(symbol));
       timeframes[key] = buildTimeframeView(coerced, key, symbol);
       technicals[key] = coerced.summary;
     } catch {

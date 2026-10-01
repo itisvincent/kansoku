@@ -20,6 +20,7 @@ import { lastVwap, sessionVwap } from '../vwap.js';
 import { ema, findSwings, lineData, macd, sma, toTs } from '../indicators.js';
 import { classifyMacdStructure, type MacdStructure } from '../macdStructure.js';
 import { offSessionSignalKeeper } from '../patternScoring.js';
+import type { Market } from '../../symbols/symbol.utils.js';
 import { activeProDetectors } from '../../pro/detectors.js';
 import { DEFAULT_EMA_PERIODS, MACD_MIN_BARS, VWAP_TIMEFRAMES } from './constants.js';
 
@@ -72,6 +73,7 @@ export function coerceIntradayTimeframe(
   bars: RawBar[],
   key: string,
   emaPeriods = DEFAULT_EMA_PERIODS,
+  market: Market = 'US',
 ): CoercedTimeframe {
   if (!bars || bars.length < MACD_MIN_BARS) {
     throw new ClientError(
@@ -149,7 +151,7 @@ export function coerceIntradayTimeframe(
       .filter((p) => histByTime.has(p.time))
       .map((p) => ({ ...p, macd_value: histByTime.get(p.time) as number }));
 
-  const keepSignal = offSessionSignalKeeper(timesTs, vols);
+  const keepSignal = offSessionSignalKeeper(timesTs, vols, key, market);
   const findPriceDivergence = proDetectors.findPriceDivergence;
   const autoDivergence = findPriceDivergence
     ? [

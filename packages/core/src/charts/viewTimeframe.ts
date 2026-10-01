@@ -93,7 +93,7 @@ export async function buildViewTimeframe(input: {
     );
   }
 
-  const coerced = coerceIntradayTimeframe(bars, period);
+  const coerced = coerceIntradayTimeframe(bars, period, undefined, marketOf(symbol));
   const value: ViewTimeframeResult = {
     period,
     bars: bars.length,

@@ -36,7 +36,7 @@ import { activeProDetectors } from '../../pro/detectors.js';
 import type { RawPosition } from '../../marketdata/types.js';
 import { easternDate } from '../../marketdata/session.js';
 import { listCharts, loadChart, type ListFilter } from '../../charts/store.js';
-import { marketOf } from '../../symbols/symbol.utils.js';
+import { marketOf, type Market } from '../../symbols/symbol.utils.js';
 import { listComments } from '../personas/comments.js';
 import {
   DEFAULT_REASSESS_TFS,
@@ -195,9 +195,9 @@ function predictionSummary(doc: ChartDoc | null): PredictionSummary | null {
   };
 }
 
-function summarizeTimeframe(bars: RawBar[], key: string): IntradayTfSummary | null {
+function summarizeTimeframe(bars: RawBar[], key: string, market: Market): IntradayTfSummary | null {
   try {
-    return coerceIntradayTimeframe(bars, key).summary;
+    return coerceIntradayTimeframe(bars, key, undefined, market).summary;
   } catch {
     return null;
   }
@@ -321,7 +321,7 @@ export async function buildReassessPack(
     const close = Number(bars.at(-1)?.close);
     timeframes[tf] = {
       bars: bars.slice(-REASSESS_TF_BARS),
-      summary: summarizeTimeframe(bars, tf),
+      summary: summarizeTimeframe(bars, tf, marketOf(symbol)),
       atr14: atr == null ? null : Math.round(atr * 100) / 100,
       atr14_pct:
         atr == null || !Number.isFinite(close) || close <= 0
