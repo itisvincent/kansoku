@@ -1,5 +1,8 @@
 import { existsSync } from 'node:fs';
-import { dirname, join } from 'node:path';
+import { win32 } from 'node:path';
+
+// Windows paths on every platform, so detection (and its tests) behave the same on CI.
+const { dirname, join } = win32;
 
 /**
  * The agents' bash tool is told it has a POSIX shell (`cat`, `$VAR`, `for … do`), and skills

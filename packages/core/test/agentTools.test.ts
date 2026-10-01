@@ -93,6 +93,15 @@ describe('buildResearchTools', () => {
     const exec = createDefaultExec(repoRoot);
     const { stdout } = await exec('echo $PATH');
     const dirs = stdout.trim().split(':');
+    if (process.platform === 'win32') {
+      // Git Bash reports PATH in its own form: C:\Users\me\.n\bin becomes /c/Users/me/.n/bin.
+      const toGitBash = (dir: string) =>
+        dir.replace(/^([A-Za-z]):[\\/]/, (_m, drive: string) => `/${drive.toLowerCase()}/`).replaceAll('\\', '/');
+      for (const dir of homeExtraBinDirs()) {
+        expect(dirs).toContain(toGitBash(dir));
+      }
+      return;
+    }
     expect(dirs).toContain('/opt/homebrew/bin');
     expect(dirs).toContain('/usr/local/bin');
     for (const dir of homeExtraBinDirs()) {
@@ -114,8 +123,12 @@ describe('buildResearchTools', () => {
   it('default exec exposes stable skill roots and returns nonzero exit codes', async () => {
     const exec = createDefaultExec(repoRoot);
     const roots = await exec('printf "%s\n%s" "$KANSOKU_SKILLS_DIR" "$KANSOKU_APP_SKILLS_DIR"');
+    // On Windows the commands run in Git Bash, where skill roots use forward slashes so that
+    // globs like "$KANSOKU_SKILLS_DIR"/*/SKILL.md work.
+    const shellPath = (path: string) =>
+      process.platform === 'win32' ? path.replaceAll('\\', '/') : path;
     expect(roots.stdout).toBe(
-      `${join(repoRoot, '.claude', 'skills')}\n${join(repoRoot, 'packages', 'core', 'skills')}`,
+      `${shellPath(join(repoRoot, '.claude', 'skills'))}\n${shellPath(join(repoRoot, 'packages', 'core', 'skills'))}`,
     );
     expect((await exec('exit 1')).exitCode).toBe(1);
   });

@@ -393,9 +393,9 @@ export async function buildTools(
   const researchTools = (
     await buildResearchTools({
       repoRoot: deps.repoRoot,
-      exec: (command) => {
+      exec: (command, signal) => {
         reportProgress('researching', analystStatusText('externalResearch'));
-        return deps.exec(command);
+        return deps.exec(command, signal);
       },
       skillIndex: deps.skillIndex,
       onSkillRead: (name) => state.loadedSkillIds.add(name),
