@@ -136,3 +136,25 @@ describe('useViewTimeframe', () => {
     expect(viewTimeframe).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('useViewTimeframe across symbols', () => {
+  it('drops the previous symbol candles as soon as the symbol changes', async () => {
+    let resolveMsft: (value: unknown) => void = () => {};
+    viewTimeframe.mockImplementation(({ symbol }: { symbol: string }) =>
+      symbol === 'AAPL.US'
+        ? Promise.resolve({ period: 'day', bars: 2, tf: tfOf(200) })
+        : new Promise((resolve) => (resolveMsft = resolve)),
+    );
+    const { result, rerender } = renderHook(({ symbol }) => useViewTimeframe(symbol, 'day'), {
+      initialProps: { symbol: 'AAPL.US' },
+    });
+    await waitFor(() => expect(result.current.tf?.candles.at(-1)?.close).toBe(200));
+
+    rerender({ symbol: 'MSFT.US' });
+    expect(result.current.tf).toBeNull();
+    expect(result.current.loading).toBe(true);
+
+    await act(async () => resolveMsft({ period: 'day', bars: 2, tf: tfOf(300) }));
+    expect(result.current.tf?.candles.at(-1)?.close).toBe(300);
+  });
+});

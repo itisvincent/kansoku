@@ -402,7 +402,37 @@ export function useIntradayCharts(
   useEffect(() => {
     const h = handleRef.current;
     const d = tfDataOf(built, activeTf);
-    if (!h || !d) return;
+    if (!h) return;
+    if (!d) {
+      // No data for this view yet (another symbol or period is loading, or it failed):
+      // clear the chart instead of leaving the previous symbol's candles on screen.
+      for (const series of [
+        h.candle,
+        h.vol,
+        h.session,
+        h.macdSession,
+        h.dif,
+        h.dea,
+        h.hist,
+        h.rsiLine,
+        h.vwapSeries,
+        h.bollMid,
+        h.bollUpper,
+        h.bollLower,
+        ...h.emaSeries,
+      ]) {
+        series.setData([]);
+      }
+      h.dynamic.forEach(({ chart, series }) => {
+        try {
+          chart.removeSeries(series);
+        } catch {
+          return;
+        }
+      });
+      h.dynamic = [];
+      return;
+    }
 
     h.dynamic.forEach(({ chart, series }) => {
       try {

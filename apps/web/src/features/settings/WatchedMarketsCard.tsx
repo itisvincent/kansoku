@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import { useQuery } from '@web/lib/apiHooks';
 import { client } from '@web/lib/client';
 import { Switch } from '@web/ui';
@@ -9,24 +10,38 @@ import { useSaveQueue } from './useSaveQueue';
 import { useLocale } from '../../lib/i18n';
 
 const MARKET_ORDER: Market[] = ['US', 'HK', 'CN'];
+const QUERY_KEY = 'settings.getWatchedMarkets';
 
 export function WatchedMarketsCard() {
+  const queryClient = useQueryClient();
   const { data, error, reload } = useQuery<{ markets: Market[] }>(
-    'settings.getWatchedMarkets',
+    QUERY_KEY,
     () => client.settings.getWatchedMarkets(),
   );
 
   if (!data) return null;
-  return <WatchedMarketsCardLoaded initial={data.markets} onReload={reload} error={error} />;
+  return (
+    <WatchedMarketsCardLoaded
+      initial={data.markets}
+      onReload={reload}
+      // Keep the (persisted) query cache in step with what was saved. Left stale, coming
+      // back to Settings showed the old markets, and the next toggle sent that old list,
+      // undoing the earlier save.
+      onSaved={(markets) => queryClient.setQueryData([QUERY_KEY], { markets })}
+      error={error}
+    />
+  );
 }
 
 function WatchedMarketsCardLoaded({
   initial,
   onReload,
+  onSaved,
   error,
 }: {
   initial: Market[];
   onReload: () => void;
+  onSaved: (markets: Market[]) => void;
   error: string | null;
 }) {
   const { t, locale } = useLocale();
@@ -37,6 +52,7 @@ function WatchedMarketsCardLoaded({
     initial,
     save: async (snapshot) => {
       const res = await client.settings.putWatchedMarkets({ markets: snapshot });
+      onSaved(res.markets);
       return res.markets;
     },
     onError: (_err, rolledBackTo) => {
@@ -44,6 +60,14 @@ function WatchedMarketsCardLoaded({
       onReload();
     },
   });
+
+  // A newer server value (the live refetch after a restored cache) replaces the shown
+  // one, but never while a change of the user's is still waiting to save.
+  const initialKey = initial.join(',');
+  useEffect(() => {
+    if (queue.flushing() || queue.pending() !== null) return;
+    setMarkets(initialKey ? (initialKey.split(',') as Market[]) : []);
+  }, [initialKey, queue]);
 
   const handleToggle = (market: Market, next: boolean) => {
     const result = toggleMarket(markets, market, next);

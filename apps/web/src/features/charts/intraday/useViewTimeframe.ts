@@ -16,6 +16,11 @@ export interface ViewTimeframeState {
   notice?: string;
 }
 
+interface InternalState extends ViewTimeframeState {
+  /** Which symbol/period/as-of the candles in `tf` belong to. */
+  forKey: string | null;
+}
+
 export function useViewTimeframe(
   symbol: string,
   activeTf: ChartTf,
@@ -23,21 +28,33 @@ export function useViewTimeframe(
 ): ViewTimeframeState {
   const { t } = useLocale();
   const { asOf, live = false } = options;
-  const [state, setState] = useState<ViewTimeframeState>({ tf: null, error: null, loading: false });
+  const [state, setState] = useState<InternalState>({
+    tf: null,
+    error: null,
+    loading: false,
+    forKey: null,
+  });
   const wanted = isViewPeriod(activeTf) ? activeTf : null;
   const tokenRef = useRef<object | null>(null);
 
   useEffect(() => {
     if (!wanted || !symbol) {
       tokenRef.current = null;
-      setState({ tf: null, error: null, loading: false });
+      setState({ tf: null, error: null, loading: false, forKey: null });
       return;
     }
 
+    const key = `${symbol}|${wanted}|${asOf ?? ''}`;
     let cancelled = false;
     const token = {};
     tokenRef.current = token;
-    setState((prev) => ({ ...prev, loading: true, error: null }));
+    // Another symbol or period: drop the old candles at once, or the chart keeps showing
+    // the previous symbol's bars until the new ones arrive.
+    setState((prev) =>
+      prev.forKey === key
+        ? { ...prev, loading: true, error: null }
+        : { tf: null, error: null, loading: true, forKey: key },
+    );
 
     const fetchOnce = () => {
       client.charts
@@ -49,17 +66,20 @@ export function useViewTimeframe(
             error: null,
             loading: false,
             historyStatus: result.historyStatus,
+            forKey: key,
           });
         })
         .catch((err: unknown) => {
           if (cancelled || tokenRef.current !== token) return;
           const message = err instanceof Error ? err.message : null;
-          setState({
-            tf: null,
+          // A failed live refresh keeps the last good candles for this same view.
+          setState((prev) => ({
+            tf: prev.forKey === key ? prev.tf : null,
             error: message,
             loading: false,
             fallbackError: !(err instanceof Error),
-          });
+            forKey: key,
+          }));
         });
     };
 
@@ -81,8 +101,9 @@ export function useViewTimeframe(
       : state.historyStatus === 'limited' || state.historyStatus === 'unavailable'
         ? t('chartHistoryLimited')
         : undefined;
+  const { forKey: _forKey, ...publicState } = state;
   return {
-    ...state,
+    ...publicState,
     ...(notice ? { notice } : {}),
     error: state.fallbackError ? t('chartTimeframeFailed') : state.error,
   };
