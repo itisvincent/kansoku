@@ -8,18 +8,23 @@ import { industryOf, UNCLASSIFIED_INDUSTRY } from '@kansoku/shared/industryMap';
 import { signed } from '@web/lib/format';
 import { usePollingQuery } from '@web/lib/apiHooks';
 import { client } from '@web/lib/client';
-import { NoteBlock, Tooltip } from '@web/ui';
+import { NoteBlock } from '@web/ui';
 import { colors, fontSizes, fonts } from '../../theme/tokens.stylex';
 import { INDEX_SYMBOLS } from './HomeTopStrip';
 import { isCardWorthySymbol } from './SymbolGrid';
-import { squarify, type TreemapRect } from './treemap';
+import { squarify } from './treemap';
+import { heatStyle } from './panoramaHeat';
+import { PanoramaHeatmap, positionWeight, watchWeight } from './PanoramaHeatmap';
+import { readStorage, writeStorage } from '@web/lib/safeStorage';
 
-interface PanoramaTile {
+export interface PanoramaTile {
   symbol: string;
   pct: number | null;
   turnover: number;
   cap: number | null;
   owned: boolean;
+  /** Money held in it (absolute market value), for held stocks. */
+  value: number | null;
 }
 
 export interface PanoramaGroup {
@@ -45,20 +50,29 @@ export function buildPanoramaGroups(
   quotes: QuoteCell[],
   portfolio: PortfolioSummary | null,
   caps: Record<string, number> = {},
+  options: { positionsOnly?: boolean } = {},
 ): PanoramaGroup[] {
-  const owned = new Set((portfolio?.positions ?? []).map((p) => p.symbol));
+  const held = new Map((portfolio?.positions ?? []).map((p) => [p.symbol, p]));
   const indexSet = new Set(INDEX_SYMBOLS);
   const byIndustry = new Map<string, PanoramaTile[]>();
-  for (const q of quotes) {
-    if (indexSet.has(q.symbol) || !isCardWorthySymbol(q.symbol)) continue;
+  const quoteBySymbol = new Map(quotes.map((q) => [q.symbol, q]));
+  // Positions view: every holding, even one whose live quote has not arrived yet.
+  const symbols = options.positionsOnly
+    ? [...held.keys()]
+    : quotes.map((q) => q.symbol);
+  for (const symbol of symbols) {
+    if (indexSet.has(symbol) || !isCardWorthySymbol(symbol)) continue;
+    const q = quoteBySymbol.get(symbol);
+    const position = held.get(symbol);
     const tile: PanoramaTile = {
-      symbol: q.symbol,
-      pct: q.pct,
-      turnover: q.turnover ?? 0,
-      cap: caps[q.symbol] ?? null,
-      owned: owned.has(q.symbol),
+      symbol,
+      pct: q?.pct ?? null,
+      turnover: q?.turnover ?? 0,
+      cap: caps[symbol] ?? null,
+      owned: position !== undefined,
+      value: position ? Math.abs(position.market_value) : null,
     };
-    const industry = industryOf(q.symbol);
+    const industry = industryOf(symbol);
     const list = byIndustry.get(industry);
     if (list) list.push(tile);
     else byIndustry.set(industry, [tile]);
@@ -240,55 +254,6 @@ const styles = stylex.create({
     outlineOffset: '-1.5px',
     outlineWidth: '1.5px',
   },
-  tileHeat0: {
-    'backgroundColor': colors.backgroundElement,
-    'color': colors.textSecondary,
-    ':hover': {
-      color: colors.textSecondary,
-    },
-  },
-  tileHeatG1: {
-    'backgroundColor': '#14532d',
-    'color': '#a7e3c0',
-    ':hover': {
-      color: '#a7e3c0',
-    },
-  },
-  tileHeatG2: {
-    'backgroundColor': '#15803d',
-    'color': '#d9f5e4',
-    ':hover': {
-      color: '#d9f5e4',
-    },
-  },
-  tileHeatG3: {
-    'backgroundColor': '#16a34a',
-    'color': '#eafff2',
-    ':hover': {
-      color: '#eafff2',
-    },
-  },
-  tileHeatR1: {
-    'backgroundColor': '#58151c',
-    'color': '#f0b1b1',
-    ':hover': {
-      color: '#f0b1b1',
-    },
-  },
-  tileHeatR2: {
-    'backgroundColor': '#b91c1c',
-    'color': '#ffdada',
-    ':hover': {
-      color: '#ffdada',
-    },
-  },
-  tileHeatR3: {
-    'backgroundColor': '#dc2626',
-    'color': '#ffecec',
-    ':hover': {
-      color: '#ffecec',
-    },
-  },
   sym: {
     fontSize: fontSizes.sm,
     fontWeight: 700,
@@ -352,15 +317,6 @@ const styles = stylex.create({
   },
 });
 
-function heatStyle(pct: number | null): stylex.StyleXStyles {
-  if (pct == null || (pct > -0.2 && pct <= 0.2)) return styles.tileHeat0;
-  if (pct >= 4) return styles.tileHeatG3;
-  if (pct >= 1.5) return styles.tileHeatG2;
-  if (pct > 0.2) return styles.tileHeatG1;
-  if (pct <= -4) return styles.tileHeatR3;
-  if (pct <= -1.5) return styles.tileHeatR2;
-  return styles.tileHeatR1;
-}
 
 function sortByPct(tiles: PanoramaTile[]): PanoramaTile[] {
   return [...tiles].sort((a, b) => (b.pct ?? -Infinity) - (a.pct ?? -Infinity));
@@ -417,131 +373,38 @@ function useMeasured(): [React.RefObject<HTMLDivElement | null>, { w: number; h:
   return [ref, size];
 }
 
-function pairRows(groups: PanoramaGroup[]): PanoramaGroup[][] {
-  const out: PanoramaGroup[][] = [];
-  for (let i = 0; i < groups.length; i += 2) out.push(groups.slice(i, i + 2));
-  return out;
-}
-
-interface TileRenderProps {
-  rect: TreemapRect;
-  dense: boolean;
-}
-
-function tileRects(
-  tiles: PanoramaTile[],
-  size: { w: number; h: number },
-): Map<string, TileRenderProps> {
-  if (size.w <= 0 || size.h <= 0) return new Map();
-  const rects = squarify(
-    tiles.map((t) => ({
-      key: t.symbol,
-      value: t.cap && t.cap > 0 ? t.cap : t.turnover > 0 ? t.turnover : 1,
-    })),
-    size.w,
-    size.h,
-  );
-  const map = new Map<string, TileRenderProps>();
-  for (const r of rects) {
-    map.set(r.key, { rect: r, dense: r.w * r.h < 900 });
-  }
-  return map;
-}
-
-function SectorPanel({ group }: { group: PanoramaGroup }) {
-  const { locale } = useLocale();
-  const [ref, size] = useMeasured();
-  const { w, h } = size;
-  const rectMap = useMemo(() => tileRects(group.tiles, { w, h }), [group.tiles, w, h]);
-  return (
-    <div className={`pano-sector ${stylex.props(styles.sector).className}`}>
-      <div className={`pano-sector-head ${stylex.props(styles.sectorHead).className}`}>
-        <span className={`pano-sector-name ${stylex.props(styles.sectorName).className}`}>
-          {industryLabel(group.industry, locale)}
-        </span>
-        {group.weightedPct != null && (
-          <span
-            {...stylex.props(
-              styles.number,
-              group.weightedPct >= 0 ? styles.positive : styles.negative,
-            )}
-          >
-            {signed(group.weightedPct)}%
-          </span>
-        )}
-      </div>
-      <div className={`pano-sector-body ${stylex.props(styles.sectorBody).className}`} ref={ref}>
-        {group.tiles.map((t) => {
-          const info = rectMap.get(t.symbol);
-          if (!info || info.rect.w < 4 || info.rect.h < 4) return null;
-          const { rect, dense } = info;
-          const label = t.symbol.replace(/\.US$/, '');
-          const pctLabel = t.pct == null ? '—' : `${signed(t.pct)}%`;
-          return (
-            <Tooltip
-              key={t.symbol}
-              content={`${t.symbol}\n${pctLabel}`}
-              renderTrigger={
-                <a
-                  aria-label={`${t.symbol} ${pctLabel}`}
-                  className={`pano-tile ${heatClass(t.pct)}${t.owned ? ' pano-tile--owned' : ''}${dense ? ' pano-tile--dense' : ''} ${stylex.props(styles.tile, heatStyle(t.pct), t.owned && styles.tileOwned, dense && styles.tileDense).className}`}
-                  href={`/symbol/${encodeURIComponent(t.symbol)}`}
-                  style={{
-                    left: `${rect.x}px`,
-                    top: `${rect.y}px`,
-                    width: `${rect.w}px`,
-                    height: `${rect.h}px`,
-                  }}
-                />
-              }
-            >
-              <span
-                className={`pano-sym ${stylex.props(styles.sym, dense && styles.symDense).className}`}
-              >
-                {label}
-              </span>
-              {!dense && (
-                <span className={`pano-pct ${stylex.props(styles.number, styles.pct).className}`}>
-                  {pctLabel}
-                </span>
-              )}
-            </Tooltip>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
 function WatchPanorama({
   quotes,
   portfolio,
   caps,
+  positionsOnly = false,
 }: {
   quotes: QuoteCell[];
   portfolio: PortfolioSummary | null;
   caps: Record<string, number>;
+  positionsOnly?: boolean;
 }) {
   const { t: i18n, locale } = useLocale();
-  const groups = buildPanoramaGroups(quotes, portfolio, caps);
-  if (!groups.length) return <NoteBlock>{i18n('homePanoramaWaitingForQuotes')}</NoteBlock>;
-  const { main, tools } = splitPanorama(groups);
+  const groups = useMemo(
+    () => buildPanoramaGroups(quotes, portfolio, caps, { positionsOnly }),
+    [quotes, portfolio, caps, positionsOnly],
+  );
+  const { main, tools } = useMemo(() => splitPanorama(groups), [groups]);
+  if (!groups.length) {
+    return (
+      <NoteBlock>
+        {i18n(positionsOnly ? 'homePanoramaNoPositions' : 'homePanoramaWaitingForQuotes')}
+      </NoteBlock>
+    );
+  }
   const line = panoramaReadLine(groups, locale);
-  const rows = pairRows(main);
   return (
     <>
-      <div className={`pano-rows ${stylex.props(styles.rows).className}`}>
-        {rows.map((pair, idx) => (
-          <div
-            className={`pano-row ${stylex.props(styles.row).className}`}
-            key={pair.map((g) => g.industry).join('|') || `row-${idx}`}
-          >
-            {pair.map((g) => (
-              <SectorPanel key={g.industry} group={g} />
-            ))}
-          </div>
-        ))}
-      </div>
+      <PanoramaHeatmap
+        groups={main}
+        weightOf={positionsOnly ? positionWeight : watchWeight}
+        markOwned={!positionsOnly}
+      />
       <ToolChips tools={tools} />
       {line && (
         <div className={`sector-read ${stylex.props(styles.sectorRead).className}`}>↳ {line}</div>
@@ -627,6 +490,14 @@ function IndustryPanoramaView() {
   );
 }
 
+type PanoramaTab = 'positions' | 'watch' | 'market';
+const PANORAMA_TAB_KEY = 'home-panorama-tab';
+
+function readPanoramaTab(): PanoramaTab {
+  const saved = readStorage(PANORAMA_TAB_KEY);
+  return saved === 'positions' || saved === 'market' ? saved : 'watch';
+}
+
 export function MarketPanorama({
   quotes,
   portfolio,
@@ -637,29 +508,39 @@ export function MarketPanorama({
   caps?: Record<string, number>;
 }) {
   const { t: i18n } = useLocale();
-  const [tab, setTab] = useState<'watch' | 'market'>('watch');
+  const [tab, setTab] = useState<PanoramaTab>(() => readPanoramaTab());
+  const chooseTab = (next: PanoramaTab) => {
+    setTab(next);
+    writeStorage(PANORAMA_TAB_KEY, next);
+  };
+  const tabs: Array<[PanoramaTab, string]> = [
+    ['positions', i18n('homePositionsOnly')],
+    ['watch', i18n('homeWatchlistAndPositions')],
+    ['market', i18n('homeWholeMarket')],
+  ];
   return (
     <div className="market-panorama">
       <div className={`pano-tabs ${stylex.props(styles.tabs).className}`}>
-        <button
-          type="button"
-          className={`pano-tab${tab === 'watch' ? ' pano-tab--active' : ''} ${stylex.props(styles.tab, tab === 'watch' && styles.tabActive).className}`}
-          onClick={() => setTab('watch')}
-        >
-          {i18n('homeWatchlistAndPositions')}
-        </button>
-        <button
-          type="button"
-          className={`pano-tab${tab === 'market' ? ' pano-tab--active' : ''} ${stylex.props(styles.tab, tab === 'market' && styles.tabActive).className}`}
-          onClick={() => setTab('market')}
-        >
-          {i18n('homeWholeMarket')}
-        </button>
+        {tabs.map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            className={`pano-tab${tab === key ? ' pano-tab--active' : ''} ${stylex.props(styles.tab, tab === key && styles.tabActive).className}`}
+            onClick={() => chooseTab(key)}
+          >
+            {label}
+          </button>
+        ))}
       </div>
-      {tab === 'watch' ? (
-        <WatchPanorama quotes={quotes} portfolio={portfolio} caps={caps} />
-      ) : (
+      {tab === 'market' ? (
         <IndustryPanoramaView />
+      ) : (
+        <WatchPanorama
+          quotes={quotes}
+          portfolio={portfolio}
+          caps={caps}
+          positionsOnly={tab === 'positions'}
+        />
       )}
     </div>
   );

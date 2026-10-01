@@ -1155,6 +1155,8 @@ const enUS = {
   homeIndustryDataRetry: 'Could not load industry data. Retrying…',
   homeIndustryDataLoading: 'Loading industry data…',
   homeNoIndustryData: 'No industry data available',
+  homePositionsOnly: 'Positions',
+  homePanoramaNoPositions: 'No positions to show yet.',
   homeWatchlistAndPositions: 'Watchlist + positions',
   homeWholeMarket: 'Whole market',
   homePositionsLoadFailedPrefix: 'Could not load positions: ',

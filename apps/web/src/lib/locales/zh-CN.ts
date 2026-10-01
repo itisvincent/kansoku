@@ -1118,6 +1118,8 @@ const zhCN = {
   homeIndustryDataRetry: '行业数据获取失败，正在重试',
   homeIndustryDataLoading: '行业数据加载中…',
   homeNoIndustryData: '暂无行业数据',
+  homePositionsOnly: '持仓',
+  homePanoramaNoPositions: '暂无持仓。',
   homeWatchlistAndPositions: '自选 + 持仓',
   homeWholeMarket: '全市场',
   homePositionsLoadFailedPrefix: '持仓拉取失败：',
