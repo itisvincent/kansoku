@@ -1,4 +1,4 @@
-import { chmodSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -24,6 +24,43 @@ function fakeCli(): string {
   chmodSync(path, 0o755);
   return path;
 }
+
+function fakeWindowsCli(subdir = ''): { root: string; path: string } {
+  const root = mkdtempSync(join(tmpdir(), 'longbridge-win-'));
+  dirs.push(root);
+  const dir = subdir ? join(root, subdir) : root;
+  mkdirSync(dir, { recursive: true });
+  const path = join(dir, 'longbridge.exe');
+  writeFileSync(path, '');
+  chmodSync(path, 0o755);
+  return { root, path };
+}
+
+describe('longbridge CLI on Windows', () => {
+  it('finds longbridge.exe on PATH (Windows names it Path)', async () => {
+    const { root, path } = fakeWindowsCli();
+    const exec = vi.fn();
+    await expect(
+      locateLongbridgeCli({ env: { Path: root }, exec, platform: 'win32', standardPaths: [] }),
+    ).resolves.toBe(path);
+    expect(exec).not.toHaveBeenCalled();
+  });
+
+  it('finds the installer location under LOCALAPPDATA when PATH misses it', async () => {
+    const { root, path } = fakeWindowsCli(join('Programs', 'longbridge'));
+    await expect(
+      locateLongbridgeCli({ env: { PATH: '', LOCALAPPDATA: root }, platform: 'win32' }),
+    ).resolves.toBe(path);
+  });
+
+  it('does not try a login shell on Windows', async () => {
+    const exec = vi.fn();
+    await expect(
+      locateLongbridgeCli({ env: { PATH: '' }, exec, platform: 'win32', standardPaths: [] }),
+    ).rejects.toMatchObject({ code: 'CLI_NOT_FOUND' });
+    expect(exec).not.toHaveBeenCalled();
+  });
+});
 
 describe('longbridge CLI boundary', () => {
   it('prefers LONGBRIDGE_CLI_PATH over PATH', async () => {

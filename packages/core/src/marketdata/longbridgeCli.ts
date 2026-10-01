@@ -1,6 +1,6 @@
 import { execFile } from 'node:child_process';
 import { access, constants, stat } from 'node:fs/promises';
-import { delimiter, isAbsolute } from 'node:path';
+import { delimiter, isAbsolute, join, win32 } from 'node:path';
 import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
@@ -11,6 +11,9 @@ const STANDARD_PATHS = [
   '/usr/local/bin/longbridge',
   '/usr/bin/longbridge',
 ];
+// The Windows installer puts it under %LOCALAPPDATA%/Programs/longbridge.
+const WINDOWS_INSTALL_DIRS = ['Programs/longbridge', 'longbridge'];
+const WINDOWS_EXTENSIONS = ['.exe', '.cmd', '.bat'];
 
 export class LongbridgeCliError extends Error {
   constructor(
@@ -28,6 +31,7 @@ export interface LongbridgeCliDeps {
   exec?: typeof execFileAsync;
   shell?: string;
   standardPaths?: string[];
+  platform?: NodeJS.Platform;
 }
 
 let cachedCliPath: string | null = null;
@@ -47,17 +51,38 @@ async function isExecutable(path: string): Promise<boolean> {
   }
 }
 
-function pathCandidates(env: NodeJS.ProcessEnv, standardPaths: string[]): string[] {
-  const entries = (env.PATH ?? '')
-    .split(delimiter)
+function windowsStandardPaths(env: NodeJS.ProcessEnv): string[] {
+  const roots = [env.LOCALAPPDATA, env.ProgramFiles, env['ProgramFiles(x86)']].filter(Boolean);
+  return roots.flatMap((root) =>
+    WINDOWS_INSTALL_DIRS.map((dir) => win32.join(root!, dir, 'longbridge.exe')),
+  );
+}
+
+function pathCandidates(
+  env: NodeJS.ProcessEnv,
+  standardPaths: string[] | undefined,
+  platform: NodeJS.Platform,
+): string[] {
+  const windows = platform === 'win32';
+  // Windows keeps PATH as "Path" and has no extensionless executables.
+  const pathValue = windows ? (env.PATH ?? env.Path ?? '') : (env.PATH ?? '');
+  const entries = pathValue
+    .split(windows ? ';' : delimiter)
     .filter(Boolean)
-    .map((dir) => `${dir}/longbridge`);
-  return [env.LONGBRIDGE_CLI_PATH, ...entries, ...standardPaths].filter(
+    .flatMap((dir) =>
+      windows
+        ? WINDOWS_EXTENSIONS.map((ext) => win32.join(dir, `longbridge${ext}`))
+        : [join(dir, 'longbridge')],
+    );
+  const standard = standardPaths ?? (windows ? windowsStandardPaths(env) : STANDARD_PATHS);
+  return [env.LONGBRIDGE_CLI_PATH, ...entries, ...standard].filter(
     (value): value is string => typeof value === 'string' && value.length > 0,
   );
 }
 
 async function loginShellCandidate(deps: LongbridgeCliDeps): Promise<string | null> {
+  // A login shell is how macOS GUI apps see the user's PATH; Windows apps already get it.
+  if ((deps.platform ?? process.platform) === 'win32') return null;
   const exec = deps.exec ?? execFileAsync;
   const shell = deps.shell ?? deps.env?.SHELL ?? process.env.SHELL ?? '/bin/zsh';
   try {
@@ -76,7 +101,8 @@ export async function locateLongbridgeCli(deps: LongbridgeCliDeps = {}): Promise
   if (cachedCliPath && (await isExecutable(cachedCliPath))) return cachedCliPath;
   const env = deps.env ?? process.env;
   const seen = new Set<string>();
-  for (const candidate of pathCandidates(env, deps.standardPaths ?? STANDARD_PATHS)) {
+  const platform = deps.platform ?? process.platform;
+  for (const candidate of pathCandidates(env, deps.standardPaths, platform)) {
     if (seen.has(candidate)) continue;
     seen.add(candidate);
     if (await isExecutable(candidate)) {
