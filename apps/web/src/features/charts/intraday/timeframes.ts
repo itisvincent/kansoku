@@ -1,6 +1,7 @@
 import { translate, type Locale, type MessageKey } from '@web/lib/i18n';
 import { useCallback, useEffect, useState } from 'react';
 import type { IntradayBuilt, IntradayTfData, TimeframeKey } from '@kansoku/shared/types';
+import { writeStorage } from '@web/lib/safeStorage';
 
 export type ViewPeriod = '1m' | '30m' | '4h' | 'day' | 'week' | 'month';
 export type ChartTf = TimeframeKey | ViewPeriod;
@@ -163,11 +164,11 @@ export function useVisibleTimeframes(
   const [analysisTfs, setAnalysisTfs] = useState(() => loadAnalysisTimeframes(analysisStorageKey));
 
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(visibleTfs));
+    writeStorage(storageKey, JSON.stringify(visibleTfs));
   }, [storageKey, visibleTfs]);
 
   useEffect(() => {
-    localStorage.setItem(analysisStorageKey, JSON.stringify(analysisTfs));
+    writeStorage(analysisStorageKey, JSON.stringify(analysisTfs));
   }, [analysisStorageKey, analysisTfs]);
 
   const toggleTf = useCallback((tf: ChartTf) => {

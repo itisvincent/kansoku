@@ -9,6 +9,11 @@ afterEach(() => {
   localStorage.clear();
 });
 
+function rowCheckbox(label: string): HTMLElement {
+  const row = screen.getByText(label).closest('.tf-settings-row') as HTMLElement;
+  return row.querySelector('[role="checkbox"]') as HTMLElement;
+}
+
 function open() {
   render(
     <IntradayControlsProvider>
@@ -22,22 +27,22 @@ describe('TimeframeSettingsMenu', () => {
   it('adds a view period and writes it to storage', () => {
     open();
 
-    fireEvent.click(screen.getByText('30 分钟'));
+    fireEvent.click(rowCheckbox('30 分钟'));
 
     expect(JSON.parse(localStorage.getItem('intraday-timeframes')!)).toEqual([
       'm5',
       'm15',
       '30m',
       'h1',
+      '4h',
     ]);
   });
 
-  it('refuses to untick an analysis timeframe', () => {
+  it('hides a timeframe when its box is unticked, analysis ones included', () => {
     open();
 
-    fireEvent.click(screen.getByText('5 分钟'));
+    fireEvent.click(rowCheckbox('5 分钟'));
 
-    const stored = localStorage.getItem('intraday-timeframes');
-    expect(stored === null || JSON.parse(stored).includes('m5')).toBe(true);
+    expect(JSON.parse(localStorage.getItem('intraday-timeframes')!)).not.toContain('m5');
   });
 });

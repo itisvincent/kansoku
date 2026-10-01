@@ -84,7 +84,11 @@ export function saveTabsSnapshot(
   snapshot: TabsSnapshot,
   storage: Pick<Storage, 'setItem'> = localStorage,
 ): void {
-  storage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+  try {
+    storage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+  } catch {
+    // Blocked or full storage: the tabs still work, they are just not remembered.
+  }
 }
 
 function patchTab(

@@ -6,6 +6,7 @@ import { useLocale, type MessageKey } from '../../lib/i18n';
 import { Badge } from '@web/ui';
 import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
 import { GenerateAnalysis } from './GenerateAnalysis';
+import { readStorage, writeStorage } from '@web/lib/safeStorage';
 
 export type AnalysisSection = 'prediction' | 'commentary' | 'review';
 
@@ -107,7 +108,7 @@ export function AnalysisTab({
   const { analysisTfs } = useIntradayControls();
   const id = useId();
   const [anchorChoice, setAnchorChoice] = useState(
-    () => localStorage.getItem(ANCHOR_CHOICE_KEY) ?? 'auto',
+    () => readStorage(ANCHOR_CHOICE_KEY) ?? 'auto',
   );
   const content = { prediction, commentary, review };
 
@@ -132,7 +133,7 @@ export function AnalysisTab({
               value={anchorChoice}
               onChange={(event) => {
                 setAnchorChoice(event.target.value);
-                localStorage.setItem(ANCHOR_CHOICE_KEY, event.target.value);
+                writeStorage(ANCHOR_CHOICE_KEY, event.target.value);
               }}
             >
               <option value="auto">{t('cockpitAnchorAuto')}</option>

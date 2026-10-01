@@ -2,6 +2,7 @@ import type { MessageKey } from '@web/lib/i18n';
 import { useCallback, useEffect, useState } from 'react';
 import type { FeatureKey } from '@kansoku/pro-api/features';
 import { theme } from '@web/lib/theme';
+import { writeStorage } from '@web/lib/safeStorage';
 
 export type IndicatorToggleKey =
   | 'crosses'
@@ -182,7 +183,7 @@ export function useIndicatorToggles(storageKey: string = INDICATOR_STORAGE_KEY) 
   const [{ toggles, markerRange }, setState] = useState(() => loadStored(storageKey));
 
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify({ ...toggles, markerRange }));
+    writeStorage(storageKey, JSON.stringify({ ...toggles, markerRange }));
   }, [storageKey, toggles, markerRange]);
 
   const set = useCallback((key: IndicatorToggleKey, value: boolean) => {

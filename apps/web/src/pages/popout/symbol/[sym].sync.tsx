@@ -3,5 +3,6 @@ import { PopoutChartWindow } from '@web/features/charts/PopoutChartWindow';
 
 export function Component() {
   const { sym } = useParams();
-  return <PopoutChartWindow sym={decodeURIComponent(sym ?? '')} />;
+  // react-router already decodes params; decoding again threw on a literal %.
+  return <PopoutChartWindow sym={sym ?? ''} />;
 }

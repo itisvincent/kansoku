@@ -54,5 +54,6 @@ function ChartRedirect({ id }: { id: string }) {
 
 export function Component() {
   const { id } = useParams();
-  return <ChartRedirect id={decodeURIComponent(id ?? '')} />;
+  // react-router already decodes params; decoding again threw on a literal %.
+  return <ChartRedirect id={id ?? ''} />;
 }

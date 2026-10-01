@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ema, lineData } from '@kansoku/core/analysis/indicators';
 import type { LinePoint } from '@kansoku/shared/types';
 import { theme } from '@web/lib/theme';
+import { writeStorage } from '@web/lib/safeStorage';
 
 export interface MaLine {
   id: string;
@@ -92,7 +93,7 @@ export function useMaLines(storageKey: string = MA_LINES_STORAGE_KEY): MaLinesAp
   const [maLines, setMaLines] = useState(() => loadStored(storageKey));
 
   useEffect(() => {
-    localStorage.setItem(storageKey, JSON.stringify(maLines));
+    writeStorage(storageKey, JSON.stringify(maLines));
   }, [storageKey, maLines]);
 
   const addMaLine = useCallback(() => {
@@ -100,10 +101,15 @@ export function useMaLines(storageKey: string = MA_LINES_STORAGE_KEY): MaLinesAp
       if (prev.length >= MAX_MA_LINES) return prev;
       const period = nextPeriod(prev);
       if (prev.some((l) => l.period === period)) return prev;
+      // `ma-<period>-<count>` could repeat an existing id after a line's period was
+      // edited and another removed; step the suffix until it is free.
+      const taken = new Set(prev.map((l) => l.id));
+      let suffix = prev.length;
+      while (taken.has(`ma-${period}-${suffix}`)) suffix += 1;
       return [
         ...prev,
         {
-          id: `ma-${period}-${prev.length}`,
+          id: `ma-${period}-${suffix}`,
           period,
           color: MA_PALETTE[prev.length % MA_PALETTE.length],
           visible: true,
