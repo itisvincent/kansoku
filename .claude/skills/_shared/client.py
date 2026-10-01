@@ -78,6 +78,26 @@ def _cache_write(path: Path, body: Any) -> None:
     tmp.replace(path)
 
 
+_SECRET_PARAMS = {"api_key", "apikey", "key", "token", "access_token", "secret", "password"}
+
+
+def redact(url: str) -> str:
+    """Hide credential query parameters (FRED puts api_key= in the URL).
+
+    Script stderr and failure hints reach AI transcripts, so URLs are redacted before
+    they are logged or returned.
+    """
+    try:
+        parts = urllib.parse.urlsplit(url)
+    except ValueError:
+        return url
+    if not parts.query:
+        return url
+    pairs = urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
+    safe = [(k, "***" if k.lower() in _SECRET_PARAMS else v) for k, v in pairs]
+    return urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(safe, safe="*")))
+
+
 def _log(msg: str) -> None:
     sys.stderr.write(msg + "\n")
 
@@ -104,7 +124,7 @@ def fetch(
     if cache_path is not None and not fresh:
         cached = _cache_read(cache_path, ttl)
         if cached is not None:
-            _log(f"[cache hit] {source} {url}")
+            _log(f"[cache hit] {source} {redact(url)}")
             return cached
 
     hdrs = dict(headers or {})
@@ -130,7 +150,7 @@ def fetch(
             except Exception:
                 pass
             if e.code in (429, 503) and attempt < max_retries - 1:
-                _log(f"[retry] {source} {url} status={e.code} attempt={attempt + 1} sleep={backoff}s")
+                _log(f"[retry] {source} {redact(url)} status={e.code} attempt={attempt + 1} sleep={backoff}s")
                 time.sleep(backoff)
                 backoff *= 2
                 last_err = e
@@ -144,7 +164,7 @@ def fetch(
             raise ClientError(
                 f"HTTP {e.code} from {source}: {body_text}",
                 exit_code=3,
-                hint=f"Endpoint: {url}",
+                hint=f"Endpoint: {redact(url)}",
             ) from e
         except urllib.error.URLError as e:
             last_err = e
@@ -156,7 +176,7 @@ def fetch(
             raise ClientError(
                 f"network: {e.reason}",
                 exit_code=4,
-                hint=f"Could not reach {url}",
+                hint=f"Could not reach {redact(url)}",
             ) from e
         except json.JSONDecodeError as e:
             raise ClientError(
@@ -191,9 +211,13 @@ def run(main_fn) -> None:
     try:
         payload = main_fn()
     except ClientError as e:
-        sys.exit(emit(failure(str(e), e.hint)) or e.exit_code)
+        # emit() returns 1 for every failure, so `emit(...) or code` always exited 1 and the
+        # per-error exit codes documented in each SKILL.md never applied.
+        emit(failure(str(e), e.hint))
+        sys.exit(e.exit_code)
     except KeyboardInterrupt:
         sys.exit(130)
     except Exception as e:
-        sys.exit(emit(failure(f"unexpected: {type(e).__name__}: {e}", "")) or 6)
+        emit(failure(f"unexpected: {type(e).__name__}: {e}", ""))
+        sys.exit(6)
     sys.exit(emit(payload))
