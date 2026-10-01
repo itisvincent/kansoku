@@ -8,6 +8,30 @@ import {
 import { pyRound } from '../indicators.js';
 import { ENTRY_STATUS_NOTES, ZONE_COLORS } from './constants.js';
 
+/** The reward-to-risk floor from TD-RR-01. */
+export const MIN_RR = 1.5;
+
+function price(value: unknown): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : undefined;
+}
+
+/**
+ * The first moment a bar may trigger the entry: when the call was made, or the anchor bar's
+ * start for older predictions that did not record it. Bars inside a day or hourly anchor
+ * that came before the call must not count as a fill.
+ */
+export function callStartTs(
+  anchorTime: string | undefined,
+  madeAt: string | undefined,
+): number | null {
+  const anchorTs = anchorTime ? Math.floor(Date.parse(anchorTime) / 1000) : NaN;
+  const madeTs = madeAt ? Math.floor(Date.parse(madeAt) / 1000) : NaN;
+  if (!Number.isFinite(anchorTs)) return Number.isFinite(madeTs) ? madeTs : null;
+  return Number.isFinite(madeTs) ? Math.max(anchorTs, madeTs) : anchorTs;
+}
+
 export function resolveEntryPlanStatus(
   plan: Pick<IntradayEntryPlan, 'entry' | 'stop'>,
   direction: 'long' | 'short' | 'neutral',
@@ -63,23 +87,17 @@ export function computeIntradayEntryPlan(
   };
   const rawT1Pct = Number(raw.target1_pct ?? 3);
   const rawT2Pct = Number(raw.target2_pct ?? 6);
-  const target1 = Number.isFinite(Number(raw.target1))
-    ? Number(raw.target1)
-    : targetFromPct(rawT1Pct);
-  const target2 = Number.isFinite(Number(raw.target2))
-    ? Number(raw.target2)
-    : targetFromPct(rawT2Pct);
-  const t1Pct = raw.target1 == null ? rawT1Pct : pctFromTarget(target1);
-  const t2Pct = raw.target2 == null ? rawT2Pct : pctFromTarget(target2);
-  let risk: number;
-  let reward: number;
-  if (direction === 'short') {
-    risk = stop - entry;
-    reward = entry - target2;
-  } else {
-    risk = entry - stop;
-    reward = target2 - entry;
-  }
+  // Number(null) is 0, which would read as a real target of $0; only a positive price counts.
+  const givenT1 = price(raw.target1);
+  const givenT2 = price(raw.target2);
+  const target1 = givenT1 ?? targetFromPct(rawT1Pct);
+  const target2 = givenT2 ?? targetFromPct(rawT2Pct);
+  const t1Pct = givenT1 === undefined ? rawT1Pct : pctFromTarget(target1);
+  const t2Pct = givenT2 === undefined ? rawT2Pct : pctFromTarget(target2);
+  // Reward-to-risk is measured to the first target (TD-RR-01): T2 is often a filled-in
+  // default, and it is the farther, less likely target.
+  const risk = direction === 'short' ? stop - entry : entry - stop;
+  const reward = direction === 'short' ? entry - target1 : target1 - entry;
   const rr = risk > 0 ? reward / risk : 0;
   const entryZone = normalizePriceZone(raw.entry_zone, 'entry', '入场参考');
   const targetContexts: IntradayTargetContext[] = [
@@ -111,7 +129,7 @@ export function computeIntradayEntryPlan(
     target2,
     target2_pct: t2Pct,
     rr,
-    rr_ok: rr >= 2,
+    rr_ok: rr >= MIN_RR,
     rr_great: rr >= 3,
     note: raw.note ?? '',
     rationale: raw.rationale ?? '',

@@ -18,7 +18,12 @@ import {
   judgeOutcome,
   zoneFromPrediction,
 } from '../cockpit/outcome.js';
-import { getResolvedOutcomes, saveResolvedOutcome } from '../cockpit/outcomeCache.js';
+import {
+  currentVerdict,
+  getResolvedOutcomes,
+  legacyVerdict,
+  saveResolvedOutcome,
+} from '../cockpit/outcomeCache.js';
 import { buildHomeEvents } from './homeEvents.js';
 import { getIndustryPanorama } from './industryPanorama.js';
 import { aggregateStats, type StatsRow } from '../cockpit/stats.js';
@@ -127,13 +132,19 @@ async function buildRecap(date: string): Promise<OverviewRecap> {
               target1: doc.built.entryPlan.target1,
             }
           : null;
-      let outcome = attachRMultiple(cached.get(meta.id) ?? null, direction, plan);
+      let outcome = attachRMultiple(currentVerdict(cached.get(meta.id)), direction, plan);
       if (!outcome && direction && anchor) {
         const bars = await getProvider(marketOf(meta.symbol!))
           .getKline(meta.symbol!, '15m', OUTCOME_BARS)
           .catch(() => null);
         outcome = bars
-          ? judgeOutcome(direction, anchor, plan, bars, zoneFromPrediction(prediction))
+          ? judgeOutcome(
+              direction,
+              { ...anchor, madeAt: meta.created_at },
+              plan,
+              bars,
+              zoneFromPrediction(prediction),
+            )
           : null;
         if (outcome && outcome.status !== 'open') {
           void saveResolvedOutcome(
@@ -142,6 +153,7 @@ async function buildRecap(date: string): Promise<OverviewRecap> {
           ).catch(() => {});
         }
       }
+      outcome ??= attachRMultiple(legacyVerdict(cached.get(meta.id)), direction, plan);
       const day_pct = isToday
         ? (quoteBySymbol.get(meta.symbol!)?.regularPct ??
           quoteBySymbol.get(meta.symbol!)?.pct ??
@@ -217,7 +229,7 @@ export const overviewService: OverviewApi = {
     const cached = await getResolvedOutcomes(metas.map((m) => m.id));
 
     const symbolsNeedingBars = [
-      ...new Set(metas.filter((m) => !cached.has(m.id)).map((m) => m.symbol!)),
+      ...new Set(metas.filter((m) => !currentVerdict(cached.get(m.id))).map((m) => m.symbol!)),
     ];
     const barsBySymbol = new Map<string, RawBar[] | null>();
     await Promise.all(
@@ -245,12 +257,22 @@ export const overviewService: OverviewApi = {
               target1: doc.built.entryPlan.target1,
             }
           : null;
-      let outcome = attachRMultiple(cached.get(meta.id) ?? null, prediction.direction, plan);
+      let outcome = attachRMultiple(
+        currentVerdict(cached.get(meta.id)),
+        prediction.direction,
+        plan,
+      );
       if (!outcome) {
         const bars = barsBySymbol.get(meta.symbol!) ?? null;
         outcome =
           anchor && bars
-            ? judgeOutcome(prediction.direction, anchor, plan, bars, zoneFromPrediction(prediction))
+            ? judgeOutcome(
+                prediction.direction,
+                { ...anchor, madeAt: meta.created_at },
+                plan,
+                bars,
+                zoneFromPrediction(prediction),
+              )
             : null;
         if (outcome && outcome.status !== 'open') {
           void saveResolvedOutcome(
@@ -259,6 +281,7 @@ export const overviewService: OverviewApi = {
           ).catch(() => {});
         }
       }
+      outcome ??= attachRMultiple(legacyVerdict(cached.get(meta.id)), prediction.direction, plan);
       rows.push({
         direction: prediction.direction,
         origin: doc?.input.origin === 'analyst' ? 'analyst' : 'manual',

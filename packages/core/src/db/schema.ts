@@ -89,6 +89,8 @@ export const outcomes = sqliteTable('outcomes', {
   pctSinceAnchor: real('pct_since_anchor').notNull(),
   resolvedAt: integer('resolved_at').notNull(),
   judgedAt: text('judged_at').notNull(),
+  // Which judging rules produced this verdict; see OUTCOME_RULES in cockpit/outcomeCache.ts.
+  rules: integer('rules').notNull().default(1),
 });
 
 export const chatSessions = sqliteTable(

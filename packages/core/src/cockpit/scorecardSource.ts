@@ -11,7 +11,13 @@ import { listCharts, loadChart } from '../charts/store.js';
 import { getProvider } from '../marketdata/registry.js';
 import { marketOf } from '../symbols/symbol.utils.js';
 import { attachRMultiple, judgeOutcome, zoneFromPrediction } from './outcome.js';
-import { getResolvedOutcomes, saveResolvedOutcome } from './outcomeCache.js';
+import {
+  type CachedOutcome,
+  currentVerdict,
+  getResolvedOutcomes,
+  legacyVerdict,
+  saveResolvedOutcome,
+} from './outcomeCache.js';
 
 /** Same window the History tab judges on, so both views agree on the same chart. */
 const PRIMARY_PERIOD = '15m';
@@ -28,7 +34,7 @@ const MAX_PARALLEL_FETCHES = 4;
 export interface ScorecardSourceDeps {
   listCharts: () => Promise<ChartMeta[]>;
   loadChart: (id: string) => Promise<ChartDoc | null>;
-  getResolvedOutcomes: (ids: string[]) => Promise<Map<string, AnalysisOutcome>>;
+  getResolvedOutcomes: (ids: string[]) => Promise<Map<string, CachedOutcome>>;
   saveResolvedOutcome: (
     key: { chartId: string; symbol: string; direction: 'long' | 'short' | 'neutral' },
     outcome: AnalysisOutcome,
@@ -147,9 +153,17 @@ export async function loadScorecardRows(
       const { prediction, plan } = summary;
       const symbol = meta.symbol!;
 
-      let outcome = attachRMultiple(cached.get(meta.id) ?? null, prediction.direction, plan);
+      let outcome = attachRMultiple(
+        currentVerdict(cached.get(meta.id)),
+        prediction.direction,
+        plan,
+      );
       if (!outcome && prediction.anchor) {
-        const anchor = { time: prediction.anchor.time, price: prediction.anchor.price };
+        const anchor = {
+          time: prediction.anchor.time,
+          price: prediction.anchor.price,
+          madeAt: meta.created_at,
+        };
         const zone = zoneFromPrediction(prediction);
         const primary = await bars(symbol, PRIMARY_PERIOD, PRIMARY_BARS);
         outcome = primary ? judgeOutcome(prediction.direction, anchor, plan, primary, zone) : null;
@@ -170,6 +184,7 @@ export async function loadScorecardRows(
             .catch(() => {});
         }
       }
+      outcome ??= attachRMultiple(legacyVerdict(cached.get(meta.id)), prediction.direction, plan);
 
       return {
         chart_id: meta.id,

@@ -229,6 +229,7 @@ export function buildSubmitPredictionTool(
       if (required?.length) {
         (prediction as IntradayPrediction).analysis_windows = [...required];
       }
+      (prediction as IntradayPrediction).made_at = new Date().toISOString();
       hooks.reportProgress?.('finalizing', analystStatusText('finalizing'));
       const chart = await hooks.createChart({
         type: 'intraday',

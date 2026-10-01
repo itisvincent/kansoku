@@ -26,7 +26,12 @@ import {
   judgeOutcome,
   zoneFromPrediction,
 } from '../cockpit/outcome.js';
-import { getResolvedOutcomes, saveResolvedOutcome } from '../cockpit/outcomeCache.js';
+import {
+  currentVerdict,
+  getResolvedOutcomes,
+  legacyVerdict,
+  saveResolvedOutcome,
+} from '../cockpit/outcomeCache.js';
 import { buildCockpitPosition } from '../cockpit/position.js';
 import { toTs } from '../analysis/indicators.js';
 import { getProvider } from '../marketdata/registry.js';
@@ -91,7 +96,7 @@ export const symbolsService: SymbolsApi = withFeatureGates(symbolsRoutes, {
     const docs = await Promise.all(metas.map((m) => loadChart(m.id)));
     const cached = await getResolvedOutcomes(metas.map((m) => m.id));
     let bars: RawBar[] | null = null;
-    if (metas.some((m) => !cached.has(m.id))) {
+    if (metas.some((m) => !currentVerdict(cached.get(m.id)))) {
       try {
         bars = await getProvider(marketOf(sym)).getKline(sym, '15m', 300);
       } catch {
@@ -113,15 +118,22 @@ export const symbolsService: SymbolsApi = withFeatureGates(symbolsRoutes, {
               target1: doc.built.entryPlan.target1,
             }
           : null;
-      let outcome = attachRMultiple(cached.get(meta.id) ?? null, direction, plan);
+      let outcome = attachRMultiple(currentVerdict(cached.get(meta.id)), direction, plan);
       if (!outcome && direction && anchor && bars) {
-        outcome = judgeOutcome(direction, anchor, plan, bars, zoneFromPrediction(prediction));
+        outcome = judgeOutcome(
+          direction,
+          { ...anchor, madeAt: meta.created_at },
+          plan,
+          bars,
+          zoneFromPrediction(prediction),
+        );
         if (outcome && outcome.status !== 'open') {
           void saveResolvedOutcome({ chartId: meta.id, symbol: sym, direction }, outcome).catch(
             () => {},
           );
         }
       }
+      outcome ??= attachRMultiple(legacyVerdict(cached.get(meta.id)), direction, plan);
       return { ...meta, url: chartUrl(meta), direction, anchor, outcome };
     });
     return rows;

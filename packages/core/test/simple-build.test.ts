@@ -17,7 +17,7 @@ describe('rebuild flow/cohort', () => {
       rows: FLOW_ROWS,
       subtitle: 'test',
     });
-    expect(result.title).toBe('NVDA.US 主力资金流');
+    expect(result.title).toBe('NVDA.US capital flow');
     expect(result.sessionDate).toBe('2026-07-02');
     expect(result.meta).toEqual({ rows: 2 });
   });

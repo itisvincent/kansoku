@@ -570,6 +570,11 @@ export interface IntradayPrediction {
   analysis_windows?: string[];
   /** The analyst's confidence in the direction call, 1-100. Older predictions have none. */
   conviction?: number;
+  /**
+   * When the call was made (ISO). Only bars starting at or after it may trigger the entry or
+   * settle the call. Older predictions have none; their chart's created_at stands in.
+   */
+  made_at?: string;
   /** Darren-style EPS × PE scenario plan (bear/base/bull targets, PEG, bands). */
   eps_pe_plan?: EpsPePlan;
   anchor?: { timeframe: TimeframeKey; time: string; price: number };

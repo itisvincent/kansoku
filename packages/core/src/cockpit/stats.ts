@@ -34,7 +34,24 @@ export function emptyBucket(): MutableBucket {
   };
 }
 
-export function addRow(bucket: MutableBucket, outcome: AnalysisOutcome | null): void {
+/**
+ * The return a resolved call earned, signed by its direction: a short that fell 3% earned
+ * +3%. A range call has no direction to earn on, so it does not count toward the average.
+ */
+function callReturn(
+  direction: StatsRow['direction'],
+  outcome: AnalysisOutcome,
+): number | null {
+  if (direction === 'long') return outcome.pct_since_anchor;
+  if (direction === 'short') return -outcome.pct_since_anchor;
+  return null;
+}
+
+export function addRow(
+  bucket: MutableBucket,
+  outcome: AnalysisOutcome | null,
+  direction: StatsRow['direction'],
+): void {
   bucket.total += 1;
   if (!outcome) {
     bucket.unjudged += 1;
@@ -45,8 +62,9 @@ export function addRow(bucket: MutableBucket, outcome: AnalysisOutcome | null): 
   else if (outcome.status === 'held_range') bucket.held_range += 1;
   else if (outcome.status === 'broke_range') bucket.broke_range += 1;
   else bucket.open += 1;
-  if (outcome.status !== 'open') {
-    bucket.resolved_pct_sum += outcome.pct_since_anchor;
+  const earned = outcome.status !== 'open' ? callReturn(direction, outcome) : null;
+  if (earned !== null) {
+    bucket.resolved_pct_sum += earned;
     bucket.resolved_count += 1;
   }
   if (outcome.r_multiple != null) {
@@ -80,11 +98,11 @@ export function aggregateStats(rows: StatsRow[]): PredictionStats {
   const manual = emptyBucket();
 
   for (const row of rows) {
-    addRow(overall, row.outcome);
-    if (row.direction === 'long') addRow(long, row.outcome);
-    else if (row.direction === 'short') addRow(short, row.outcome);
-    else if (row.direction === 'neutral') addRow(neutral, row.outcome);
-    addRow(row.origin === 'analyst' ? analyst : manual, row.outcome);
+    addRow(overall, row.outcome, row.direction);
+    if (row.direction === 'long') addRow(long, row.outcome, row.direction);
+    else if (row.direction === 'short') addRow(short, row.outcome, row.direction);
+    else if (row.direction === 'neutral') addRow(neutral, row.outcome, row.direction);
+    addRow(row.origin === 'analyst' ? analyst : manual, row.outcome, row.direction);
   }
 
   return {

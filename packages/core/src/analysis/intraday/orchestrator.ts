@@ -32,7 +32,7 @@ import {
   TIMEFRAME_LABELS,
   TIMEFRAME_ORDER,
 } from './constants.js';
-import { computeIntradayEntryPlan, resolveEntryPlanStatus } from './entryPlan.js';
+import { callStartTs, computeIntradayEntryPlan, resolveEntryPlanStatus } from './entryPlan.js';
 import {
   autoPatternMarkers,
   buildIntradaySignals,
@@ -273,7 +273,7 @@ export function buildIntraday(input: IntradayInput): { built: IntradayBuilt; met
     const st = resolveEntryPlanStatus(
       entryPlan,
       direction,
-      anchor ? toTs(anchor.time) : null,
+      callStartTs(anchor?.time, prediction?.made_at),
       tfs.m5.candles,
     );
     entryPlan.entry_status = st?.status ?? null;

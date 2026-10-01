@@ -618,7 +618,7 @@ export function PredictionTab({
                     className={`icon ${stylex.props(styles.icon).className}`}
                     size={13}
                   />{' '}
-                  &lt;2:1
+                  &lt;1.5:1
                 </span>
               )}
             </div>

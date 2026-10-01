@@ -261,14 +261,118 @@ describe('judgeOutcome', () => {
     expect(result?.status).toBe('open');
   });
 
-  it('neutral held_range after a full session inside the zone', () => {
-    const bars: RawBar[] = [
-      bar('2026-07-01T13:31:00Z', 100, 102, 98, 101),
-      bar('2026-07-01T20:01:00Z', 101, 103, 99, 100),
-    ];
+  it('neutral held_range after a full session of bars inside the zone', () => {
+    // 26 fifteen-minute bars = one 6.5h regular session.
+    const bars: RawBar[] = Array.from({ length: 27 }, (_, i) =>
+      bar(new Date(Date.parse('2026-07-01T13:30:00Z') + i * 900_000).toISOString(), 100, 102, 98, 101),
+    );
     const result = judgeOutcome('neutral', anchor, null, bars, { low: 95, high: 105 });
     expect(result?.status).toBe('held_range');
-    expect(result?.resolved_at).toBe(Math.floor(Date.parse('2026-07-01T20:01:00Z') / 1000));
+    expect(result?.resolved_at).toBe(Math.floor(Date.parse(bars[26].time) / 1000));
+  });
+
+  it('neutral does not count the overnight gap as time held', () => {
+    // A call made late in the session: three bars to the close, then two the next morning.
+    const late = { time: '2026-07-01T19:15:00Z', price: 100 };
+    const bars: RawBar[] = [
+      bar('2026-07-01T19:15:00Z', 100, 101, 99, 100),
+      bar('2026-07-01T19:30:00Z', 100, 101, 99, 100),
+      bar('2026-07-01T19:45:00Z', 100, 101, 99, 100),
+      bar('2026-07-02T13:30:00Z', 100, 101, 99, 100),
+      bar('2026-07-02T13:45:00Z', 100, 101, 99, 100),
+    ];
+    const result = judgeOutcome('neutral', late, null, bars, { low: 95, high: 105 });
+    expect(result?.status).toBe('open');
+  });
+
+  describe('only bars after the call count', () => {
+    // A day-bar anchor: the bar starts at the open, but the call was made at 15:00 ET.
+    const dayAnchor = {
+      time: '2026-07-01T13:30:00Z',
+      price: 100,
+      madeAt: '2026-07-01T19:00:00Z',
+    };
+
+    it('ignores a target hit earlier the same day, before the call', () => {
+      const bars: RawBar[] = [
+        bar('2026-07-01T13:30:00Z', 100, 101, 99, 100),
+        bar('2026-07-01T14:00:00Z', 100, 110, 99, 104), // target touched at 10:00 ET
+        bar('2026-07-01T19:00:00Z', 100, 101, 99, 100),
+        bar('2026-07-01T19:15:00Z', 100, 101, 99, 100),
+      ];
+      const result = judgeOutcome('long', dayAnchor, { stop: 90, target1: 108 }, bars);
+      expect(result?.status).toBe('open');
+    });
+
+    it('settles on a bar that starts at or after the call', () => {
+      const bars: RawBar[] = [
+        bar('2026-07-01T13:30:00Z', 100, 101, 99, 100),
+        bar('2026-07-01T19:00:00Z', 100, 109, 99, 108),
+      ];
+      const result = judgeOutcome('long', dayAnchor, { stop: 90, target1: 108 }, bars);
+      expect(result?.status).toBe('hit_target');
+      expect(result?.resolved_at).toBe(Math.floor(Date.parse('2026-07-01T19:00:00Z') / 1000));
+    });
+
+    it('cannot judge when the bars do not reach back to the call', () => {
+      const bars: RawBar[] = [
+        bar('2026-07-02T13:30:00Z', 100, 101, 99, 100),
+        bar('2026-07-02T13:45:00Z', 100, 101, 99, 100),
+      ];
+      expect(judgeOutcome('long', dayAnchor, { stop: 90, target1: 108 }, bars)).toBeNull();
+    });
+  });
+
+  describe('a target counts only after the entry fills', () => {
+    it('does not score a win when price ran without the dip to the entry', () => {
+      const bars: RawBar[] = [bar('2026-07-01T13:31:00Z', 100, 110, 99.5, 109)];
+      const result = judgeOutcome('long', anchor, { entry: 98, stop: 95, target1: 108 }, bars);
+      expect(result?.status).toBe('open');
+    });
+
+    it('scores the win once the dip fills and price later reaches the target', () => {
+      const bars: RawBar[] = [
+        bar('2026-07-01T13:31:00Z', 100, 100, 97.5, 98),
+        bar('2026-07-01T13:32:00Z', 98, 109, 98, 108),
+      ];
+      const result = judgeOutcome('long', anchor, { entry: 98, stop: 95, target1: 108 }, bars);
+      expect(result?.status).toBe('hit_target');
+      expect(result?.r_multiple).toBeCloseTo(10 / 3);
+    });
+
+    it('does not trust a dip-fill and target inside the same bar', () => {
+      const bars: RawBar[] = [bar('2026-07-01T13:31:00Z', 100, 109, 97.5, 108)];
+      const result = judgeOutcome('long', anchor, { entry: 98, stop: 95, target1: 108 }, bars);
+      expect(result?.status).toBe('open');
+    });
+
+    it('lets a breakout fill and reach the target in one bar', () => {
+      const bars: RawBar[] = [bar('2026-07-01T13:31:00Z', 100, 109, 100, 108)];
+      const result = judgeOutcome('long', anchor, { entry: 102, stop: 99, target1: 108 }, bars);
+      expect(result?.status).toBe('hit_target');
+    });
+
+    it('scores a loss when the stop comes before the breakout fills', () => {
+      const bars: RawBar[] = [bar('2026-07-01T13:31:00Z', 100, 101, 98.5, 99)];
+      const result = judgeOutcome('long', anchor, { entry: 102, stop: 99, target1: 108 }, bars);
+      expect(result?.status).toBe('hit_stop');
+    });
+  });
+
+  it('reports the move to the level that settled the call, not the latest close', () => {
+    const bars: RawBar[] = [
+      bar('2026-07-01T13:31:00Z', 100, 109, 99, 108),
+      bar('2026-07-01T13:32:00Z', 108, 108, 80, 81),
+    ];
+    const result = judgeOutcome('long', anchor, { stop: 90, target1: 108 }, bars);
+    expect(result?.status).toBe('hit_target');
+    expect(result?.pct_since_anchor).toBeCloseTo(8);
+  });
+
+  it('treats a missing or zero target as no plan instead of an instant win', () => {
+    const bars: RawBar[] = [bar('2026-07-01T13:31:00Z', 100, 101, 99, 100)];
+    expect(judgeOutcome('long', anchor, { stop: 90, target1: 0 }, bars)).toBeNull();
+    expect(judgeOutcome('long', anchor, { stop: 90, target1: Number.NaN }, bars)).toBeNull();
   });
 
   it('neutral stays open inside the zone before the horizon', () => {

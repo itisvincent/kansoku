@@ -50,7 +50,7 @@ function groupBy(
   for (const row of rows) {
     const key = keyOf(row);
     const bucket = buckets.get(key) ?? emptyBucket();
-    addRow(bucket, row.outcome);
+    addRow(bucket, row.outcome, row.direction);
     buckets.set(key, bucket);
   }
   return [...buckets.entries()]
@@ -64,7 +64,7 @@ export function buildScorecard(
   recentLimit = RECENT_LIMIT,
 ): PredictionScorecard {
   const overall = emptyBucket();
-  for (const row of rows) addRow(overall, row.outcome);
+  for (const row of rows) addRow(overall, row.outcome, row.direction);
 
   const newestFirst = [...rows].sort((a, b) => b.created_at.localeCompare(a.created_at));
 

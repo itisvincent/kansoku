@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import type { AnalysisOutcome } from '@kansoku/shared/types';
 import { createDb } from '../src/db/index.js';
-import { getResolvedOutcomes, saveResolvedOutcome } from '../src/cockpit/outcomeCache.js';
+import {
+  currentVerdict,
+  getResolvedOutcomes,
+  legacyVerdict,
+  OUTCOME_RULES,
+  saveResolvedOutcome,
+} from '../src/cockpit/outcomeCache.js';
+import { outcomes } from '../src/db/schema.js';
 
 function outcome(status: AnalysisOutcome['status'], pct = 1): AnalysisOutcome {
   return { status, pct_since_anchor: pct, resolved_at: status === 'open' ? null : 1751400000 };
@@ -53,6 +60,36 @@ describe('outcome cache', () => {
       db,
     );
     expect((await getResolvedOutcomes(['c1'], db)).get('c1')?.status).toBe('hit_target');
+  });
+
+  it('marks old-rules verdicts as legacy and lets a re-judge replace them', async () => {
+    const db = createDb(':memory:');
+    await db.insert(outcomes).values({
+      chartId: 'c1',
+      symbol: 'MU.US',
+      direction: 'long',
+      status: 'hit_target',
+      pctSinceAnchor: 4,
+      resolvedAt: 1751400000,
+      judgedAt: '2026-09-01T00:00:00.000Z',
+      rules: 1,
+    });
+    const before = (await getResolvedOutcomes(['c1'], db)).get('c1');
+    expect(currentVerdict(before)).toBeNull();
+    expect(legacyVerdict(before)).toEqual({
+      status: 'hit_target',
+      pct_since_anchor: 4,
+      resolved_at: 1751400000,
+    });
+
+    await saveResolvedOutcome(
+      { chartId: 'c1', symbol: 'MU.US', direction: 'long' },
+      outcome('hit_stop', -2),
+      db,
+    );
+    const after = (await getResolvedOutcomes(['c1'], db)).get('c1');
+    expect(currentVerdict(after)?.status).toBe('hit_stop');
+    expect(OUTCOME_RULES).toBeGreaterThan(1);
   });
 
   it('returns an empty map for no ids', async () => {
