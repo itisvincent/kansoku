@@ -199,6 +199,25 @@ describe('conversationStore', () => {
     expect(abort).toHaveBeenCalledWith('s1');
   });
 
+  it('leaves the stopping state when the turn had already finished (409)', async () => {
+    const abort = vi.fn(async () => ({ status: 409, body: { error: 'no turn running' } }));
+    store.setConversationAdaptersForTests({
+      assistant: { ...fakeAdapter(), abort },
+      chart: fakeAdapter(),
+      research: fakeAdapter(),
+    });
+    await acquireAssistant();
+    subs[0].onPayload({ type: 'event', event: { event: 'delta', text: 'done text' } });
+    await store.abortConversation('assistant', 's1');
+    expect(store.getConversationSnapshot('assistant', 's1')?.aborting).toBe(false);
+
+    // The next turn streams normally and Stop works again.
+    subs[0].onPayload({ type: 'event', event: { event: 'delta', text: 'next' } });
+    expect(store.getConversationSnapshot('assistant', 's1')?.busy).toBe(true);
+    await store.abortConversation('assistant', 's1');
+    expect(abort).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps live tools when the socket reports disconnected', async () => {
     await acquireAssistant();
     subs[0].onPayload({

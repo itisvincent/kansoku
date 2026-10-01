@@ -98,8 +98,11 @@ export function collectPlanAlerts(
 
 const planCache = new Map<string, { plan: WatchPlan | null; at: number }>();
 const prevPrice = new Map<string, number>();
-// symbol -> { docId, fired: Set<eventKey> }; reset when a new plan arrives
-const firedAlerts = new Map<string, { docId: string; keys: Set<string> }>();
+// symbol -> { plan signature, fired event keys }. The signature covers the chart and its
+// levels, so re-reading the same plan every PLAN_TTL_MS keeps what already fired (it used
+// to be cleared on each reload, so an alert repeated every 5 minutes while price sat past
+// the level), while an edited plan with new levels starts fresh.
+const firedAlerts = new Map<string, { signature: string; keys: Set<string> }>();
 
 export function resetPredictionAlertState(): void {
   planCache.clear();
@@ -132,8 +135,6 @@ export async function handlePredictionTick(cell: QuoteCell): Promise<void> {
   if (now - entry.at > ttl) {
     entry.plan = await loadPlan(cell.symbol).catch(() => null);
     entry.at = now;
-    // A new plan replaces the old one: forget what already fired for it.
-    if (entry.plan) firedAlerts.delete(cell.symbol);
   }
 
   const plan = entry.plan;
@@ -141,11 +142,12 @@ export async function handlePredictionTick(cell: QuoteCell): Promise<void> {
   // Stale predictions from past sessions must not fire on today's ticks.
   if (plan.createdDate !== easternDate(new Date())) return;
 
-  const fired =
-    firedAlerts.get(cell.symbol)?.docId === plan.chartId
-      ? firedAlerts.get(cell.symbol)!
-      : { docId: plan.chartId ?? '', keys: new Set<string>() };
-  if (firedAlerts.get(cell.symbol)?.docId !== fired.docId) firedAlerts.set(cell.symbol, fired);
+  const signature = JSON.stringify(plan);
+  let fired = firedAlerts.get(cell.symbol);
+  if (fired?.signature !== signature) {
+    fired = { signature, keys: new Set<string>() };
+    firedAlerts.set(cell.symbol, fired);
+  }
 
   for (const event of collectPlanAlerts(prev, price, plan)) {
     if (fired.keys.has(event.key)) continue;

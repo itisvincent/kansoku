@@ -43,11 +43,13 @@ export function GlobalNotifications({ route }: { route: string }) {
               text: comment.text,
             },
             activeSymbolRef.current,
+            `comment:${comment.symbol}:${comment.ts}:${comment.level}`,
           );
         } else if (envelope.type === 'notice' && envelope.notice) {
           maybeNotify(
             { type: 'notice', live: true, notice: envelope.notice },
             activeSymbolRef.current,
+            `notice:${envelope.notice.symbol}:${envelope.notice.kind}:${envelope.notice.at}`,
           );
         }
       },
@@ -75,6 +77,7 @@ export function GlobalNotifications({ route }: { route: string }) {
             severity: event.severity,
           },
           activeSymbolRef.current,
+          `event:${event.id}`,
         );
       },
       () => {},

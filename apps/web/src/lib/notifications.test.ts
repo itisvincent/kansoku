@@ -1,6 +1,7 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
 import type { Notice } from '@kansoku/shared/types';
-import { decideNotification, type NotifyEnvelope } from './notifications';
+import { claimNotification, decideNotification, type NotifyEnvelope } from './notifications';
 
 const alert: NotifyEnvelope = {
   type: 'comment',
@@ -123,5 +124,18 @@ describe('critical market-event notifications', () => {
         { hidden: true, permission: 'granted', activeSymbol: null },
       ),
     ).toBeNull();
+  });
+});
+
+describe('claimNotification', () => {
+  it('lets only the first window show a notification', async () => {
+    localStorage.clear();
+    // Two windows racing for the same live event.
+    const [a, b] = await Promise.all([
+      claimNotification('event:evt-1'),
+      claimNotification('event:evt-1'),
+    ]);
+    expect([a, b].filter(Boolean)).toHaveLength(1);
+    expect(await claimNotification('event:evt-2')).toBe(true);
   });
 });

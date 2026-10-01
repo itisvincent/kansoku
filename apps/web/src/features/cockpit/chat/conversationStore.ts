@@ -62,6 +62,8 @@ type ChatWsEnvelope =
   { type: 'init'; busy: boolean; partial: string } | { type: 'event'; event: ChatWsEvent };
 
 const STREAM_SETTLE_MS = 800;
+// If a stopped turn never reports back, stop waiting after this long.
+const ABORT_SETTLE_TIMEOUT_MS = 10_000;
 const EMPTY_TOOLS: ChatLiveTool[] = [];
 const EMPTY_BEATS: ChatLiveBeat[] = [];
 
@@ -91,6 +93,8 @@ interface Slot extends Omit<ConversationSnapshot, 'liveTools'> {
   suggestionsRequested: boolean;
   unsubWs: (() => void) | null;
   settleTimer: ReturnType<typeof setTimeout> | null;
+  /** Identifies the latest Stop, so an older Stop's fallback timer cannot end a newer one. */
+  abortToken?: object;
   connectedOnce: boolean;
   snapshot: ConversationSnapshot;
 }
@@ -466,12 +470,32 @@ export async function abortConversation(kind: ConversationKind, id: string): Pro
   if (!slot || slot.aborting) return;
   slot.aborting = true;
   slot.busy = false;
-  emit(conversationKey(kind, id));
-  try {
-    await adapterOf(kind).abort(id);
-  } catch {
+  const key = conversationKey(kind, id);
+  emit(key);
+  // Leave the stopping state and show what the server has. Without this, a Stop that
+  // arrived just after the answer finished left `aborting` set forever: Stop did
+  // nothing again and the next turn's streamed text was dropped.
+  const token = {};
+  slot.abortToken = token;
+  const settle = () => {
+    if (!slot.aborting || slot.abortToken !== token) return;
     slot.aborting = false;
-    emit(conversationKey(kind, id));
+    reload(slot, undefined, () => {
+      emit(key);
+      disposeIfIdle(key);
+    });
+  };
+  try {
+    // Chat aborts answer with a status instead of throwing: 202 means a turn was stopped
+    // and an 'aborted' event follows; anything else (409: nothing running) means none will.
+    const result = (await adapterOf(kind).abort(id)) as { status?: number } | undefined;
+    if (typeof result?.status === 'number' && result.status !== 202) {
+      settle();
+      return;
+    }
+    setTimeout(settle, ABORT_SETTLE_TIMEOUT_MS);
+  } catch {
+    settle();
   }
 }
 

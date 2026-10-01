@@ -73,9 +73,9 @@ export function requestNotificationPermissionOnce(): void {
   if (Notification.permission === 'default') void Notification.requestPermission();
 }
 
-function notify(content: NotifyContent): void {
+function notify(content: NotifyContent, tag?: string): void {
   if (typeof Notification === 'undefined') return;
-  const n = new Notification(content.title, { body: content.body });
+  const n = new Notification(content.title, { body: content.body, ...(tag ? { tag } : {}) });
   n.onclick = () => {
     window.focus();
     n.close();
@@ -90,9 +90,55 @@ function currentNotifyContext(activeSymbol?: string | null): NotifyContext {
   };
 }
 
-export function maybeNotify(env: NotifyEnvelope, activeSymbol?: string | null): void {
-  const content = decideNotification(env, currentNotifyContext(activeSymbol), (key, params) =>
-    translate(readLocale(), key, params),
+const SHOWN_PREFIX = 'kansoku:notified:';
+const SHOWN_TTL_MS = 24 * 60 * 60_000;
+
+function pruneShown(now: number): void {
+  for (let i = localStorage.length - 1; i >= 0; i--) {
+    const key = localStorage.key(i);
+    if (!key?.startsWith(SHOWN_PREFIX)) continue;
+    if (now - Number(localStorage.getItem(key)) > SHOWN_TTL_MS) localStorage.removeItem(key);
+  }
+}
+
+/**
+ * True for the first window that claims `key`. Every open window receives the same
+ * live event; without this each one showed its own copy. The check-and-set runs under
+ * one Web Lock, which all windows of the app share, so two windows cannot both win.
+ */
+export async function claimNotification(key: string): Promise<boolean> {
+  const storageKey = SHOWN_PREFIX + key;
+  const checkAndSet = () => {
+    try {
+      if (localStorage.getItem(storageKey)) return false;
+      const now = Date.now();
+      localStorage.setItem(storageKey, String(now));
+      pruneShown(now);
+      return true;
+    } catch {
+      // No storage (private mode, blocked): fall back to showing it here.
+      return true;
+    }
+  };
+  const locks = typeof navigator !== 'undefined' ? navigator.locks : undefined;
+  if (!locks) return checkAndSet();
+  return locks.request('kansoku-notify', () => checkAndSet());
+}
+
+export function maybeNotify(
+  env: NotifyEnvelope,
+  activeSymbol?: string | null,
+  key?: string,
+): void {
+  const content = decideNotification(env, currentNotifyContext(activeSymbol), (k, params) =>
+    translate(readLocale(), k, params),
   );
-  if (content) notify(content);
+  if (!content) return;
+  if (!key) {
+    notify(content);
+    return;
+  }
+  void claimNotification(key).then((mine) => {
+    if (mine) notify(content, key);
+  });
 }
