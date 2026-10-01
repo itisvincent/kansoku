@@ -54,6 +54,24 @@ function resolveExecPath(): Promise<string> {
   return cachedExecPathPromise;
 }
 
+const SECRET_NAME = /(?:KEY|TOKEN|SECRET|PASSWORD|PASSWD|CREDENTIALS?)$/i;
+/** Secrets the skill scripts actually read; everything else secret-looking stays out. */
+const SKILL_SECRETS = new Set(['FRED_API_KEY', 'HITHINK_FINANCE_API_KEY']);
+
+/**
+ * Environment handed to agent shell commands. AI provider keys, GitHub tokens and the like
+ * are dropped: the agent's output goes back to the model provider, so `env` must not be able
+ * to print them. Longbridge's own variables stay so the CLI keeps working.
+ */
+export function agentEnv(source: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
+  const out: NodeJS.ProcessEnv = {};
+  for (const [name, value] of Object.entries(source)) {
+    const keep = !SECRET_NAME.test(name) || SKILL_SECRETS.has(name) || name.startsWith('LONGBRIDGE_');
+    if (keep) out[name] = value;
+  }
+  return out;
+}
+
 /** Forward slashes work in Git Bash globs and in native Windows programs alike. */
 function shellPath(path: string, usingGitBash: boolean): string {
   return usingGitBash ? path.replaceAll('\\', '/') : path;
@@ -89,7 +107,7 @@ export function createDefaultExec(repoRoot: string): ExecFn {
     const appSkillsDir =
       process.env.TRADE_SKILLS_DIR ?? join(repoRoot, 'packages', 'core', 'skills');
     const env: NodeJS.ProcessEnv = {
-      ...process.env,
+      ...agentEnv(process.env),
       KANSOKU_APP_SKILLS_DIR: shellPath(appSkillsDir, Boolean(shell)),
       KANSOKU_SKILLS_DIR: shellPath(skillsDir, Boolean(shell)),
       PATH: await resolveExecPath(),

@@ -53,3 +53,24 @@ describe('agentShell', () => {
     expect(agentShell('linux')).toBeUndefined();
   });
 });
+
+describe('agentEnv', () => {
+  it('drops AI provider keys and tokens but keeps what skills and the CLI need', async () => {
+    const { agentEnv } = await import('../src/ai/agents/agentTools/execTool.js');
+    const env = agentEnv({
+      PATH: 'x',
+      OPENAI_API_KEY: 'sk-1',
+      ANTHROPIC_API_KEY: 'sk-2',
+      XAI_API_KEY: 'xai-3',
+      GITHUB_TOKEN: 'ghp',
+      KANSOKU_BUNDLE_KEY: 'bundle',
+      FRED_API_KEY: 'fred',
+      HITHINK_FINANCE_API_KEY: 'hit',
+      LONGBRIDGE_ACCESS_TOKEN: 'lb',
+      SEC_USER_AGENT: 'Name <a@b.c>',
+    });
+    expect(Object.keys(env).sort()).toEqual(
+      ['FRED_API_KEY', 'HITHINK_FINANCE_API_KEY', 'LONGBRIDGE_ACCESS_TOKEN', 'PATH', 'SEC_USER_AGENT'].sort(),
+    );
+  });
+});

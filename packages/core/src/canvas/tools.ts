@@ -87,6 +87,7 @@ export function buildCanvasApplyPatchTool(
 ): AgentTool<typeof applyPatchSchema> {
   return {
     name: 'apply_patch',
+    executionMode: 'sequential',
     label: 'Apply Patch',
     description:
       'Apply one patch to existing journal/canvases/*.canvas.tsx files. The canvas skill must have been read once in this conversation; do not read it again. Do not re-read the file if its current source is already in this conversation, and do not re-read after a successful patch. ' +
@@ -163,6 +164,7 @@ export function buildCanvasTools(dir: string, opts: CanvasToolsOptions = {}): Ag
   const { now, skillLoaded, licensed = isLicensed } = opts;
   const save: AgentTool<typeof saveSchema> = {
     name: 'save_canvas',
+    executionMode: 'sequential',
     label: 'Save Canvas',
     description:
       'Create or overwrite a named canvas file. The canvas skill (read_skill name="canvas") must have been read once in this conversation — it carries the required layout skeleton; do not read it again. slug is kebab-case. source is the full TSX. Same slug updates the same canvas. Free builds may keep at most 3 canvases; overwriting an existing slug is always allowed. ' +

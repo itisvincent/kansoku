@@ -196,4 +196,42 @@ describe('desktopSecretBox', () => {
     });
     expect(box.status()).toBe('invalid');
   });
+
+  it('never replaces a corrupt key file: it refuses instead of minting a new key', () => {
+    writeFileSync(wrappedKeyPath, 'not json', { mode: 0o600 });
+    const box = createDesktopSecretBox({ safeStorage: fakeSafeStorage(), wrappedKeyPath, legacyKeyPath });
+    expect(() => box.encrypt('longbridge', 'x')).toThrow(SecretBoxError);
+    expect(readFileSync(wrappedKeyPath, 'utf8')).toBe('not json');
+  });
+
+  it('never replaces a key that OS secure storage failed to decrypt', () => {
+    const first = createDesktopSecretBox({ safeStorage: fakeSafeStorage(), wrappedKeyPath, legacyKeyPath });
+    const envelope = first.encrypt('longbridge', 'secret-value');
+    const saved = readFileSync(wrappedKeyPath, 'utf8');
+    const failing: SafeStorageLike = {
+      ...fakeSafeStorage(),
+      decryptString: () => {
+        throw new Error('DPAPI unavailable');
+      },
+    };
+    const second = createDesktopSecretBox({ safeStorage: failing, wrappedKeyPath, legacyKeyPath });
+    expect(() => second.decrypt('longbridge', envelope)).toThrow(SecretBoxError);
+    expect(readFileSync(wrappedKeyPath, 'utf8')).toBe(saved);
+    // Once storage recovers, the original key still decrypts the saved credential.
+    const third = createDesktopSecretBox({ safeStorage: fakeSafeStorage(), wrappedKeyPath, legacyKeyPath });
+    expect(third.decrypt('longbridge', envelope)).toBe('secret-value');
+  });
+
+  it('keeps working from memory if the key file becomes unreadable later', () => {
+    const box = createDesktopSecretBox({ safeStorage: fakeSafeStorage(), wrappedKeyPath, legacyKeyPath });
+    const envelope = box.encrypt('longbridge', 'secret-value');
+    writeFileSync(wrappedKeyPath, 'locked or corrupt', { mode: 0o600 });
+    expect(box.decrypt('longbridge', envelope)).toBe('secret-value');
+  });
+
+  it('reports an unreadable key file as invalid in status', () => {
+    writeFileSync(wrappedKeyPath, JSON.stringify({ version: 1, ciphertext: 'not-wrapped' }));
+    const box = createDesktopSecretBox({ safeStorage: fakeSafeStorage(), wrappedKeyPath, legacyKeyPath });
+    expect(box.status()).toBe('invalid');
+  });
 });

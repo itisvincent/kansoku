@@ -60,6 +60,7 @@ export function buildWriteNoteTool(hooks: NoteToolHooks): AgentTool<typeof noteS
   let original: Promise<string | null> | null = null;
   return {
     name: 'write_note',
+    executionMode: 'sequential',
     label: 'Write Note',
     description:
       'Save the research note for this stock (stocks/{SYMBOL}.md). This is the only way to persist the deep dive; the run fails without a final save. Read the existing note first and pass the full updated Markdown. Use final:false for a draft partway through.',

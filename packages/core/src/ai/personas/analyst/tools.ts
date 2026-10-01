@@ -58,6 +58,7 @@ export function buildJournalTool(
   const base = symbol.split('.')[0].toUpperCase();
   return {
     name: 'write_journal',
+    executionMode: 'sequential',
     label: 'Write Journal',
     description: `Write journal/YYYY-MM-DD-${base}-intraday.md according to Skill Step 7 and the US Eastern trading date. Append a section when the same-day file exists; never overwrite it. Provide Markdown content only.`,
     parameters: journalSchema,
@@ -168,14 +169,18 @@ export function buildSubmitPredictionTool(
   symbol: string,
   hooks: SubmitPredictionHooks,
 ): AgentTool<typeof predictionSchema> {
+  // One chart per run, even if the model sends two submits in the same tool batch.
+  let alreadySubmitted = false;
   return {
     name: 'submit_prediction',
+    executionMode: 'sequential',
     label: 'Submit Prediction',
     description:
       'Submit the complete conclusion and create the chart. Call exactly once after research is complete. Always include eps_pe_plan: three bear/base/bull EPS × PE scenarios (eps, pe, target), plus PEG, blended target, black-swan thesis-break, valuation-digestion rows, and add/trim bands, following the eps-pe-scenario-stock-analysis skill.',
     parameters: predictionSchema,
     execute: async (_id, params: PredictionParams) => {
       if (hooks.isDone()) return textResult('skipped', true);
+      if (alreadySubmitted) return textResult('already submitted: this run has its prediction', true);
       if (!Check(predictionSchema, params)) {
         return textResult(
           'prediction has an invalid structure. Add direction and scenarios; long and short also require entry_plan. Then retry.',
@@ -232,6 +237,7 @@ export function buildSubmitPredictionTool(
         origin: 'analyst',
         prediction,
       });
+      alreadySubmitted = true;
       hooks.onSubmitted?.(chart.id, params);
       await hooks.appendComment({
         ts: new Date().toISOString(),
@@ -347,6 +353,7 @@ export async function buildTools(
 
   const appendCommentTool: AgentTool<typeof commentSchema> = {
     name: 'append_comment',
+    executionMode: 'sequential',
     label: 'Append Comment',
     description: 'Write one plain-language observation as an analyst comment.',
     parameters: commentSchema,

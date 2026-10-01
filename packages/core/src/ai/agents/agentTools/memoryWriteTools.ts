@@ -4,7 +4,7 @@ import type { AgentTool } from '@earendil-works/pi-agent-core';
 import { Type } from 'typebox';
 import { applyChunks, parsePatch, PatchError } from '../../../canvas/applyPatch.js';
 import { textResult } from '../dataTools.js';
-import { type FsWriteMount, slashPath } from './fsMounts.js';
+import { type FsWriteMount, isInsideRoot, slashPath } from './fsMounts.js';
 
 export const MEMORY_FILE_MAX_BYTES = 64 * 1024;
 
@@ -21,10 +21,11 @@ class MemoryPathError extends Error {}
 
 function resolveMemoryPath(mount: FsWriteMount, rawPath: string): { path: string; rel: string } {
   if (rawPath.includes('\0')) throw new MemoryPathError(`invalid path: ${rawPath}`);
-  const trimmed = rawPath.replace(/^\/+/, '').replace(/^memory\//, '');
+  // Accept memory/ and memory\ prefixes alike, so a backslash path does not nest one level.
+  const trimmed = rawPath.replace(/^[\\/]+/, '').replace(/^memory[\\/]/, '');
   const path = resolve(mount.root, trimmed);
   const rel = relative(mount.root, path);
-  if (!rel || rel === '..' || rel.startsWith(`..${sep}`)) {
+  if (!rel || !isInsideRoot(mount.root, path)) {
     throw new MemoryPathError(`path escapes the memory mount: ${rawPath}`);
   }
   if (!rel.endsWith('.md'))
@@ -76,6 +77,7 @@ const failure = (verb: string, error: unknown): ReturnType<typeof textResult> =>
 export function buildMemoryWriteTools(mount: FsWriteMount): AgentTool[] {
   const writeFile: AgentTool<typeof writeFileSchema> = {
     name: 'memory_write_file',
+    executionMode: 'sequential',
     label: '新建记忆文件',
     description:
       'Create a new Markdown file under the memory mount (symbols/<SYMBOL>.md, markets/<MARKET>.md, notes/<slug>.md). Fails if the file already exists; edit existing files with memory_apply_patch. One dated fact per line: "- YYYY-MM-DD: ...".',
@@ -99,6 +101,7 @@ export function buildMemoryWriteTools(mount: FsWriteMount): AgentTool[] {
 
   const applyPatch: AgentTool<typeof applyPatchSchema> = {
     name: 'memory_apply_patch',
+    executionMode: 'sequential',
     label: '更新记忆',
     description:
       'Apply one patch to existing Markdown files under the memory mount. Format: "*** Begin Patch", then one or more "*** Update File: <path>" sections holding hunks; a hunk may open with "@@ <context line>" to pin its position, and body lines start with " " (unchanged), "-" (remove), or "+" (add). End with "*** End Patch". All hunks apply together or not at all. Paths are relative to the memory mount (MEMORY.md, symbols/MU.US.md). New files go through memory_write_file.',

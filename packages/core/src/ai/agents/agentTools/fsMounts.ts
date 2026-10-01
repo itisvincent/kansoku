@@ -1,5 +1,5 @@
 import { promises as fs } from 'node:fs';
-import { relative, resolve, sep } from 'node:path';
+import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 export interface FsMount {
   name: string;
@@ -14,10 +14,21 @@ export interface ResolvedFsMount extends FsMount {
   root: string;
 }
 
+/**
+ * True when `path` is `root` or inside it. On Windows, path.relative() between two drives
+ * (or to a UNC path) returns an absolute path rather than one starting with "..", so that has
+ * to be rejected too.
+ */
+export function isInsideRoot(root: string, path: string): boolean {
+  const rel = relative(root, path);
+  if (rel === '') return true;
+  if (isAbsolute(rel)) return false;
+  return rel !== '..' && !rel.startsWith(`..${sep}`) && !rel.startsWith('../');
+}
+
 export function resolveRepoRelative(repoRoot: string, rawPath: string): string | null {
   const resolved = resolve(repoRoot, rawPath);
-  const rel = relative(repoRoot, resolved);
-  if (rel.startsWith('..') || resolve(repoRoot, rel) !== resolved) return null;
+  if (!isInsideRoot(repoRoot, resolved)) return null;
   return resolved;
 }
 
@@ -88,9 +99,9 @@ export function matchesAnyGlob(path: string, globs: readonly string[] | undefine
 }
 
 export function mountRelativePath(mount: ResolvedFsMount, absolutePath: string): string | null {
+  if (!isInsideRoot(mount.root, absolutePath)) return null;
   const rel = slashPath(relative(mount.root, absolutePath));
   if (!rel || rel === '.') return '';
-  if (rel.startsWith('../') || rel === '..') return null;
   return rel;
 }
 
@@ -107,7 +118,18 @@ export function buildMounts(repoRoot: string): Map<string, ResolvedFsMount> {
       {
         name: 'project',
         root: resolve(repoRoot),
-        exclude: ['.git/**', 'node_modules/**'],
+        // Key material and raw databases are never readable by an agent.
+        exclude: [
+          '.git/**',
+          'node_modules/**',
+          '.env',
+          '**/.env',
+          '**/ai-secret.key',
+          '**/ai-master-key.json',
+          '**/*.db',
+          '**/*.db-wal',
+          '**/*.db-shm',
+        ],
       },
     ],
   ]);
@@ -122,16 +144,14 @@ export function resolveMountedPath(
   const mount = mounts.get(mountName ?? 'project');
   if (!mount) return null;
   const path = resolve(mount.root, rawPath || '.');
-  const rel = relative(mount.root, path);
-  if (rel === '..' || rel.startsWith(`..${sep}`)) return null;
+  if (!isInsideRoot(mount.root, path)) return null;
   return { mount, path };
 }
 
 export async function isSymlinkSafe(mount: ResolvedFsMount, path: string): Promise<boolean> {
   try {
     const [realRoot, realPath] = await Promise.all([fs.realpath(mount.root), fs.realpath(path)]);
-    const rel = relative(realRoot, realPath);
-    return rel !== '..' && !rel.startsWith(`..${sep}`);
+    return isInsideRoot(realRoot, realPath);
   } catch {
     return false;
   }

@@ -370,6 +370,25 @@ describe('analyst tools', () => {
     expect(turnText).toContain('bear 12×, base 16×, bull 19×');
   });
 
+  it('creates only one chart when the model submits twice in one run', async () => {
+    const { deps, createCalls } = harness(async (tools) => {
+      await tool(tools, 'submit_section').execute('c0', {
+        kind: 'technical',
+        trends: [
+          { timeframe: 'm5', trend: 'up' },
+          { timeframe: 'm15', trend: 'up' },
+          { timeframe: 'h1', trend: 'up' },
+        ],
+        levels: [{ price: 100, label: 'support' }],
+        summary: 'All periods rise.',
+      });
+      await tool(tools, 'submit_prediction').execute('c1', validPrediction);
+      await tool(tools, 'submit_prediction').execute('c2', validPrediction);
+    });
+    await executeAnalystRun('MU.US', deps);
+    expect(createCalls).toHaveLength(1);
+  });
+
   it('a normal run does not send the rebuild instruction', async () => {
     const { deps, engineeredMessages } = harness(async () => {});
     await executeAnalystRun('MU.US', deps);

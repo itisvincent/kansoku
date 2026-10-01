@@ -10,6 +10,9 @@ import { parseClientInput } from '../platform/zodInput.js';
 import { z } from 'zod';
 import { easternDate } from '../marketdata/session.js';
 import { settingsDeps } from './settings.deps.js';
+import { eq } from 'drizzle-orm';
+import { providerCredentials } from '../db/schema.js';
+import { LICENSE_PROVIDER_KEY } from '../license/constants.js';
 import { xaiLogin } from './xaiLogin.js';
 import { runTestConnection } from './settings.testConnection.js';
 import {
@@ -174,6 +177,10 @@ export const aiSettingsService: AiSettingsService = {
 
   async deleteCredential(input) {
     const { credentials, models } = settingsDeps();
+    if (input.provider === LICENSE_PROVIDER_KEY) {
+      // Deleting the row here would drop the license without releasing its activation.
+      throw new ClientError('the license is not an AI credential', 'use License → Deactivate instead');
+    }
     if (input.provider === 'xai') xaiLogin.cancel();
     try {
       await credentials.delete(input.provider);
@@ -276,10 +283,34 @@ export const aiSettingsService: AiSettingsService = {
   async resetCredentials() {
     const { db, credentials, secretBox, models } = settingsDeps();
     xaiLogin.cancel();
+    // wipeAll keeps the license row, but it is encrypted with the key about to be replaced.
+    // Read it now and re-encrypt it with the new key, or the license would be lost.
+    const licenseRow = db
+      .select()
+      .from(providerCredentials)
+      .where(eq(providerCredentials.provider, LICENSE_PROVIDER_KEY))
+      .get();
+    let licensePlain: string | null = null;
+    if (licenseRow) {
+      try {
+        licensePlain = secretBox.decrypt(LICENSE_PROVIDER_KEY, licenseRow.secret);
+      } catch {
+        licensePlain = null;
+      }
+    }
     db.transaction(() => {
       credentials.wipeAll();
     });
     secretBox.resetKey();
+    if (licensePlain !== null) {
+      db.update(providerCredentials)
+        .set({
+          secret: secretBox.encrypt(LICENSE_PROVIDER_KEY, licensePlain),
+          updatedAt: new Date().toISOString(),
+        })
+        .where(eq(providerCredentials.provider, LICENSE_PROVIDER_KEY))
+        .run();
+    }
     for (const provider of SINGLE_KEY_PROVIDERS) {
       applyBaseUrlOverride(models, provider, null);
     }

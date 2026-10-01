@@ -181,6 +181,7 @@ export function buildDrawAnnotationsTool(
 ): AgentTool<typeof drawAnnotationsSchema> {
   return {
     name: 'draw_annotations',
+    executionMode: 'sequential',
     label: 'Draw Annotations',
     description:
       'Draw annotations on the current symbol\'s chart: trendline (2 points), hline (1 point), rect (2 points), fib (2 points), or polyline (2–20 points). ' +
