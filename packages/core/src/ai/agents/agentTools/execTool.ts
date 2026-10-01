@@ -18,7 +18,31 @@ import { agentShell } from './gitBash.js';
 
 const OUTPUT_TRUNCATE_CHARS = 30_000;
 const OUTPUT_PREVIEW_CHARS = 12_000;
-const REJECTED_PATTERNS = [/>>?/, /\btee\s/, /\brm\s/, /\bmv\s/, /\bcp\s/];
+// The shell is read-only by convention. This list is a guard against the common ways to write
+// or delete files, not a sandbox; journal/ and stocks/ are the user's only records.
+const REJECTED_PATTERNS = [
+  />>?(?!\s*(?:&|\/dev\/null\b))/, // output redirection; only 2>&1 and >/dev/null stay allowed
+  /\btee\s/,
+  /\brm\s/,
+  /\bmv\s/,
+  /\bcp\s/,
+  /\brmdir\b/,
+  /\btruncate\b/,
+  /\bshred\b/,
+  /\bdd\s/,
+  /\bsed\s+(?:-[a-zA-Z]*i|--in-place)/,
+  /\bperl\s+-[a-zA-Z]*i/,
+  /\bfind\b[^|;]*\s-(?:delete|exec)\b/,
+  /\bgit\s+(?:checkout|reset|clean|restore|stash|commit|push|rm|mv|apply|am|rebase|merge)\b/,
+  /\bcurl\b[^|;]*\s(?:-[a-zA-Z]*[oO]\b|--output\b|-T\b|--upload-file\b)/,
+  /\bwget\b/,
+  /\b(?:del|erase|copy|move|ren|rename)\s/i,
+  /\bopen\([^)]*['"](?:w|a|x|r\+|w\+|a\+|wb|ab)['"]/,
+  /\b(?:write_text|write_bytes|unlink|rmtree|remove|rename|replace)\(/,
+  /\bos\.(?:remove|unlink|rmdir|makedirs|mkdir)\b/,
+  /\bfs\.(?:write|rm|unlink|rename|cp|mkdir|truncate)/,
+  /\b(?:write|append)File(?:Sync)?\b|\b(?:rm|unlink|rename|truncate)Sync\b/,
+];
 const BASH_TIMEOUT_MS = 120_000;
 const BASH_MAX_BUFFER = 10 * 1024 * 1024;
 const TRANSCRIPT_PAGE_CHARS = 20_000;
