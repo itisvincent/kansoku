@@ -39,10 +39,11 @@ export function emptyBucket(): MutableBucket {
  * +3%. A range call has no direction to earn on, so it does not count toward the average.
  */
 function callReturn(
-  direction: StatsRow['direction'],
+  direction: StatsRow['direction'] | undefined,
   outcome: AnalysisOutcome,
 ): number | null {
-  if (direction === 'long') return outcome.pct_since_anchor;
+  // Callers that do not pass a direction keep the old unsigned average.
+  if (direction === undefined || direction === 'long') return outcome.pct_since_anchor;
   if (direction === 'short') return -outcome.pct_since_anchor;
   return null;
 }
@@ -50,7 +51,7 @@ function callReturn(
 export function addRow(
   bucket: MutableBucket,
   outcome: AnalysisOutcome | null,
-  direction: StatsRow['direction'],
+  direction?: StatsRow['direction'],
 ): void {
   bucket.total += 1;
   if (!outcome) {
