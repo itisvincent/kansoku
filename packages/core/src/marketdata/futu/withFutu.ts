@@ -7,6 +7,14 @@ import type {
 import { readFutuAccount, readFutuWatchlist, type FutuAccountSnapshot } from './futuAccount.js';
 import { readFutuSettings, type FutuSettings } from './futuSettings.js';
 import { getActiveWatchedMarketsStore } from '../watchedMarketsStore.js';
+import { onAccountCacheReset } from '../accountRefresh.js';
+import { ClientError } from '../../platform/errors.js';
+import { getInterfaceLocale } from '../../settings/interfaceLocale.js';
+import { resetFutuCacheForTests } from './futuAccount.js';
+
+// After OpenD fails, it is left alone this long. Callers poll positions every few seconds;
+// without the pause each poll tried OpenD again and logged another warning.
+export const FUTU_RETRY_MS = 30_000;
 
 const MARKET_SUFFIXES: Record<string, string[]> = { US: ['.US'], HK: ['.HK'], CN: ['.SH', '.SZ'] };
 
@@ -34,6 +42,7 @@ export interface WithFutuDeps {
   account: (settings: FutuSettings) => Promise<FutuAccountSnapshot>;
   watchlist: (settings: FutuSettings) => Promise<string[]>;
   warn: (message: string) => void;
+  now?: () => number;
 }
 
 const defaultDeps: WithFutuDeps = {
@@ -137,6 +146,15 @@ export function withFutu(
   base: MarketDataProvider,
   deps: WithFutuDeps = defaultDeps,
 ): MarketDataProvider {
+  const now = deps.now ?? Date.now;
+  let downUntil = 0;
+  let downReason: string | null = null;
+  onAccountCacheReset(() => {
+    downUntil = 0;
+    downReason = null;
+    resetFutuCacheForTests();
+  });
+
   const futuOn = () => {
     const settings = deps.settings();
     return settings.enabled ? settings : null;
@@ -148,12 +166,36 @@ export function withFutu(
   ) => {
     const settings = futuOn();
     if (!settings || !when(settings)) return null;
+    if (now() < downUntil) return null;
     try {
-      return await read(settings);
+      const value = await read(settings);
+      downReason = null;
+      return value;
     } catch (error) {
-      deps.warn(`${label} unavailable: ${error instanceof Error ? error.message : String(error)}`);
+      const reason = error instanceof Error ? error.message : String(error);
+      // Logged when it starts failing or the reason changes, not on every retry.
+      if (reason !== downReason) deps.warn(`${label} unavailable: ${reason}`);
+      downReason = reason;
+      downUntil = now() + FUTU_RETRY_MS;
       return null;
     }
+  };
+
+  /**
+   * Both brokers failed. One plain message beats the base broker's raw error, which
+   * hid that Futu was the real source and only needed OpenD to be logged in.
+   */
+  const bothFailed = (what: 'positions' | 'portfolio', baseError: unknown): never => {
+    if (!futuOn() || !downReason) throw baseError;
+    const en = getInterfaceLocale() !== 'zh-CN';
+    const baseMessage = baseError instanceof Error ? baseError.message : String(baseError);
+    throw new ClientError(
+      en
+        ? `Cannot load ${what}: Futu OpenD is not reachable. Open OpenD and log in, then refresh.`
+        : `读不到${what === 'positions' ? '持仓' : '账户'}：连不上富途 OpenD。请打开 OpenD 并登录，然后刷新。`,
+      en ? `Longbridge: ${baseMessage}` : `长桥：${baseMessage}`,
+      503,
+    );
   };
 
   return {
@@ -166,7 +208,7 @@ export function withFutu(
         settle(base.getPositions ? base.getPositions() : Promise.resolve([])),
         futuPart('positions', deps.account),
       ]);
-      if (!futu) return unwrap(own);
+      if (!futu) return own.ok ? own.value : bothFailed('positions', own.error);
       return own.ok ? mergePositions([own.value, futu.positions]) : futu.positions;
     },
 
@@ -187,7 +229,7 @@ export function withFutu(
               settle(base.getPortfolio!()),
               futuPart('portfolio', deps.account),
             ]);
-            if (!futu) return unwrap(own);
+            if (!futu) return own.ok ? own.value : bothFailed('portfolio', own.error);
             if (!own.ok) {
               if (!futu.overview) throw own.error;
               return { overview: futu.overview, holdings: futu.holdings };

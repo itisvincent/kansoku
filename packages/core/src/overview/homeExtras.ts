@@ -1,6 +1,7 @@
 import type { MarketTemp } from '@kansoku/shared/types';
 import type { FlowRow } from '../analysis/simple.js';
 import { getProvider } from '../marketdata/registry.js';
+import { onAccountCacheReset } from '../marketdata/accountRefresh.js';
 
 const FLOW_TTL_MS = 60_000;
 const OPTION_SYMBOL_RE = /\d{6}[CP]\d+/;
@@ -11,6 +12,7 @@ export function flowEligible(symbol: string): boolean {
 
 const TEMP_TTL_MS = 10 * 60_000;
 const WATCH_TTL_MS = 10 * 60_000;
+const EMPTY_WATCH_TTL_MS = 60_000;
 const FLOW_CONCURRENCY = 1;
 
 const CAPS_TTL_MS = 30 * 60_000;
@@ -26,16 +28,24 @@ interface HomeExtras {
 let flowCache = new Map<string, { at: number; value: number | null }>();
 let tempCache: { at: number; value: MarketTemp | null } | null = null;
 let watchCache: { at: number; symbols: string[] } | null = null;
+let emptyWatchAt: number | null = null;
 let capsCache: { at: number; value: Record<string, number> } | null = null;
 let capsAskedAt = new Map<string, number>();
 let warming: Promise<void> | null = null;
 let warmQueued: string[] | null = null;
 const extrasListeners = new Set<() => void>();
 
+// Refresh forgets the remembered watch list too, so new positions show at once.
+onAccountCacheReset(() => {
+  watchCache = null;
+  emptyWatchAt = null;
+});
+
 export function resetHomeExtrasForTests(): void {
   flowCache = new Map();
   tempCache = null;
   watchCache = null;
+  emptyWatchAt = null;
   capsCache = null;
   capsAskedAt = new Map();
   warming = null;
@@ -176,8 +186,13 @@ function cacheWatchSymbols(symbols: string[]): void {
 
 export async function getWatchSymbols(): Promise<string[]> {
   if (watchCache && Date.now() - watchCache.at < WATCH_TTL_MS) return watchCache.symbols;
+  // An empty answer (both sources failed, or nothing is watched) is remembered briefly.
+  // It is never put in watchCache, so the strict path below still reports a failure; but
+  // without it every board rebuild re-read both sources, every few seconds.
+  if (emptyWatchAt !== null && Date.now() - emptyWatchAt < EMPTY_WATCH_TTL_MS) return [];
   const { symbols } = await readWatchSymbols();
   cacheWatchSymbols(symbols);
+  emptyWatchAt = symbols.length ? null : Date.now();
   return symbols;
 }
 

@@ -2,6 +2,8 @@ import type { MacroEventItem, NewsItem, RawBar } from '@kansoku/shared/types';
 import { ClientError } from '../platform/errors.js';
 import { LongbridgeCliError, runLongbridgeJson } from './longbridgeCli.js';
 import { getSharedQuoteSocket } from './sharedSocket.js';
+import { onAccountCacheReset } from './accountRefresh.js';
+import { getInterfaceLocale } from '../settings/interfaceLocale.js';
 import { LongbridgeProtocolError, LongbridgeResponseError } from './longbridgeSocket.js';
 import type { FlowRow } from '../analysis/simple.js';
 import type { Market } from '../symbols/symbol.utils.js';
@@ -139,6 +141,30 @@ function isQuotaError(message: string): boolean {
   );
 }
 
+// A login without the trading-data scope refuses every account call the same way until
+// the user logs in again, so the refusal is remembered instead of spawning the CLI again.
+const ACCOUNT_DENIED_MS = 10 * 60_000;
+
+export function isScopeDenied(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /403308|not in authorized scopes/i.test(message);
+}
+
+function scopeDeniedError(label: string, cause: unknown): ClientError {
+  const en = getInterfaceLocale() !== 'zh-CN';
+  const error = new ClientError(
+    en
+      ? `Longbridge cannot read your ${label}: its login lacks the account-data permission (code 403308).`
+      : `长桥读不到${label === 'positions' ? '持仓' : '账户'}：当前登录没有账户数据权限（代码 403308）。`,
+    en
+      ? 'Run "longbridge auth login" and allow account access, or turn on Futu in Settings > Connections.'
+      : '重新执行 longbridge auth login 并允许账户权限，或在 设置 > 连接 中开启富途账户。',
+    403,
+  );
+  (error as Error & { cause?: unknown }).cause = cause;
+  return error;
+}
+
 export function createLongbridgeProvider(
   run: LongbridgeRunner = runLongbridgeJson,
   socket?: () => QuoteQueryTransport,
@@ -152,6 +178,23 @@ export function createLongbridgeProvider(
   let historyCooldownUntil = 0;
   let historyFailure: unknown;
   const symbolHistoryCooldown = new Map<string, { until: number; failure: unknown }>();
+  let accountDenied: { until: number; label: string; cause: unknown } | null = null;
+  onAccountCacheReset(() => {
+    accountDenied = null;
+  });
+
+  async function accountCall<T>(label: string, args: string[]): Promise<T> {
+    if (accountDenied && Date.now() < accountDenied.until) {
+      throw scopeDeniedError(label, accountDenied.cause);
+    }
+    try {
+      return await callCli<T>(label, run, args);
+    } catch (error) {
+      if (!isScopeDenied(error)) throw error;
+      accountDenied = { until: Date.now() + ACCOUNT_DENIED_MS, label, cause: error };
+      throw scopeDeniedError(label, error);
+    }
+  }
   let historyQueue: Promise<unknown> = Promise.resolve();
 
   function quotaError(label: string): ClientError {
@@ -374,11 +417,11 @@ export function createLongbridgeProvider(
     },
 
     getPositions(): Promise<RawPosition[]> {
-      return callCli<RawPosition[]>('positions', run, ['positions']);
+      return accountCall<RawPosition[]>('positions', ['positions']);
     },
 
     async getPortfolio(): Promise<RawPortfolio> {
-      const result = await callCli<RawPortfolio>('portfolio', run, ['portfolio']);
+      const result = await accountCall<RawPortfolio>('portfolio', ['portfolio']);
       return {
         overview: result.overview,
         holdings: result.holdings.map((holding) => ({
