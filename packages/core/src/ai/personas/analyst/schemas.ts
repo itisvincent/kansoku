@@ -73,7 +73,10 @@ export const epsPePlanSchema = Type.Object({
   eps_growth_note: Type.Optional(Type.String()),
   scenarios: Type.Array(epsPeScenarioSchema, { minItems: 3, maxItems: 3 }),
   blended_target: Type.Optional(
-    Type.Number({ description: '25/50/25 probability-weighted blended target' }),
+    Type.Number({
+      description:
+        'Optional probability-weighted target. Not part of the usual EPS × PE method; set it only when the task asks, and name the weights in sources',
+    }),
   ),
   wall_street_target: Type.Optional(Type.Number()),
   black_swan: Type.Optional(

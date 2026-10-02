@@ -166,7 +166,7 @@ export async function executeAnalystRun(
                     name: EPS_PE_SKILL_NAME,
                     content: epsPeText,
                     fallbackDescription:
-                      "Vincent's Darren-style EPS × PE scenario valuation: bear/base/bull targets, PEG, digestion, add/trim bands.",
+                      "Darren's EPS × PE scenario valuation: anchor year, three EPS cases, a PE ladder from traded multiples, bear/base/bull targets, add/trim levels.",
                   },
                 ]
               : [];
