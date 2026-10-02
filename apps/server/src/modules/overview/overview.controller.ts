@@ -43,12 +43,15 @@ export class OverviewController {
   }
 
   @Post('/scan')
-  async startScan(@Body() body: { timeframes?: unknown; anchorTf?: unknown } | null) {
+  async startScan(
+    @Body() body: { timeframes?: unknown; anchorTf?: unknown; scope?: unknown } | null,
+  ) {
     const timeframes = Array.isArray(body?.timeframes)
       ? body.timeframes.filter((tf): tf is string => typeof tf === 'string')
       : undefined;
     const anchorTf = typeof body?.anchorTf === 'string' ? body.anchorTf : undefined;
-    const data = await overviewService.scanStart({ timeframes, anchorTf });
+    const scope = body?.scope === 'positions' ? 'positions' : 'watchlist';
+    const data = await overviewService.scanStart({ timeframes, anchorTf, scope });
     return { ok: true, data };
   }
 

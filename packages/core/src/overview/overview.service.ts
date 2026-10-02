@@ -318,7 +318,8 @@ export const overviewService: OverviewApi = {
       ? input.timeframes.filter((tf): tf is string => typeof tf === 'string')
       : undefined;
     const anchorTf = typeof input?.anchorTf === 'string' ? input.anchorTf : undefined;
-    return watchlistScanner.start({ timeframes, anchorTf });
+    const scope = input?.scope === 'positions' ? 'positions' : 'watchlist';
+    return watchlistScanner.start({ timeframes, anchorTf, scope });
   },
 
   async scanStatus() {

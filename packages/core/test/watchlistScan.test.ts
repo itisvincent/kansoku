@@ -101,6 +101,7 @@ function harness(symbols: string[], overrides: Partial<ScanDeps> = {}): Harness 
     now: () => Date.parse('2026-09-28T14:00:00Z'),
     concurrency: 2,
     maxSymbols: 20,
+    maxPositions: 40,
     ...overrides,
   };
   return {
@@ -114,6 +115,29 @@ function harness(symbols: string[], overrides: Partial<ScanDeps> = {}): Harness 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('watchlist scanner', () => {
+  it('analyses only positions, all of them up to 40, when asked for positions', async () => {
+    const symbols = Array.from({ length: 25 }, (_, i) => `P${i}`);
+    const listSymbols = vi.fn(async (scope: string) => (scope === 'positions' ? symbols : ['W']));
+    const scanner = createWatchlistScanner(harness([], { listSymbols, maxSymbols: 20 }).deps);
+    expect(await scanner.start({ scope: 'positions' })).toEqual({ started: true });
+    expect(listSymbols).toHaveBeenCalledWith('positions');
+    const state = scanner.status();
+    expect(state.scope).toBe('positions');
+    // Beyond the 20-symbol watchlist cap: a positions scan keeps every holding.
+    expect(state.items).toHaveLength(25);
+    expect(state.skipped_over_cap).toBe(0);
+    scanner.cancel();
+  });
+
+  it('tells positions it cannot read apart from holding nothing', async () => {
+    const failing = createWatchlistScanner(
+      harness([], { listSymbols: async () => { throw new Error('OpenD down'); } }).deps,
+    );
+    expect(await failing.start({ scope: 'positions' })).toEqual({ started: false, reason: 'positions unavailable' });
+    const empty = createWatchlistScanner(harness([]).deps);
+    expect(await empty.start({ scope: 'positions' })).toEqual({ started: false, reason: 'no positions' });
+  });
+
   it('runs two symbols at a time and ranks the results', async () => {
     const h = harness(['A', 'B', 'C']);
     const scanner = createWatchlistScanner(h.deps);

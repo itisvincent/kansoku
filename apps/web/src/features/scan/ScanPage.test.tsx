@@ -42,6 +42,7 @@ function setup(symbol: string, score: number, direction: ScanSetup['direction'] 
 function state(overrides: Partial<WatchlistScanState> = {}): WatchlistScanState {
   return {
     running: false,
+    scope: 'watchlist',
     started_at: null,
     finished_at: null,
     timeframes: [],

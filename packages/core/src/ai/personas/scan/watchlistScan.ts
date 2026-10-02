@@ -1,6 +1,7 @@
 import type {
   ChartDoc,
   ScanItem,
+  ScanScope,
   ScanSetup,
   ScanStartResult,
   WatchlistScanState,
@@ -21,13 +22,18 @@ import { rankSetups, setupFromDoc } from './scanRanking.js';
 export const SCAN_CONCURRENCY = 2;
 /** Each symbol is a full analyst run, so a scan is capped to keep the bill predictable. */
 export const MAX_SCAN_SYMBOLS = 20;
+/**
+ * A positions-only scan covers every holding: leaving one out is worse than the cost of
+ * a few more runs, and a portfolio is far smaller than a watchlist.
+ */
+export const MAX_POSITION_SCAN_SYMBOLS = 40;
 
 type StartOutcome =
   | { started: true; done: Promise<void> }
   | { started: false; reason: string };
 
 export interface ScanDeps {
-  listSymbols: () => Promise<string[]>;
+  listSymbols: (scope: ScanScope) => Promise<string[]>;
   /** False when no analyst model is configured; every run would fail the same way. */
   analystReady: () => boolean;
   startRun: (symbol: string, request: ManualRunRequest) => StartOutcome;
@@ -37,6 +43,7 @@ export interface ScanDeps {
   now: () => number;
   concurrency: number;
   maxSymbols: number;
+  maxPositions: number;
 }
 
 async function findLatestAnalystChart(
@@ -60,7 +67,14 @@ function notifyFinished(state: WatchlistScanState): void {
   emitNotice({
     symbol: top?.symbol ?? '',
     kind: 'analysis_done',
-    title: en ? 'Watchlist scan finished' : '自选股扫描完成',
+    title:
+      state.scope === 'positions'
+        ? en
+          ? 'Positions analysis finished'
+          : '持仓分析完成'
+        : en
+          ? 'Watchlist scan finished'
+          : '自选股扫描完成',
     body: en
       ? `${done} of ${state.items.length} symbols analysed.${lead}`
       : `已分析 ${done}/${state.items.length} 只。${lead}`,
@@ -96,7 +110,17 @@ export function orderScanSymbols(
   });
 }
 
-async function listScanSymbols(): Promise<string[]> {
+/** Every market the analyst supports; a positions scan is not limited to watched markets. */
+const ALL_SCAN_MARKETS = ['US', 'HK', 'CN'];
+
+async function listScanSymbols(scope: ScanScope): Promise<string[]> {
+  if (scope === 'positions') {
+    const provider = getProvider();
+    if (!provider.getPositions) return [];
+    // Not caught: "could not read positions" must not look like "you hold nothing".
+    const positions = (await provider.getPositions()).map((position) => position.symbol);
+    return orderScanSymbols(positions, [], ALL_SCAN_MARKETS);
+  }
   const watched = await getWatchSymbolsStrict();
   const provider = getProvider();
   const positions = provider.getPositions
@@ -114,11 +138,13 @@ export const defaultScanDeps: ScanDeps = {
   now: () => Date.now(),
   concurrency: SCAN_CONCURRENCY,
   maxSymbols: MAX_SCAN_SYMBOLS,
+  maxPositions: MAX_POSITION_SCAN_SYMBOLS,
 };
 
-function idleState(): WatchlistScanState {
+function idleState(scope: ScanScope = 'watchlist'): WatchlistScanState {
   return {
     running: false,
+    scope,
     started_at: null,
     finished_at: null,
     timeframes: [],
@@ -214,28 +240,36 @@ export function createWatchlistScanner(deps: ScanDeps) {
       return state;
     },
 
-    async start(input: { timeframes?: string[]; anchorTf?: string }): Promise<ScanStartResult> {
+    async start(input: {
+      timeframes?: string[];
+      anchorTf?: string;
+      scope?: ScanScope;
+    }): Promise<ScanStartResult> {
+      const scope: ScanScope = input.scope === 'positions' ? 'positions' : 'watchlist';
+      const positions = scope === 'positions';
       if (state.running) return { started: false, reason: 'busy' };
       if (!deps.analystReady()) return { started: false, reason: 'analyst layer disabled' };
       let symbols: string[];
       try {
-        symbols = [...new Set(await deps.listSymbols())];
+        symbols = [...new Set(await deps.listSymbols(scope))];
       } catch {
-        return { started: false, reason: 'watchlist unavailable' };
+        return { started: false, reason: positions ? 'positions unavailable' : 'watchlist unavailable' };
       }
       if (state.running) return { started: false, reason: 'busy' };
-      if (symbols.length === 0) return { started: false, reason: 'empty watchlist' };
+      if (symbols.length === 0) {
+        return { started: false, reason: positions ? 'no positions' : 'empty watchlist' };
+      }
 
       const timeframes = sanitizeReassessTimeframes(input.timeframes);
       const anchorTf =
         input.anchorTf && (timeframes as string[]).includes(input.anchorTf) ? input.anchorTf : null;
-      const scanned = symbols.slice(0, deps.maxSymbols);
+      const scanned = symbols.slice(0, positions ? deps.maxPositions : deps.maxSymbols);
       generation += 1;
       const gen = generation;
       cancelled = false;
       found = [];
       state = {
-        ...idleState(),
+        ...idleState(scope),
         running: true,
         started_at: iso(),
         timeframes: [...timeframes],

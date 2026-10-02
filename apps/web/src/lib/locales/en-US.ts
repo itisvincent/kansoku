@@ -698,6 +698,7 @@ const enUS = {
     'Predictions are settled against 15-minute candles from the anchor time; ones older than about three weeks use hourly candles.',
   scorecardOpen: 'Prediction scorecard',
   scanTitle: 'Watchlist scan',
+  scanTitlePositions: 'Positions analysis',
   scanIntro:
     'Runs the AI analysis on every stock in your watchlist and positions, two at a time, then ranks the long and short setups. Each stock is a full analysis run, so a scan takes a while and uses your AI quota.',
   scanWindows: 'Analysis windows: {windows}',
@@ -731,6 +732,9 @@ const enUS = {
   scanNoSetups: 'No long or short setups yet.',
   scanEmpty: 'No scan yet. Press “Scan watchlist” to start.',
   scanReasonBusy: 'A scan is already running.',
+  scanReasonNoPositions: 'You hold no positions to analyse.',
+  scanReasonPositionsUnavailable:
+    'Could not read your positions. If you use Futu, open OpenD and log in, then try again.',
   scanReasonEmpty: 'Your watchlist is empty.',
   scanReasonUnavailable: 'Could not read the watchlist from Longbridge.',
   scanReasonUnconfigured: 'Configure an analyst model first (Settings → AI).',
@@ -1167,6 +1171,15 @@ const enUS = {
   homeIndustryDataRetry: 'Could not load industry data. Retrying…',
   homeIndustryDataLoading: 'Loading industry data…',
   homeNoIndustryData: 'No industry data available',
+  homeRefreshPositions: 'Refresh',
+  homeAnalyzeAllPositions: 'Analyze all positions',
+  homeAnalyzeConfirm:
+    'Analyze all {count} positions? Each is a full AI analysis, so it takes a while and uses your AI quota.',
+  homeAnalyzeStart: 'Start',
+  homeAnalyzeCancel: 'Cancel',
+  homeAnalyzingPositions: 'Analyzing positions… {done}/{total}',
+  homeAnalyzeOtherRunning: 'A watchlist scan is running.',
+  homeAnalyzeView: 'View results',
   homePositionsOnly: 'Positions',
   homePanoramaNoPositions: 'No positions to show yet.',
   homeWatchlistAndPositions: 'Watchlist + positions',

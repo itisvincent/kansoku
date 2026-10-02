@@ -1,26 +1,19 @@
 import { useState } from 'react';
 import * as stylex from '@stylexjs/stylex';
-import type { ScanStartResult, WatchlistScanState } from '@kansoku/shared/types';
+import type { WatchlistScanState } from '@kansoku/shared/types';
 import { errorMessage } from '@web/lib/api';
 import { usePollingQuery } from '@web/lib/apiHooks';
 import { client } from '@web/lib/client';
-import { useLocale, type MessageKey } from '@web/lib/i18n';
+import { useLocale } from '@web/lib/i18n';
 import { useTitle } from '@web/lib/useTitle';
 import { Button, Card, ErrorBox, MarketTime, NoteBlock, SectionTitle, Spinner } from '@web/ui';
 import { colors, fontSizes } from '../../theme/tokens.stylex';
-import { loadAnalysisTimeframes, tfLabel, type ChartTf } from '../charts/intraday/timeframes';
-import { ANCHOR_CHOICE_KEY } from '../cockpit/AnalysisTab';
+import { loadAnalysisTimeframes, tfLabel } from '../charts/intraday/timeframes';
 import { ItemList, RangeList, SetupList } from './ScanResults';
+import { readPinnedAnchor, SCAN_REASON_TEXT } from './scanShared';
 
 const TOP_COUNT = 3;
 const POLL_MS = 3000;
-
-const REASON_TEXT: Record<Exclude<ScanStartResult, { started: true }>['reason'], MessageKey> = {
-  'busy': 'scanReasonBusy',
-  'analyst layer disabled': 'scanReasonUnconfigured',
-  'empty watchlist': 'scanReasonEmpty',
-  'watchlist unavailable': 'scanReasonUnavailable',
-};
 
 const styles = stylex.create({
   root: {
@@ -46,15 +39,6 @@ const styles = stylex.create({
 });
 
 /** The scan has no chart being viewed, so "follow chart" leaves the anchor to the AI. */
-function readPinnedAnchor(windows: readonly ChartTf[]): ChartTf | undefined {
-  try {
-    const choice = localStorage.getItem(ANCHOR_CHOICE_KEY);
-    return windows.find((tf) => tf === choice);
-  } catch {
-    return undefined;
-  }
-}
-
 function Progress({ state }: { state: WatchlistScanState }) {
   const { t } = useLocale();
   const settled = state.items.filter((item) => item.status !== 'queued' && item.status !== 'running');
@@ -135,7 +119,7 @@ export function ScanPage() {
         timeframes: [...windows],
         ...(anchor ? { anchorTf: anchor } : {}),
       });
-      if (!result.started) setNotice(t(REASON_TEXT[result.reason]));
+      if (!result.started) setNotice(t(SCAN_REASON_TEXT[result.reason]));
     } catch (error) {
       setNotice(errorMessage(error));
     } finally {
@@ -156,7 +140,7 @@ export function ScanPage() {
   return (
     <div className={`scan-page ${stylex.props(styles.root).className}`}>
       <SectionTitle>
-        {t('scanTitle')}
+        {state?.scope === 'positions' ? t('scanTitlePositions') : t('scanTitle')}
         <a className={stylex.props(styles.back).className} href="/">
           ← {t('backHome')}
         </a>

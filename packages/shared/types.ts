@@ -887,8 +887,12 @@ export interface ScanSetup {
   score: number;
 }
 
+/** What a scan covers: the watchlist (positions first), or only held positions. */
+export type ScanScope = 'watchlist' | 'positions';
+
 export interface WatchlistScanState {
   running: boolean;
+  scope: ScanScope;
   started_at: string | null;
   finished_at: string | null;
   timeframes: string[];
@@ -906,7 +910,13 @@ export type ScanStartResult =
   | { started: true }
   | {
       started: false;
-      reason: 'busy' | 'analyst layer disabled' | 'empty watchlist' | 'watchlist unavailable';
+      reason:
+        | 'busy'
+        | 'analyst layer disabled'
+        | 'empty watchlist'
+        | 'watchlist unavailable'
+        | 'no positions'
+        | 'positions unavailable';
     };
 
 /** One AI prediction as the scorecard sees it. */

@@ -21,7 +21,12 @@ export interface OverviewApi {
   scorecard(input: { days?: number }): Promise<PredictionScorecard>;
   usage(input: { date?: string }): Promise<AiUsageSummary>;
   /** Runs the AI analyst over the watchlist in the background and ranks the setups. */
-  scanStart(input: { timeframes?: string[]; anchorTf?: string }): Promise<ScanStartResult>;
+  scanStart(input: {
+    timeframes?: string[];
+    anchorTf?: string;
+    /** 'positions' analyses only held positions; the default is the watchlist. */
+    scope?: 'watchlist' | 'positions';
+  }): Promise<ScanStartResult>;
   scanStatus(): Promise<WatchlistScanState>;
   /** Stops queued symbols; runs already in flight finish on their own. */
   scanCancel(): Promise<WatchlistScanState>;

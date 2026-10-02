@@ -1,6 +1,6 @@
 import { marketSessionLabel } from '../../lib/marketLabels';
 import { useLocale } from '../../lib/i18n';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import type {
   ChartMeta,
   HomeEvents,
@@ -32,6 +32,7 @@ import { RecapBoard } from './RecapBoard';
 import { SymbolGrid } from './SymbolGrid';
 import { TrainerCard } from './TrainerCard';
 import { WatchBoard } from './WatchBoard';
+import { PositionsActions } from './PositionsActions';
 
 const styles = stylex.create({
   page: {
@@ -128,11 +129,20 @@ const styles = stylex.create({
   },
 });
 
-function SectionTitleWithAge({ label, at }: { label: string; at: number | null }) {
+function SectionTitleWithAge({
+  label,
+  at,
+  actions,
+}: {
+  label: string;
+  at: number | null;
+  actions?: ReactNode;
+}) {
   return (
     <SectionTitle variant="home" className="section-title--with-age">
       {label}
       <DataAgeBadge at={at} />
+      {actions}
     </SectionTitle>
   );
 }
@@ -230,7 +240,15 @@ export function Home() {
   );
   const positionsSection = (
     <>
-      <SectionTitleWithAge label={i18n('homePositions')} at={portfolioAgeAt} />
+      <SectionTitleWithAge
+        label={i18n('homePositions')}
+        at={portfolioAgeAt}
+        actions={
+          isToday && desktopRealtime ? (
+            <PositionsActions count={portfolio?.positions.length ?? 0} />
+          ) : null
+        }
+      />
       <PositionsCard portfolio={portfolio} error={portfolioError} watching={watching} />
     </>
   );
