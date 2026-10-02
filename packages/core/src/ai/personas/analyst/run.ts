@@ -50,6 +50,7 @@ import {
 } from './tools.js';
 import type {
   AnalystDeps,
+  AnalystRunOutcome,
   RunAnalystInput,
   RunningAnalystRunStatus,
   StartResult,
@@ -64,7 +65,10 @@ export function buildAnalystSystemPrompt(): string {
   return ANALYST_SYSTEM_PROMPT;
 }
 
-export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Promise<void> {
+export async function executeAnalystRun(
+  symbol: string,
+  deps: AnalystDeps,
+): Promise<AnalystRunOutcome> {
   const append = deps.appendComment ?? defaultAppendComment;
   const timeoutMs = deps.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const now = deps.now ?? (() => Date.now());
@@ -100,19 +104,22 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
   const skillText = deps.skillText ?? readSkill(skillIndex, SKILL_NAME);
   if (!skillText) {
     await writeError(`${SKILL_NAME} SKILL.md 读不到，重估中止——纪律缺席时不允许裸跑。`);
-    return;
+    return 'setup-failed';
   }
 
   const disciplineText = deps.disciplineText ?? loadAppDiscipline(repoRoot) ?? '';
   if (!disciplineText) {
     await writeError(new DisciplineMissingError().message);
-    return;
+    return 'setup-failed';
   }
 
+  // Until the data pack is in, no AI call has been made.
+  let stage: 'data' | 'model' = 'data';
   try {
     const runStartedAt = now();
     reportProgress('researching', analystStatusText('gatheringPack'));
     const dataPack = await (deps.buildReassessPack ?? defaultBuildReassessPack)(symbol);
+    stage = 'model';
     if (dataPack.prediction_chart_id) state.chartId = dataPack.prediction_chart_id;
     const sessionId = `analyst:${symbol}:${runStartedAt}`;
 
@@ -215,7 +222,9 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
       await writeError(
         errorMessage ? `分析员运行失败：${errorMessage}` : '分析员未提交预测，本次无结论。',
       );
-    } else if (!deps.quiet) {
+      return errorMessage ? 'failed' : 'no-prediction';
+    }
+    if (!deps.quiet) {
       const en = getInterfaceLocale() === 'en-US';
       emitNotice({
         symbol,
@@ -227,12 +236,15 @@ export async function executeAnalystRun(symbol: string, deps: AnalystDeps): Prom
         at: new Date().toISOString(),
       });
     }
+    return 'submitted';
   } catch (err) {
     const text =
       err instanceof AgentTimeoutError
         ? `分析员超时未产出结论（${timeoutMs}ms）。`
         : `分析员运行失败：${err instanceof Error ? err.message : String(err)}`;
     await writeError(text);
+    if (err instanceof AgentTimeoutError) return 'timeout';
+    return stage === 'data' ? 'data-failed' : 'failed';
   }
 }
 

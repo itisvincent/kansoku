@@ -165,10 +165,24 @@ function scopeDeniedError(label: string, cause: unknown): ClientError {
   return error;
 }
 
+// The socket drops now and then (a burst of timed-out requests, then "closed") and is
+// back within seconds. One retry after a pause lets queued requests ride the reconnect
+// instead of all landing on the CLI fallback, which allows one run a minute.
+const WS_RETRY_DELAY_MS = 1_500;
+
+export function isWsConnectionError(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /WebSocket (?:closed|is not connected|did not open|connection failed)|request timed out/i.test(
+    message,
+  );
+}
+
 export function createLongbridgeProvider(
   run: LongbridgeRunner = runLongbridgeJson,
   socket?: () => QuoteQueryTransport,
+  options: { wsRetryDelayMs?: number } = {},
 ): MarketDataProvider {
+  const wsRetryDelayMs = options.wsRetryDelayMs ?? WS_RETRY_DELAY_MS;
   const securityNameCache = new Map<string, Promise<string | null>>();
   let quotaCooldownUntil = 0;
   let cliFallbackCooldownUntil = 0;
@@ -211,8 +225,17 @@ export function createLongbridgeProvider(
     viaCli: () => Promise<T>,
   ): Promise<T> {
     if (!socket) return viaCli();
+    const viaSocketWithRetry = async () => {
+      try {
+        return await viaSocket();
+      } catch (error) {
+        if (!isWsConnectionError(error)) throw error;
+        await new Promise((resolve) => setTimeout(resolve, wsRetryDelayMs));
+        return await viaSocket();
+      }
+    };
     try {
-      return await viaSocket();
+      return await viaSocketWithRetry();
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       if (isQuotaError(message)) {

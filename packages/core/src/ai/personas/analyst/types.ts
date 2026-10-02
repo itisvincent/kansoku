@@ -45,8 +45,20 @@ export interface RunAnalystInput {
   deps: AnalystDeps;
 }
 
+/**
+ * How a run ended. 'data-failed' means it stopped while gathering market data, before
+ * any AI call: nothing was spent, so a caller may retry it (the scan does, once).
+ */
+export type AnalystRunOutcome =
+  | 'submitted'
+  | 'no-prediction'
+  | 'data-failed'
+  | 'failed'
+  | 'timeout'
+  | 'setup-failed';
+
 export type StartResult =
   | { started: false; reason: 'already running' | 'escalation on cooldown' }
-  | { started: true; done: Promise<void> };
+  | { started: true; done: Promise<AnalystRunOutcome> };
 
 export type RunningAnalystRunStatus = Extract<ReassessStatus, { running: true }>;

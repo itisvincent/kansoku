@@ -223,7 +223,7 @@ describe('submit_section schema', () => {
 });
 
 describe('submit_section tool handler', () => {
-  function startHangingRun(symbol: string): { release: () => void; done: Promise<void> } {
+  function startHangingRun(symbol: string): { release: () => void; done: Promise<unknown> } {
     let release!: () => void;
     const wait = new Promise<void>((resolve) => {
       release = resolve;

@@ -115,6 +115,35 @@ function harness(symbols: string[], overrides: Partial<ScanDeps> = {}): Harness 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 describe('watchlist scanner', () => {
+  it('retries once, at the end, a run that failed while gathering market data', async () => {
+    const outcomes: Record<string, string[]> = { A: ['data-failed', 'submitted'], B: ['submitted'] };
+    const startRun = vi.fn((symbol: string) => ({
+      started: true as const,
+      done: Promise.resolve(outcomes[symbol].shift() as never),
+    }));
+    let attemptsA = 0;
+    const findResult = vi.fn(async (symbol: string) => {
+      if (symbol === 'A' && attemptsA++ === 0) return null;
+      return { chartId: `chart-${symbol}`, doc: doc({ direction: 'long', conviction: 60 }, { entry: 100, stop: 95, target1: 110 }) };
+    });
+    const h = harness(['A', 'B'], { startRun, findResult, retryDelayMs: 0, sleep: async () => {} });
+    const scanner = createWatchlistScanner(h.deps);
+    await scanner.start({});
+    await vi.waitFor(() => expect(scanner.status().running).toBe(false));
+    expect(startRun.mock.calls.map(([symbol]) => symbol)).toEqual(['A', 'B', 'A']);
+    expect(scanner.status().items.map((i) => i.status)).toEqual(['done', 'done']);
+  });
+
+  it('does not retry a run that failed after the AI started (it would cost again)', async () => {
+    const startRun = vi.fn(() => ({ started: true as const, done: Promise.resolve('failed' as never) }));
+    const h = harness(['A'], { startRun, findResult: async () => null, retryDelayMs: 0, sleep: async () => {} });
+    const scanner = createWatchlistScanner(h.deps);
+    await scanner.start({});
+    await vi.waitFor(() => expect(scanner.status().running).toBe(false));
+    expect(startRun).toHaveBeenCalledTimes(1);
+    expect(scanner.status().items[0].status).toBe('failed');
+  });
+
   it('analyses only positions, all of them up to 40, when asked for positions', async () => {
     const symbols = Array.from({ length: 25 }, (_, i) => `P${i}`);
     const listSymbols = vi.fn(async (scope: string) => (scope === 'positions' ? symbols : ['W']));

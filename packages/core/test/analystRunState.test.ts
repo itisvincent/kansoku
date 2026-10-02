@@ -38,7 +38,7 @@ function makePack(): ReassessPack {
   };
 }
 
-function startHangingRun(symbol: string): { release: () => void; done: Promise<void> } {
+function startHangingRun(symbol: string): { release: () => void; done: Promise<unknown> } {
   let release!: () => void;
   const wait = new Promise<void>((resolve) => {
     release = resolve;

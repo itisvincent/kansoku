@@ -15,6 +15,7 @@ import { getInterfaceLocale } from '../../../settings/interfaceLocale.js';
 import { sanitizeReassessTimeframes } from '../../agents/analysisTimeframes.js';
 import { aiConfig } from '../../runtime/models.js';
 import { startManualAnalystRun, type ManualRunRequest } from '../analyst/run.js';
+import type { AnalystRunOutcome } from '../analyst/types.js';
 import { emitNotice } from '../notices.js';
 import { rankSetups, setupFromDoc } from './scanRanking.js';
 
@@ -29,8 +30,14 @@ export const MAX_SCAN_SYMBOLS = 20;
 export const MAX_POSITION_SCAN_SYMBOLS = 40;
 
 type StartOutcome =
-  | { started: true; done: Promise<void> }
+  | { started: true; done: Promise<AnalystRunOutcome | void> }
   | { started: false; reason: string };
+
+/**
+ * A run that failed while gathering market data (a Longbridge connection drop, say) made
+ * no AI call, so it is retried once, at the end of the queue, after this pause.
+ */
+export const DATA_RETRY_DELAY_MS = 20_000;
 
 export interface ScanDeps {
   listSymbols: (scope: ScanScope) => Promise<string[]>;
@@ -44,6 +51,9 @@ export interface ScanDeps {
   concurrency: number;
   maxSymbols: number;
   maxPositions: number;
+  /** Pause before retrying a symbol whose run failed while gathering data. */
+  retryDelayMs?: number;
+  sleep?: (ms: number) => Promise<void>;
 }
 
 async function findLatestAnalystChart(
@@ -178,10 +188,26 @@ export function createWatchlistScanner(deps: ScanDeps) {
     state = { ...state, ...rankSetups(found) };
   };
 
-  async function scanOne(symbol: string, request: ManualRunRequest, gen: number): Promise<void> {
+  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  /** Symbols already retried in this scan. */
+  let retried = new Set<string>();
+
+  /** Returns 'retry' when the symbol should go back in the queue. */
+  async function scanOne(
+    symbol: string,
+    request: ManualRunRequest,
+    gen: number,
+  ): Promise<'retry' | void> {
     if (cancelled || gen !== generation) {
       patchItem(symbol, { status: 'cancelled' }, gen);
       return;
+    }
+    if (retried.has(symbol)) {
+      await sleep(deps.retryDelayMs ?? DATA_RETRY_DELAY_MS);
+      if (cancelled || gen !== generation) {
+        patchItem(symbol, { status: 'cancelled' }, gen);
+        return;
+      }
     }
     const since = iso();
     patchItem(symbol, { status: 'running', started_at: since }, gen);
@@ -192,9 +218,18 @@ export function createWatchlistScanner(deps: ScanDeps) {
         patchItem(symbol, { status: 'skipped', reason: run.reason, finished_at: iso() }, gen);
         return;
       }
-      await run.done;
+      const outcome = await run.done;
       const result = await deps.findResult(symbol, since);
       const setup = result ? setupFromDoc(symbol, result.chartId, result.doc) : null;
+      if (!setup && outcome === 'data-failed' && !retried.has(symbol)) {
+        retried = new Set([...retried, symbol]);
+        patchItem(
+          symbol,
+          { status: 'queued', reason: 'market data unavailable; retrying', started_at: null },
+          gen,
+        );
+        return 'retry';
+      }
       if (!setup) {
         patchItem(
           symbol,
@@ -221,11 +256,14 @@ export function createWatchlistScanner(deps: ScanDeps) {
   }
 
   async function runAll(symbols: string[], request: ManualRunRequest, gen: number): Promise<void> {
+    // A symbol to retry goes to the back of this queue; a worker that is still looping
+    // picks it up, so the scan only finishes once retries are done too.
+    const queue = [...symbols];
     let next = 0;
-    const workers = Array.from({ length: Math.min(deps.concurrency, symbols.length) }, async () => {
-      while (next < symbols.length) {
-        const symbol = symbols[next++];
-        await scanOne(symbol, request, gen);
+    const workers = Array.from({ length: Math.min(deps.concurrency, queue.length) }, async () => {
+      while (next < queue.length) {
+        const symbol = queue[next++];
+        if ((await scanOne(symbol, request, gen)) === 'retry') queue.push(symbol);
       }
     });
     // allSettled: one failing worker must not mark the scan finished while another still runs.
@@ -268,6 +306,7 @@ export function createWatchlistScanner(deps: ScanDeps) {
       const gen = generation;
       cancelled = false;
       found = [];
+      retried = new Set();
       state = {
         ...idleState(scope),
         running: true,
