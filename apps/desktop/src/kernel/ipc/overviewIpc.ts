@@ -47,6 +47,11 @@ export class OverviewIpc extends IpcService implements WrapEnvelope<OverviewApi>
   }
 
   @IpcMethod()
+  scanRerunFailed() {
+    return toEnvelope('overview.scanRerunFailed', () => overviewService.scanRerunFailed());
+  }
+
+  @IpcMethod()
   scanCancel() {
     return toEnvelope('overview.scanCancel', () => overviewService.scanCancel());
   }

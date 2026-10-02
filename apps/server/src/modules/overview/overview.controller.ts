@@ -61,6 +61,12 @@ export class OverviewController {
     return { ok: true, data };
   }
 
+  @Post('/scan/rerun-failed')
+  async rerunFailedScan() {
+    const data = await overviewService.scanRerunFailed();
+    return { ok: true, data };
+  }
+
   @Post('/scan/cancel')
   async cancelScan() {
     const data = await overviewService.scanCancel();

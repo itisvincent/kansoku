@@ -916,7 +916,8 @@ export type ScanStartResult =
         | 'empty watchlist'
         | 'watchlist unavailable'
         | 'no positions'
-        | 'positions unavailable';
+        | 'positions unavailable'
+        | 'nothing to rerun';
     };
 
 /** One AI prediction as the scorecard sees it. */

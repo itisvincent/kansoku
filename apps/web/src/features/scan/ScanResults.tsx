@@ -19,6 +19,8 @@ const STATUS_LABEL: Record<ScanItemStatus, MessageKey> = {
 const REASON_LABEL: Record<string, MessageKey> = {
   'already running': 'scanItemAlreadyRunning',
   'no prediction was submitted': 'scanItemNoPrediction',
+  'app closed before it finished': 'scanItemInterrupted',
+  'market data unavailable; retrying': 'scanItemRetrying',
 };
 
 const STATUS_TONE: Partial<Record<ScanItemStatus, 'up' | 'down' | 'muted' | 'accent'>> = {

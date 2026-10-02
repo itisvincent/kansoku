@@ -1,4 +1,4 @@
-import type { ScanStartResult } from '@kansoku/shared/types';
+import type { ScanItem, ScanStartResult } from '@kansoku/shared/types';
 import type { MessageKey } from '@web/lib/i18n';
 import type { ChartTf } from '../charts/intraday/timeframes';
 import { ANCHOR_CHOICE_KEY } from '../cockpit/AnalysisTab';
@@ -14,7 +14,15 @@ export const SCAN_REASON_TEXT: Record<
   'watchlist unavailable': 'scanReasonUnavailable',
   'no positions': 'scanReasonNoPositions',
   'positions unavailable': 'scanReasonPositionsUnavailable',
+  'nothing to rerun': 'scanReasonNothingToRerun',
 };
+
+/** What "Re-run failed" picks up; matches the scanner's own rule. */
+const RERUNNABLE: ReadonlySet<ScanItem['status']> = new Set(['failed', 'skipped', 'cancelled']);
+
+export function countRerunnable(items: readonly ScanItem[]): number {
+  return items.filter((item) => RERUNNABLE.has(item.status)).length;
+}
 
 /** The anchor pinned in the Analysis tab, when it is one of the scan's windows. */
 export function readPinnedAnchor(windows: readonly ChartTf[]): ChartTf | undefined {

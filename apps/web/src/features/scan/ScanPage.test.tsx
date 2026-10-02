@@ -9,12 +9,14 @@ import { translate } from '@web/lib/i18n';
 const scanStatus = vi.fn();
 const scanStart = vi.fn();
 const scanCancel = vi.fn();
+const scanRerunFailed = vi.fn();
 vi.mock('@web/lib/client', () => ({
   client: {
     overview: {
       scanStatus: (...args: unknown[]) => scanStatus(...args),
       scanStart: (...args: unknown[]) => scanStart(...args),
       scanCancel: (...args: unknown[]) => scanCancel(...args),
+      scanRerunFailed: (...args: unknown[]) => scanRerunFailed(...args),
     },
   },
 }));
@@ -72,6 +74,7 @@ afterEach(() => {
   scanStatus.mockReset();
   scanStart.mockReset();
   scanCancel.mockReset();
+  scanRerunFailed.mockReset();
 });
 
 const item = (symbol: string) => ({
@@ -151,5 +154,53 @@ describe('ScanPage', () => {
     renderPage();
     expect(await screen.findByText(t('scanRanges'))).toBeTruthy();
     expect(screen.getByText(t('scanNoSetups'))).toBeTruthy();
+  });
+
+  it('re-runs only what failed or did not finish, after confirming', async () => {
+    scanStatus.mockResolvedValue(
+      state({
+        scope: 'positions',
+        items: [
+          item('NVDA.US'),
+          { ...item('UBER.US'), status: 'failed', chart_id: null },
+          { ...item('MCD.US'), status: 'cancelled', chart_id: null, reason: 'app closed before it finished' },
+        ],
+      }),
+    );
+    scanRerunFailed.mockResolvedValue({ started: true });
+    renderPage();
+    expect(await screen.findByText(t('scanItemInterrupted'))).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: t('scanRerunFailed', { count: 2 }) }));
+    expect(screen.getByText(t('scanRerunHint', { count: 2 }))).toBeTruthy();
+    expect(scanRerunFailed).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: t('scanRerunConfirm') }));
+    await waitFor(() => expect(scanRerunFailed).toHaveBeenCalledTimes(1));
+    expect(scanStart).not.toHaveBeenCalled();
+  });
+
+  it('runs the last scan again with its own scope and windows', async () => {
+    localStorage.setItem('intraday-analysis-tfs', JSON.stringify(['day']));
+    scanStatus.mockResolvedValue(
+      state({ scope: 'positions', timeframes: ['h1', '4h'], anchor_tf: '4h', items: [item('NVDA.US')] }),
+    );
+    scanStart.mockResolvedValue({ started: true });
+    renderPage();
+    fireEvent.click(await screen.findByRole('button', { name: t('scanAgain') }));
+    fireEvent.click(screen.getByRole('button', { name: t('scanAgainConfirm') }));
+    await waitFor(() =>
+      expect(scanStart).toHaveBeenCalledWith({
+        timeframes: ['h1', '4h'],
+        anchorTf: '4h',
+        scope: 'positions',
+      }),
+    );
+  });
+
+  it('hides re-run and run-again when there is nothing to repeat', async () => {
+    scanStatus.mockResolvedValue(state());
+    renderPage();
+    await screen.findByRole('button', { name: t('scanStart') });
+    expect(screen.queryByRole('button', { name: t('scanAgain') })).toBeNull();
+    expect(screen.queryByText(/重跑失败/)).toBeNull();
   });
 });

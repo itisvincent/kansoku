@@ -326,6 +326,10 @@ export const overviewService: OverviewApi = {
     return watchlistScanner.status();
   },
 
+  async scanRerunFailed() {
+    return watchlistScanner.rerunFailed();
+  },
+
   async scanCancel() {
     return watchlistScanner.cancel();
   },

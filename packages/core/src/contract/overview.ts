@@ -28,6 +28,8 @@ export interface OverviewApi {
     scope?: 'watchlist' | 'positions';
   }): Promise<ScanStartResult>;
   scanStatus(): Promise<WatchlistScanState>;
+  /** Re-runs the last scan's failed, skipped and stopped symbols; finished ones are kept. */
+  scanRerunFailed(): Promise<ScanStartResult>;
   /** Stops queued symbols; runs already in flight finish on their own. */
   scanCancel(): Promise<WatchlistScanState>;
   recapDates(): Promise<string[]>;
@@ -43,6 +45,7 @@ export const overviewRoutes = defineRoutes<OverviewApi>('overview', {
   usage: { method: 'GET', path: '/usage' },
   scanStart: { method: 'POST', path: '/scan' },
   scanStatus: { method: 'GET', path: '/scan' },
+  scanRerunFailed: { method: 'POST', path: '/scan/rerun-failed' },
   scanCancel: { method: 'POST', path: '/scan/cancel' },
   recapDates: { method: 'GET', path: '/recap-dates' },
 });

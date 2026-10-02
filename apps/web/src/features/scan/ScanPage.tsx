@@ -10,9 +10,12 @@ import { Button, Card, ErrorBox, MarketTime, NoteBlock, SectionTitle, Spinner } 
 import { colors, fontSizes } from '../../theme/tokens.stylex';
 import { loadAnalysisTimeframes, tfLabel } from '../charts/intraday/timeframes';
 import { ItemList, RangeList, SetupList } from './ScanResults';
-import { readPinnedAnchor, SCAN_REASON_TEXT } from './scanShared';
+import { countRerunnable, readPinnedAnchor, SCAN_REASON_TEXT } from './scanShared';
 
 const TOP_COUNT = 3;
+
+/** scan: a new watchlist scan; again: the last scan as it was set up; failed: its failures. */
+type ScanAction = 'scan' | 'again' | 'failed';
 const POLL_MS = 3000;
 
 const styles = stylex.create({
@@ -98,7 +101,7 @@ export function ScanPage() {
   useTitle(t('scanTitle'));
   const windows = loadAnalysisTimeframes();
   const anchor = readPinnedAnchor(windows);
-  const [confirming, setConfirming] = useState(false);
+  const [confirming, setConfirming] = useState<ScanAction | null>(null);
   const [starting, setStarting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const query = usePollingQuery(
@@ -109,16 +112,26 @@ export function ScanPage() {
   );
   const state = query.data;
   const running = state?.running === true;
+  const rerunCount = state ? countRerunnable(state.items) : 0;
 
-  const start = async () => {
-    setConfirming(false);
+  const launch = async (action: ScanAction) => {
+    setConfirming(null);
     setStarting(true);
     setNotice(null);
     try {
-      const result = await client.overview.scanStart({
-        timeframes: [...windows],
-        ...(anchor ? { anchorTf: anchor } : {}),
-      });
+      const result =
+        action === 'failed'
+          ? await client.overview.scanRerunFailed()
+          : action === 'again' && state
+            ? await client.overview.scanStart({
+                timeframes: [...state.timeframes],
+                ...(state.anchor_tf ? { anchorTf: state.anchor_tf } : {}),
+                scope: state.scope,
+              })
+            : await client.overview.scanStart({
+                timeframes: [...windows],
+                ...(anchor ? { anchorTf: anchor } : {}),
+              });
       if (!result.started) setNotice(t(SCAN_REASON_TEXT[result.reason]));
     } catch (error) {
       setNotice(errorMessage(error));
@@ -126,6 +139,15 @@ export function ScanPage() {
       setStarting(false);
       query.reload();
     }
+  };
+
+  const confirmText: Record<ScanAction, { button: string; hint: string }> = {
+    scan: { button: t('scanConfirm'), hint: t('scanConfirmHint') },
+    again: {
+      button: t('scanAgainConfirm'),
+      hint: t('scanAgainHint', { count: state?.items.length ?? 0 }),
+    },
+    failed: { button: t('scanRerunConfirm'), hint: t('scanRerunHint', { count: rerunCount }) },
   };
 
   const stop = async () => {
@@ -156,17 +178,31 @@ export function ScanPage() {
           <Button onClick={() => void stop()}>{t('scanStop')}</Button>
         ) : confirming ? (
           <>
-            <Button accent disabled={starting} onClick={() => void start()}>
-              {t('scanConfirm')}
+            <Button accent disabled={starting} onClick={() => void launch(confirming)}>
+              {confirmText[confirming].button}
             </Button>
-            <Button onClick={() => setConfirming(false)}>{t('scanCancelConfirm')}</Button>
-            <span className={stylex.props(styles.settings).className}>{t('scanConfirmHint')}</span>
+            <Button onClick={() => setConfirming(null)}>{t('scanCancelConfirm')}</Button>
+            <span className={stylex.props(styles.settings).className}>
+              {confirmText[confirming].hint}
+            </span>
           </>
         ) : (
-          <Button accent disabled={starting} onClick={() => setConfirming(true)}>
-            {starting && <Spinner />}
-            {t('scanStart')}
-          </Button>
+          <>
+            <Button accent disabled={starting} onClick={() => setConfirming('scan')}>
+              {starting && <Spinner />}
+              {t('scanStart')}
+            </Button>
+            {state && state.items.length > 0 && (
+              <Button disabled={starting} onClick={() => setConfirming('again')}>
+                {t('scanAgain')}
+              </Button>
+            )}
+            {rerunCount > 0 && (
+              <Button disabled={starting} onClick={() => setConfirming('failed')}>
+                {t('scanRerunFailed', { count: rerunCount })}
+              </Button>
+            )}
+          </>
         )}
         {state && <Progress state={state} />}
         {notice && <span className={stylex.props(styles.error).className}>{notice}</span>}

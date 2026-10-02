@@ -18,6 +18,7 @@ import { startManualAnalystRun, type ManualRunRequest } from '../analyst/run.js'
 import type { AnalystRunOutcome } from '../analyst/types.js';
 import { emitNotice } from '../notices.js';
 import { rankSetups, setupFromDoc } from './scanRanking.js';
+import { appMetaScanStateStore, type ScanStateStore } from './scanStateStore.js';
 
 /** Two at a time keeps the market-data CLI and the model provider from rate-limiting us. */
 export const SCAN_CONCURRENCY = 2;
@@ -54,7 +55,12 @@ export interface ScanDeps {
   /** Pause before retrying a symbol whose run failed while gathering data. */
   retryDelayMs?: number;
   sleep?: (ms: number) => Promise<void>;
+  /** Where the last scan is kept so a restart does not lose it; none keeps it in memory. */
+  store?: ScanStateStore;
 }
+
+/** Items "Re-run failed" picks up: failed, skipped, or stopped before they finished. */
+const RERUNNABLE = new Set<ScanItem['status']>(['failed', 'skipped', 'cancelled']);
 
 async function findLatestAnalystChart(
   symbol: string,
@@ -149,6 +155,7 @@ export const defaultScanDeps: ScanDeps = {
   concurrency: SCAN_CONCURRENCY,
   maxSymbols: MAX_SCAN_SYMBOLS,
   maxPositions: MAX_POSITION_SCAN_SYMBOLS,
+  store: appMetaScanStateStore,
 };
 
 function idleState(scope: ScanScope = 'watchlist'): WatchlistScanState {
@@ -166,8 +173,21 @@ function idleState(scope: ScanScope = 'watchlist'): WatchlistScanState {
   };
 }
 
+function requestFor(timeframes: readonly string[], anchorTf: string | null): ManualRunRequest {
+  return { timeframes: [...timeframes], ...(anchorTf ? { anchorTimeframe: anchorTf } : {}) };
+}
+
 export function createWatchlistScanner(deps: ScanDeps) {
-  let state: WatchlistScanState = idleState();
+  // Loaded on first use, not at import: the database is not open yet when this module loads.
+  let state: WatchlistScanState | null = null;
+  const current = (): WatchlistScanState => {
+    state ??= deps.store?.load() ?? idleState();
+    return state;
+  };
+  const commit = (next: WatchlistScanState) => {
+    state = next;
+    deps.store?.save(next);
+  };
   let cancelled = false;
   let found: ScanSetup[] = [];
   /** Bumped per scan; a straggler from an older scan must not write into a newer one. */
@@ -178,14 +198,15 @@ export function createWatchlistScanner(deps: ScanDeps) {
   // Every update swaps in new objects so a status snapshot handed out earlier never changes.
   const patchItem = (symbol: string, patch: Partial<ScanItem>, gen: number) => {
     if (gen !== generation) return;
-    state = {
-      ...state,
-      items: state.items.map((item) => (item.symbol === symbol ? { ...item, ...patch } : item)),
-    };
+    const prev = current();
+    commit({
+      ...prev,
+      items: prev.items.map((item) => (item.symbol === symbol ? { ...item, ...patch } : item)),
+    });
   };
 
   const publishRanking = () => {
-    state = { ...state, ...rankSetups(found) };
+    commit({ ...current(), ...rankSetups(found) });
   };
 
   const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
@@ -269,13 +290,13 @@ export function createWatchlistScanner(deps: ScanDeps) {
     // allSettled: one failing worker must not mark the scan finished while another still runs.
     await Promise.allSettled(workers);
     if (gen !== generation) return;
-    state = { ...state, running: false, finished_at: iso() };
-    deps.notify(state);
+    commit({ ...current(), running: false, finished_at: iso() });
+    deps.notify(current());
   }
 
   return {
     status(): WatchlistScanState {
-      return state;
+      return current();
     },
 
     async start(input: {
@@ -285,7 +306,7 @@ export function createWatchlistScanner(deps: ScanDeps) {
     }): Promise<ScanStartResult> {
       const scope: ScanScope = input.scope === 'positions' ? 'positions' : 'watchlist';
       const positions = scope === 'positions';
-      if (state.running) return { started: false, reason: 'busy' };
+      if (current().running) return { started: false, reason: 'busy' };
       if (!deps.analystReady()) return { started: false, reason: 'analyst layer disabled' };
       let symbols: string[];
       try {
@@ -293,7 +314,7 @@ export function createWatchlistScanner(deps: ScanDeps) {
       } catch {
         return { started: false, reason: positions ? 'positions unavailable' : 'watchlist unavailable' };
       }
-      if (state.running) return { started: false, reason: 'busy' };
+      if (current().running) return { started: false, reason: 'busy' };
       if (symbols.length === 0) {
         return { started: false, reason: positions ? 'no positions' : 'empty watchlist' };
       }
@@ -307,7 +328,7 @@ export function createWatchlistScanner(deps: ScanDeps) {
       cancelled = false;
       found = [];
       retried = new Set();
-      state = {
+      commit({
         ...idleState(scope),
         running: true,
         started_at: iso(),
@@ -322,25 +343,67 @@ export function createWatchlistScanner(deps: ScanDeps) {
           started_at: null,
           finished_at: null,
         })),
-      };
-      const request: ManualRunRequest = {
+      });
+      void runAll(scanned, requestFor(timeframes, anchorTf), gen);
+      return { started: true };
+    },
+
+    /**
+     * Runs the last scan's failed, skipped and stopped symbols again with its settings.
+     * Finished symbols and their results stay as they are, so nothing is paid for twice.
+     */
+    rerunFailed(): ScanStartResult {
+      const prev = current();
+      if (prev.running) return { started: false, reason: 'busy' };
+      if (!deps.analystReady()) return { started: false, reason: 'analyst layer disabled' };
+      const targets = prev.items
+        .filter((item) => RERUNNABLE.has(item.status))
+        .map((item) => item.symbol);
+      if (targets.length === 0) return { started: false, reason: 'nothing to rerun' };
+      const targetSet = new Set(targets);
+      const timeframes = sanitizeReassessTimeframes(prev.timeframes);
+      const anchorTf =
+        prev.anchor_tf && (timeframes as string[]).includes(prev.anchor_tf) ? prev.anchor_tf : null;
+      generation += 1;
+      const gen = generation;
+      cancelled = false;
+      found = [...prev.setups, ...prev.ranges];
+      retried = new Set();
+      commit({
+        ...prev,
+        running: true,
+        started_at: iso(),
+        finished_at: null,
         timeframes: [...timeframes],
-        ...(anchorTf ? { anchorTimeframe: anchorTf } : {}),
-      };
-      void runAll(scanned, request, gen);
+        anchor_tf: anchorTf,
+        items: prev.items.map((item) =>
+          targetSet.has(item.symbol)
+            ? {
+                ...item,
+                status: 'queued',
+                chart_id: null,
+                reason: null,
+                started_at: null,
+                finished_at: null,
+              }
+            : item,
+        ),
+      });
+      void runAll(targets, requestFor(timeframes, anchorTf), gen);
       return { started: true };
     },
 
     cancel(): WatchlistScanState {
-      if (!state.running) return state;
+      const prev = current();
+      if (!prev.running) return prev;
       cancelled = true;
-      state = {
-        ...state,
-        items: state.items.map((item) =>
+      commit({
+        ...prev,
+        items: prev.items.map((item) =>
           item.status === 'queued' ? { ...item, status: 'cancelled' } : item,
         ),
-      };
-      return state;
+      });
+      return current();
     },
   };
 
