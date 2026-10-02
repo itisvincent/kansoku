@@ -7,7 +7,14 @@ import { Tooltip } from '@web/ui';
 import { colors, fontSizes, fonts } from '../../theme/tokens.stylex';
 import { heatStyle } from './panoramaHeat';
 import type { PanoramaGroup } from './MarketPanorama';
-import { fitTileLabels, heatmapHeight, layoutHeatmap, type TileWeight } from './heatmapLayout';
+import {
+  fitTileLabels,
+  heatmapHeight,
+  layoutHeatmap,
+  MIN_TILE_AREA,
+  MIN_TILE_SIDE,
+  type TileWeight,
+} from './heatmapLayout';
 
 const styles = stylex.create({
   frame: {
@@ -104,8 +111,12 @@ export function PanoramaHeatmap({
   const tileCount = groups.reduce((n, g) => n + g.tiles.length, 0);
   const height = heatmapHeight(width, tileCount, markOwned ? 'watch' : 'positions');
   const layout = useMemo(
-    () => layoutHeatmap(groups, weightOf, width, height),
-    [groups, weightOf, width, height],
+    () =>
+      layoutHeatmap(groups, weightOf, width, height, {
+        minTileArea: MIN_TILE_AREA[markOwned ? 'watch' : 'positions'],
+        minTileSide: MIN_TILE_SIDE[markOwned ? 'watch' : 'positions'],
+      }),
+    [groups, weightOf, width, height, markOwned],
   );
 
   return (

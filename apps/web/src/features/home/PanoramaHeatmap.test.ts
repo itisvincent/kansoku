@@ -112,3 +112,26 @@ describe('heatmapHeight', () => {
     expect(heatmapHeight(1880, 600, 'watch')).toBe(900);
   });
 });
+
+describe('minimum tile size', () => {
+  it('gives a tiny holding a tile big enough to label', () => {
+    const groups = [
+      group('Semis', [tile('AVGO.US', { value: 6000 }), tile('AEHR.US', { value: 40 })]),
+      group('Food', [tile('MCD.US', { value: 4000 })]),
+    ];
+    const plain = layoutHeatmap(groups, positionWeight, 1120, 400);
+    const floored = layoutHeatmap(groups, positionWeight, 1120, 400, {
+      minTileArea: 2800,
+      minTileSide: { w: 48, h: 32 },
+    });
+    const area = (l: typeof plain, s: string) => {
+      const b = l.tiles.find((t) => t.tile.symbol === s)!.box;
+      return b.w * b.h;
+    };
+    expect(area(plain, 'AEHR.US')).toBeLessThan(2800);
+    expect(area(floored, 'AEHR.US')).toBeGreaterThan(2000);
+    // Larger holdings stay larger.
+    expect(area(floored, 'AVGO.US')).toBeGreaterThan(area(floored, 'MCD.US'));
+    expect(fitTileLabels(floored.tiles.find((t) => t.tile.symbol === 'AEHR.US')!.box, 'AEHR', '+2.47%').symbolPx).not.toBeNull();
+  });
+});

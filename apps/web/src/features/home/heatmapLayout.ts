@@ -47,15 +47,91 @@ export interface HeatmapLayout {
  * sector under a thin header. Replaces stacked square panels, which on a wide screen
  * made a two-stock sector a thousand pixels tall.
  */
+/**
+ * Smallest tile, in px², for each view: big enough for the symbol (positions also fit
+ * the % change). Without it a $40 holding next to a $6,000 one was a few pixels wide.
+ */
+export const MIN_TILE_AREA = { positions: 2800, watch: 1300 } as const;
+
+/**
+ * Smallest width and height. Area alone is not enough: the treemap gives a sector's
+ * smallest stock the leftover strip along an edge, so it can have the area and still be
+ * a few pixels wide. Positions fit the symbol and % change; the watchlist the symbol.
+ */
+export const MIN_TILE_SIDE = {
+  positions: { w: 48, h: 32 },
+  watch: { w: 34, h: 16 },
+} as const;
+const SIDE_PASSES = 6;
+const MAX_GROWTH_PER_PASS = 4;
+
+/**
+ * Tile weights with a floor: any tile that would come out smaller than `minArea` px² is
+ * raised to that size. Raising small tiles grows the total, which shrinks every tile a
+ * little, so the floor is recomputed a few times until it settles.
+ */
+export function flooredWeights(
+  tiles: PanoramaTile[],
+  weightOf: TileWeight,
+  frameArea: number,
+  minArea: number,
+): Map<string, number> {
+  const raw = new Map(tiles.map((t) => [t.symbol, Math.max(weightOf(t), 1e-9)]));
+  if (minArea <= 0 || frameArea <= 0 || !tiles.length) return raw;
+  // Floors cannot claim more than half the frame, or nothing would be proportional.
+  const share = Math.min(minArea / frameArea, 0.5 / tiles.length);
+  let floor = 0;
+  for (let i = 0; i < 4; i++) {
+    let total = 0;
+    for (const w of raw.values()) total += Math.max(w, floor);
+    floor = total * share;
+  }
+  return new Map([...raw].map(([symbol, w]) => [symbol, Math.max(w, floor)]));
+}
+
 export function layoutHeatmap(
   groups: PanoramaGroup[],
   weightOf: TileWeight,
   width: number,
   height: number,
+  options: { minTileArea?: number; minTileSide?: { w: number; h: number } } = {},
+): HeatmapLayout {
+  if (width <= 0 || height <= 0 || !groups.length) return { sectors: [], tiles: [] };
+  const weights = flooredWeights(
+    groups.flatMap((g) => g.tiles),
+    weightOf,
+    width * height,
+    options.minTileArea ?? 0,
+  );
+  let layout = layoutOnce(groups, weights, width, height);
+  const side = options.minTileSide;
+  if (!side) return layout;
+  // Grow any tile still too narrow or too short for its label, and lay out again.
+  for (let pass = 0; pass < SIDE_PASSES; pass++) {
+    let changed = false;
+    for (const { tile, box } of layout.tiles) {
+      const need = Math.max(side.w / Math.max(box.w, 1), side.h / Math.max(box.h, 1));
+      if (need <= 1) continue;
+      weights.set(tile.symbol, (weights.get(tile.symbol) ?? 1e-9) * Math.min(need * 1.1, MAX_GROWTH_PER_PASS));
+      changed = true;
+    }
+    if (!changed) break;
+    layout = layoutOnce(groups, weights, width, height);
+  }
+  return layout;
+}
+
+function layoutOnce(
+  groups: PanoramaGroup[],
+  tileWeight: Map<string, number>,
+  width: number,
+  height: number,
 ): HeatmapLayout {
   const layout: HeatmapLayout = { sectors: [], tiles: [] };
-  if (width <= 0 || height <= 0 || !groups.length) return layout;
-  const weights = new Map(groups.map((g) => [g.industry, g.tiles.reduce((s, t) => s + weightOf(t), 0)]));
+  const weightOfTile = (t: PanoramaTile) => tileWeight.get(t.symbol) ?? 1e-9;
+  const weights = new Map(
+    groups.map((g) => [g.industry, g.tiles.reduce((s, t) => s + weightOfTile(t), 0)]),
+  );
   const sectorRects = squarify(
     groups.map((g) => ({ key: g.industry, value: Math.max(weights.get(g.industry) ?? 0, 1e-9) })),
     width,
@@ -75,7 +151,7 @@ export function layoutHeatmap(
       h: Math.max(0, rect.h - (header ? HEADER_PX + GAP_PX / 2 : GAP_PX)),
     };
     const tileRects = squarify(
-      group.tiles.map((t) => ({ key: t.symbol, value: Math.max(weightOf(t), 1e-9) })),
+      group.tiles.map((t) => ({ key: t.symbol, value: weightOfTile(t) })),
       inner.w,
       inner.h,
     );
