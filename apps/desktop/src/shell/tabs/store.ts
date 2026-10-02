@@ -10,6 +10,8 @@ export interface TabState {
   route: string;
   title: string;
   scrollY: number;
+  /** Pinned by the user: kept right after home and never closed until unpinned. */
+  pinned?: boolean;
 }
 
 export interface TabsState {
@@ -26,6 +28,7 @@ export type MutateOp =
   | { op: 'updateRoute'; id: string; route: string }
   | { op: 'updateTitle'; id: string; title: string }
   | { op: 'updateScroll'; id: string; scrollY: number }
+  | { op: 'setPinned'; id: string; pinned: boolean }
   | { op: 'adopt'; tabs: TabState[] };
 
 function makeTab(route: string, id?: string): TabState {
@@ -41,11 +44,25 @@ function isPinnedTab(state: TabsState, id: string): boolean {
   return state.tabs.length > 0 && state.tabs[0].id === id;
 }
 
+/** Home or user-pinned: closing it takes an explicit unpin first. */
+function isKeptTab(state: TabsState, id: string): boolean {
+  return isPinnedTab(state, id) || state.tabs.some((tab) => tab.id === id && tab.pinned);
+}
+
+/** Number of user-pinned tabs, which always sit at indexes 1..count. */
+function pinnedCount(tabs: TabState[]): number {
+  return tabs.slice(1).filter((tab) => tab.pinned).length;
+}
+
+// Home first, then user-pinned tabs, then the rest, each group in its existing order.
 function withPinnedHome(tabs: TabState[]): TabState[] {
   const pinned = tabs.length > 0 && isHomeRoute(tabs[0].route) ? tabs[0] : makeTab(HOME_ROUTE);
   const rest = tabs.filter((tab) => tab.id !== pinned.id && !isHomeRoute(tab.route));
-  if (rest.length === tabs.length - 1 && tabs[0] === pinned) return tabs;
-  return [pinned, ...rest];
+  const ordered = [...rest.filter((tab) => tab.pinned), ...rest.filter((tab) => !tab.pinned)];
+  if (tabs[0] === pinned && ordered.length === tabs.length - 1) {
+    if (ordered.every((tab, index) => tab === tabs[index + 1])) return tabs;
+  }
+  return [pinned, ...ordered];
 }
 
 export function emptyTabsState(): TabsState {
@@ -62,7 +79,7 @@ export function openTab(state: TabsState, route: string, id?: string): TabsState
 }
 
 export function closeTab(state: TabsState, id: string): TabsState {
-  if (isPinnedTab(state, id)) return state;
+  if (isKeptTab(state, id)) return state;
   if (!state.tabs.some((tab) => tab.id === id)) return state;
   return withTabs(
     state,
@@ -72,7 +89,7 @@ export function closeTab(state: TabsState, id: string): TabsState {
 
 export function closeOtherTabs(state: TabsState, id: string): TabsState {
   if (!state.tabs.some((tab) => tab.id === id)) return state;
-  const tabs = state.tabs.filter((tab, index) => index === 0 || tab.id === id);
+  const tabs = state.tabs.filter((tab, index) => index === 0 || tab.pinned || tab.id === id);
   if (tabs.length === state.tabs.length) return state;
   return withTabs(state, tabs);
 }
@@ -80,7 +97,9 @@ export function closeOtherTabs(state: TabsState, id: string): TabsState {
 export function closeTabsToRight(state: TabsState, id: string): TabsState {
   const idx = state.tabs.findIndex((tab) => tab.id === id);
   if (idx === -1) return state;
-  return withTabs(state, state.tabs.slice(0, idx + 1));
+  const tabs = state.tabs.filter((tab, index) => index <= idx || tab.pinned);
+  if (tabs.length === state.tabs.length) return state;
+  return withTabs(state, tabs);
 }
 
 function patchTab(state: TabsState, id: string, patch: Partial<Omit<TabState, 'id'>>): TabsState {
@@ -106,10 +125,27 @@ export function updateTabScroll(state: TabsState, id: string, scrollY: number): 
   return patchTab(state, id, { scrollY });
 }
 
+/** Pins go to the end of the pinned group; an unpinned tab becomes the first unpinned one. */
+export function setTabPinned(state: TabsState, id: string, pinned: boolean): TabsState {
+  if (isPinnedTab(state, id)) return state;
+  const current = state.tabs.find((tab) => tab.id === id);
+  if (!current || Boolean(current.pinned) === pinned) return state;
+  const tabs = state.tabs.map((tab) => {
+    if (tab.id !== id) return tab;
+    if (pinned) return { ...tab, pinned: true };
+    const { pinned: _dropped, ...rest } = tab;
+    return rest;
+  });
+  return withTabs(state, withPinnedHome(tabs));
+}
+
 export function moveTab(state: TabsState, id: string, toIndex: number): TabsState {
   const from = state.tabs.findIndex((tab) => tab.id === id);
   if (from === -1 || from === 0) return state; // slot 0 is the pinned home tab
-  const target = Math.min(Math.max(Math.trunc(toIndex), 1), state.tabs.length - 1);
+  // A tab stays inside its own group: pinned tabs at 1..pins, the rest after them.
+  const pins = pinnedCount(state.tabs);
+  const [low, high] = state.tabs[from].pinned ? [1, pins] : [pins + 1, state.tabs.length - 1];
+  const target = Math.min(Math.max(Math.trunc(toIndex), low), high);
   if (target === from) return state;
   const tabs = [...state.tabs];
   const [moved] = tabs.splice(from, 1);
@@ -124,7 +160,8 @@ function isValidTab(value: unknown): value is TabState {
     typeof tab.id === 'string' &&
     typeof tab.route === 'string' &&
     typeof tab.title === 'string' &&
-    typeof tab.scrollY === 'number'
+    typeof tab.scrollY === 'number' &&
+    (tab.pinned === undefined || typeof tab.pinned === 'boolean')
   );
 }
 
@@ -145,6 +182,7 @@ export function cycleTabId(state: TabsState, activeTabId: string, delta: 1 | -1)
 export type CloseTabAction =
   | { kind: 'close-window' }
   | { kind: 'close-tab'; id: string }
+  | { kind: 'keep' }
   | { kind: 'delegate' };
 
 // The pinned home tab can never be closed on its own, so Cmd+W there falls
@@ -153,6 +191,9 @@ export type CloseTabAction =
 export function resolveCloseTabAction(state: TabsState, activeTabId: string): CloseTabAction {
   const active = state.tabs.find((tab) => tab.id === activeTabId);
   if (!active) return { kind: 'delegate' };
+  // A user-pinned tab exists to survive a stray shortcut, so it neither closes nor
+  // takes the window with it.
+  if (active.pinned) return { kind: 'keep' };
   if (!isPinnedTab(state, active.id)) return { kind: 'close-tab', id: active.id };
   return { kind: 'close-window' };
 }
@@ -182,6 +223,11 @@ export function applyMutation(state: TabsState, mutation: MutateOp): TabsState {
     }
     case 'updateScroll': {
       return updateTabScroll(state, mutation.id, mutation.scrollY);
+    }
+    case 'setPinned': {
+      // The renderer is not trusted to send a boolean; only a literal true/false counts.
+      if (typeof mutation.pinned !== 'boolean') return state;
+      return setTabPinned(state, mutation.id, mutation.pinned);
     }
     case 'adopt': {
       return adoptTabs(state, mutation.tabs);

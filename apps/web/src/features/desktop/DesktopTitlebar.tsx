@@ -9,6 +9,7 @@ import {
   Library,
   MessageCircle,
   PictureInPicture2,
+  Pin,
   ScrollText,
   Settings,
   TrendingUp,
@@ -112,6 +113,17 @@ const styles = stylex.create({
     fontWeight: 600,
   },
   tabPinned: { gap: 0, justifyContent: 'center', maxWidth: '30px', padding: 0, width: '30px' },
+  tabUserPinned: { maxWidth: '120px' },
+  tabPin: {
+    alignItems: 'center',
+    color: colors.textMuted,
+    display: 'inline-flex',
+    flex: '0 0 auto',
+    justifyContent: 'center',
+    marginRight: '-2px',
+    opacity: 0.75,
+    width: '15px',
+  },
   tabDragging: { opacity: 0.45 },
   tabDropTarget: {
     boxShadow: `inset 0 0 0 1.5px ${colors.accent}`,
@@ -358,10 +370,17 @@ function PopoutTitlebarButton({ symbol }: { symbol: string }) {
   );
 }
 
+/** "APP.US intraday multi-timeframe" → "APP": a pinned tab only needs the ticker. */
+function pinnedTabLabel(tab: TabState, title: string): string {
+  const symbol = symbolFromRoute(tab.route);
+  return symbol ? symbol.replace(/\.US$/, '') : title;
+}
+
 function Tab({
   tab,
   active,
   pinned,
+  userPinned,
   onActivate,
   onClose,
   onContextMenu,
@@ -369,7 +388,10 @@ function Tab({
 }: {
   tab: TabState;
   active: boolean;
+  /** The fixed home tab in slot 0. */
   pinned: boolean;
+  /** Pinned by the user: shows a pin instead of the close button. */
+  userPinned: boolean;
   onActivate: () => void;
   onClose: () => void;
   onContextMenu: () => void;
@@ -404,10 +426,11 @@ function Tab({
         setDropTarget(false);
       }}
       className={classNames(
-        `desktop-tab${active ? ' desktop-tab--active' : ''}${pinned ? ' desktop-tab--pinned' : ''}`,
+        `desktop-tab${active ? ' desktop-tab--active' : ''}${pinned ? ' desktop-tab--pinned' : ''}${userPinned ? ' desktop-tab--user-pinned' : ''}`,
         styles.tab,
         active ? styles.tabActive : undefined,
         pinned ? styles.tabPinned : undefined,
+        userPinned ? styles.tabUserPinned : undefined,
         dragging ? styles.tabDragging : undefined,
         dropTarget ? styles.tabDropTarget : undefined,
       )}
@@ -422,23 +445,35 @@ function Tab({
       {!pinned && (
         <>
           <span className={classNames('desktop-tab-title', styles.tabTitle)}>
-            {localizeChartTitle(tab.title, locale)}
+            {userPinned
+              ? pinnedTabLabel(tab, localizeChartTitle(tab.title, locale))
+              : localizeChartTitle(tab.title, locale)}
           </span>
-          <span
-            className={classNames(
-              'desktop-tab-close',
-              styles.tabClose,
-              active ? styles.tabCloseActive : undefined,
-            )}
-            role="button"
-            aria-label={t('closeTab')}
-            onClick={(event) => {
-              event.stopPropagation();
-              onClose();
-            }}
-          >
-            <X size={11} />
-          </span>
+          {userPinned ? (
+            <span
+              className={classNames('desktop-tab-pin', styles.tabPin)}
+              title={t('pinnedTabHint')}
+              aria-label={t('pinnedTabHint')}
+            >
+              <Pin size={10} />
+            </span>
+          ) : (
+            <span
+              className={classNames(
+                'desktop-tab-close',
+                styles.tabClose,
+                active ? styles.tabCloseActive : undefined,
+              )}
+              role="button"
+              aria-label={t('closeTab')}
+              onClick={(event) => {
+                event.stopPropagation();
+                onClose();
+              }}
+            >
+              <X size={11} />
+            </span>
+          )}
         </>
       )}
     </button>
@@ -487,6 +522,7 @@ export function DesktopTitlebar({ controller }: { controller: TabsController }) 
     closeTabById,
     closeOtherTabs,
     closeTabsToRight,
+    setTabPinned,
     newTabLauncherOpen,
     setNewTabLauncherOpen,
     openTab,
@@ -522,29 +558,43 @@ export function DesktopTitlebar({ controller }: { controller: TabsController }) 
   const openTabMenu = (tab: TabState, index: number) => {
     const tabId = tab.id;
     const pinned = index === 0;
-    const multi = snapshot.tabs.length > 1;
-    const isLast = index === snapshot.tabs.length - 1;
+    const userPinned = tab.pinned === true;
+    // Pinned tabs are never closed in bulk, so a bulk close with only pins left is a no-op.
+    const othersClosable = snapshot.tabs.some(
+      (other, otherIndex) => otherIndex !== 0 && !other.pinned && other.id !== tabId,
+    );
+    const rightClosable = snapshot.tabs.slice(index + 1).some((other) => !other.pinned);
     const symbol = symbolFromRoute(tab.route);
     const popoutBridge = symbol ? getPopoutBridge() : null;
     const openWindowBridge = getOpenWindowBridge();
     const items: ContextMenuItem[] = [
+      ...(pinned
+        ? []
+        : [
+            {
+              key: 'pin',
+              label: userPinned ? t('unpinTab') : t('pinTab'),
+              onClick: () => setTabPinned(tabId, !userPinned),
+            },
+            { type: 'divider' as const },
+          ]),
       {
         key: 'close',
         label: t('closeTab'),
         accelerator: 'CmdOrCtrl+W',
-        disabled: pinned,
+        disabled: pinned || userPinned,
         onClick: () => closeTabById(tabId),
       },
       {
         key: 'close-others',
         label: t('closeOtherTabs'),
-        disabled: !multi,
+        disabled: !othersClosable,
         onClick: () => closeOtherTabs(tabId),
       },
       {
         key: 'close-right',
         label: t('closeTabsToRight'),
-        disabled: isLast,
+        disabled: !rightClosable,
         onClick: () => closeTabsToRight(tabId),
       },
       { type: 'divider' },
@@ -597,6 +647,7 @@ export function DesktopTitlebar({ controller }: { controller: TabsController }) 
             tab={tab}
             active={tab.id === snapshot.activeTabId}
             pinned={index === 0}
+            userPinned={index !== 0 && tab.pinned === true}
             onActivate={() => activateTab(tab.id)}
             onClose={() => closeTabById(tab.id)}
             onContextMenu={() => openTabMenu(tab, index)}

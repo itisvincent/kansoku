@@ -76,6 +76,9 @@ function applyOp(tabs: TabState[], op: TabsMutateOp): TabState[] {
     case 'adopt': {
       return tabs.length > 0 ? tabs : op.tabs;
     }
+    case 'setPinned': {
+      return tabs.map((tab) => (tab.id === op.id ? { ...tab, pinned: op.pinned } : tab));
+    }
     default: {
       return tabs;
     }
@@ -282,6 +285,32 @@ describe('useTabsController with shared bridge', () => {
     expect(after).not.toBe(before);
     expect(after[0]).toBe(before[0]);
     expect(after[1].scrollY).toBe(120);
+  });
+
+  it('asks the main process to pin and unpin a tab', async () => {
+    bridge.seed([makeTab('/', 'a'), makeTab('/settings', 'b')]);
+    const getController = renderController();
+    await waitFor(() => expect(getController().snapshot.tabs).toHaveLength(2));
+
+    act(() => getController().setTabPinned('b', true));
+    await waitFor(() => expect(getController().snapshot.tabs[1].pinned).toBe(true));
+    act(() => getController().setTabPinned('b', false));
+    await waitFor(() => expect(getController().snapshot.tabs[1].pinned).toBe(false));
+    expect(bridge.mutateCalls.filter((op) => op.op === 'setPinned')).toEqual([
+      { op: 'setPinned', id: 'b', pinned: true },
+      { op: 'setPinned', id: 'b', pinned: false },
+    ]);
+  });
+
+  it('applies a broadcast that only changes the pin flag', async () => {
+    bridge.seed([makeTab('/', 'a'), makeTab('/settings', 'b')]);
+    const getController = renderController();
+    await waitFor(() => expect(getController().snapshot.tabs).toHaveLength(2));
+
+    act(() =>
+      bridge.emit({ revision: 50, tabs: [makeTab('/', 'a'), { ...makeTab('/settings', 'b'), pinned: true }] }),
+    );
+    expect(getController().snapshot.tabs[1].pinned).toBe(true);
   });
 
   it('focuses the pinned tab instead of opening a second home tab', async () => {

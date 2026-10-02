@@ -16,6 +16,7 @@ export interface TabState {
   route: string;
   title: string;
   scrollY: number;
+  pinned?: boolean;
 }
 
 export interface TabsSnapshot {
@@ -32,6 +33,7 @@ export type TabsMutateOp =
   | { op: 'updateRoute'; id: string; route: string }
   | { op: 'updateTitle'; id: string; title: string }
   | { op: 'updateScroll'; id: string; scrollY: number }
+  | { op: 'setPinned'; id: string; pinned: boolean }
   | { op: 'adopt'; tabs: TabState[] };
 
 export interface DesktopTabsBridge {

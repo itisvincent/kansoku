@@ -38,6 +38,8 @@ export interface TabsController {
   closeTabById(id: string): void;
   closeOtherTabs(id: string): void;
   closeTabsToRight(id: string): void;
+  /** Pinned tabs sit after home and ignore every close action until unpinned. */
+  setTabPinned(id: string, pinned: boolean): void;
   openTab(route: string): void;
   setNewTabLauncherOpen(open: boolean): void;
   focusOrOpenHome(): void;
@@ -88,7 +90,13 @@ function readLegacyTabs(): TabState[] | null {
 }
 
 function sameTab(a: TabState, b: TabState): boolean {
-  return a.id === b.id && a.route === b.route && a.title === b.title && a.scrollY === b.scrollY;
+  return (
+    a.id === b.id &&
+    a.route === b.route &&
+    a.title === b.title &&
+    a.scrollY === b.scrollY &&
+    Boolean(a.pinned) === Boolean(b.pinned)
+  );
 }
 
 function reconcileTabs(prevTabs: TabState[], nextTabs: TabState[]): TabState[] {
@@ -341,6 +349,17 @@ export function useTabsController(): TabsController {
     [bridge, captureScroll, applySnapshot],
   );
 
+  const setTabPinned = useCallback(
+    (id: string, pinned: boolean) => {
+      if (!bridge) {
+        setSnapshot((prev) => tabsStore.setTabPinned(prev, id, pinned));
+        return;
+      }
+      void bridge.mutate({ op: 'setPinned', id, pinned }).then(applySnapshot);
+    },
+    [bridge, applySnapshot],
+  );
+
   const focusPinnedHome = useCallback(
     (route: string): boolean => {
       const pinned = snapshotRef.current.tabs[0];
@@ -557,6 +576,7 @@ export function useTabsController(): TabsController {
     closeTabById,
     closeOtherTabs,
     closeTabsToRight,
+    setTabPinned,
     openTab,
     setNewTabLauncherOpen,
     focusOrOpenHome,

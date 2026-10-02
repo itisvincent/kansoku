@@ -7,6 +7,8 @@ export type TabState = {
   route: string;
   title: string;
   scrollY: number;
+  /** Pinned by the user: kept right after home and never closed until unpinned. */
+  pinned?: boolean;
 };
 
 export type TabsSnapshot = {
@@ -25,11 +27,25 @@ function isPinnedTab(snapshot: TabsSnapshot, id: string): boolean {
   return snapshot.tabs.length > 0 && snapshot.tabs[0].id === id;
 }
 
+/** Home or user-pinned: closing it takes an explicit unpin first. */
+function isKeptTab(snapshot: TabsSnapshot, id: string): boolean {
+  return isPinnedTab(snapshot, id) || snapshot.tabs.some((tab) => tab.id === id && tab.pinned);
+}
+
+/** Number of user-pinned tabs, which always sit at indexes 1..count. */
+function pinnedCount(tabs: TabState[]): number {
+  return tabs.slice(1).filter((tab) => tab.pinned).length;
+}
+
+// Home first, then user-pinned tabs, then the rest, each group in its existing order.
 function withPinnedHome(tabs: TabState[]): TabState[] {
   const pinned = tabs.length > 0 && isHomeRoute(tabs[0].route) ? tabs[0] : makeTab(HOME_ROUTE);
   const rest = tabs.filter((tab) => tab.id !== pinned.id && !isHomeRoute(tab.route));
-  if (rest.length === tabs.length - 1 && tabs[0] === pinned) return tabs;
-  return [pinned, ...rest];
+  const ordered = [...rest.filter((tab) => tab.pinned), ...rest.filter((tab) => !tab.pinned)];
+  if (tabs[0] === pinned && ordered.length === tabs.length - 1) {
+    if (ordered.every((tab, index) => tab === tabs[index + 1])) return tabs;
+  }
+  return [pinned, ...ordered];
 }
 
 export function tabKind(route: string): TabKind {
@@ -59,7 +75,8 @@ function isValidTab(value: unknown): value is TabState {
     typeof tab.id === 'string' &&
     typeof tab.route === 'string' &&
     typeof tab.title === 'string' &&
-    typeof tab.scrollY === 'number'
+    typeof tab.scrollY === 'number' &&
+    (tab.pinned === undefined || typeof tab.pinned === 'boolean')
   );
 }
 
@@ -127,8 +144,10 @@ export function activateTab(snapshot: TabsSnapshot, id: string): TabsSnapshot {
 export function moveTab(snapshot: TabsSnapshot, id: string, toIndex: number): TabsSnapshot {
   const from = snapshot.tabs.findIndex((tab) => tab.id === id);
   if (from === -1 || from === 0) return snapshot; // index 0 is the pinned home tab
-  // Slot 0 belongs to the pinned home tab, so any reorder stays within 1..len-1.
-  const target = Math.min(Math.max(toIndex, 1), snapshot.tabs.length - 1);
+  // Slot 0 belongs to home; a tab stays inside its group (pinned at 1..pins, the rest after).
+  const pins = pinnedCount(snapshot.tabs);
+  const [low, high] = snapshot.tabs[from].pinned ? [1, pins] : [pins + 1, snapshot.tabs.length - 1];
+  const target = Math.min(Math.max(toIndex, low), high);
   if (target === from) return snapshot;
   const tabs = [...snapshot.tabs];
   const [moved] = tabs.splice(from, 1);
@@ -137,7 +156,7 @@ export function moveTab(snapshot: TabsSnapshot, id: string, toIndex: number): Ta
 }
 
 export function closeTab(snapshot: TabsSnapshot, id: string): TabsSnapshot {
-  if (isPinnedTab(snapshot, id)) return snapshot;
+  if (isKeptTab(snapshot, id)) return snapshot;
   const idx = snapshot.tabs.findIndex((tab) => tab.id === id);
   if (idx === -1) return snapshot;
 
@@ -151,7 +170,7 @@ export function closeTab(snapshot: TabsSnapshot, id: string): TabsSnapshot {
 export function closeOtherTabs(snapshot: TabsSnapshot, id: string): TabsSnapshot {
   if (!snapshot.tabs.some((tab) => tab.id === id)) return snapshot;
   return {
-    tabs: snapshot.tabs.filter((tab, index) => index === 0 || tab.id === id),
+    tabs: snapshot.tabs.filter((tab, index) => index === 0 || tab.pinned || tab.id === id),
     activeTabId: id,
   };
 }
@@ -159,7 +178,7 @@ export function closeOtherTabs(snapshot: TabsSnapshot, id: string): TabsSnapshot
 export function closeTabsToRight(snapshot: TabsSnapshot, id: string): TabsSnapshot {
   const idx = snapshot.tabs.findIndex((tab) => tab.id === id);
   if (idx === -1) return snapshot;
-  const tabs = snapshot.tabs.slice(0, idx + 1);
+  const tabs = snapshot.tabs.filter((tab, index) => index <= idx || tab.pinned);
   const activeTabId = tabs.some((tab) => tab.id === snapshot.activeTabId)
     ? snapshot.activeTabId
     : id;
@@ -168,6 +187,20 @@ export function closeTabsToRight(snapshot: TabsSnapshot, id: string): TabsSnapsh
 
 export function closeActiveTab(snapshot: TabsSnapshot): TabsSnapshot {
   return closeTab(snapshot, snapshot.activeTabId);
+}
+
+/** Pins go to the end of the pinned group; an unpinned tab becomes the first unpinned one. */
+export function setTabPinned(snapshot: TabsSnapshot, id: string, pinned: boolean): TabsSnapshot {
+  if (isPinnedTab(snapshot, id)) return snapshot;
+  const current = snapshot.tabs.find((tab) => tab.id === id);
+  if (!current || Boolean(current.pinned) === pinned) return snapshot;
+  const tabs = snapshot.tabs.map((tab) => {
+    if (tab.id !== id) return tab;
+    if (pinned) return { ...tab, pinned: true };
+    const { pinned: _dropped, ...rest } = tab;
+    return rest;
+  });
+  return { ...snapshot, tabs: withPinnedHome(tabs) };
 }
 
 export function nextTab(snapshot: TabsSnapshot): TabsSnapshot {
