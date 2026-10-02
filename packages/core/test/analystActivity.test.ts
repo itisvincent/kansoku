@@ -280,6 +280,7 @@ describe('analyst activity wiring', () => {
       },
     });
     if (!run.started) throw new Error('expected run to start');
-    await expect(run.done).resolves.toBeUndefined();
+    // It completes (with an outcome) instead of rejecting.
+    await expect(run.done).resolves.toEqual(expect.any(String));
   });
 });
