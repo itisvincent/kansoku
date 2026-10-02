@@ -22,6 +22,7 @@ import { useTitle } from '@web/lib/useTitle';
 import { isDesktopRealtime } from '@web/lib/portTransport';
 import { AnalystRunFeed } from './AnalystRunFeed';
 import { AnalysisTimeline } from './AnalysisTimeline';
+import { ChatDock } from './chat/ChatDock';
 import { useAnalystRunLastEnded, useAnalystRunStatus } from './analystRunsStore';
 import { CockpitSkeleton } from './CockpitSkeleton';
 import type { AnalysisSection } from './AnalysisTab';
@@ -113,6 +114,13 @@ const styles = stylex.create({
   },
 });
 
+export function newestAnalysis(rows: SymbolAnalysisRow[]): SymbolAnalysisRow | null {
+  return rows.reduce<SymbolAnalysisRow | null>(
+    (newest, row) => (!newest || row.created_at > newest.created_at ? row : newest),
+    null,
+  );
+}
+
 export function PreviewCockpit({
   sym,
   analysesRows,
@@ -182,6 +190,8 @@ export function PreviewCockpit({
   if (!built) return <CockpitSkeleton />;
 
   const activeIntradayTf = resolveIntradayTf(built, intradayTf);
+  // Follow-ups belong to a saved analysis; live view continues the newest one's thread.
+  const latestAnalysis = newestAnalysis(analysesRows);
   const previewLevels = built.sidebar.prediction
     ? undefined
     : (analystRunStatus?.sections?.technical?.levels ??
@@ -289,6 +299,11 @@ export function PreviewCockpit({
               sidebarTabs={sidebarTabs}
               activeTab={activeTab}
               onTabChange={setActiveTab}
+              dock={
+                latestAnalysis ? (
+                  <ChatDock chartId={latestAnalysis.id} docCreatedAt={latestAnalysis.created_at} />
+                ) : undefined
+              }
               live
             />
           </div>

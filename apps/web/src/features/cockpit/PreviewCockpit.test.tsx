@@ -80,15 +80,26 @@ vi.mock('@web/features/charts/intraday/IntradayDashboard', () => ({
     built,
     sidebarTabs,
     activeTab,
+    dock,
   }: {
     built: IntradayBuilt;
     sidebarTabs: { key: string; content: ReactNode }[];
     activeTab: string;
+    dock?: ReactNode;
   }) => {
     capturedBuilt = built;
-    return <div>{sidebarTabs.find((t) => t.key === activeTab)?.content}</div>;
+    return (
+      <div>
+        {sidebarTabs.find((t) => t.key === activeTab)?.content}
+        {dock}
+      </div>
+    );
   },
   IntradayTimeframeSwitch: () => null,
+}));
+
+vi.mock('./chat/ChatDock', () => ({
+  ChatDock: ({ chartId }: { chartId: string }) => <div data-testid="chat-dock">{chartId}</div>,
 }));
 
 const { PreviewCockpit } = await import('./PreviewCockpit');
@@ -116,6 +127,57 @@ const baseBuilt = {
   },
   timeframes: {},
 } as unknown as IntradayBuilt;
+
+const analysisRow = (id: string, createdAt: string) =>
+  ({
+    id,
+    schema_version: 1,
+    type: 'intraday',
+    title: id,
+    symbol: 'APP.US',
+    created_at: createdAt,
+    updated_at: createdAt,
+    url: `/charts/${id}`,
+    direction: null,
+    anchor: null,
+    outcome: null,
+  }) as SymbolAnalysisRow;
+
+describe('PreviewCockpit follow-up chat', () => {
+  const renderLive = (rows: SymbolAnalysisRow[]) => {
+    previewState = {
+      built: baseBuilt,
+      error: null,
+      degraded: false,
+      intradayTf: null,
+      setIntradayTf: () => {},
+      predictionUpdatedAt: undefined,
+      predictionStale: undefined,
+    };
+    render(
+      <PreviewCockpit
+        sym="APP.US"
+        analysesRows={rows}
+        onLive={() => {}}
+        onSelectAnalysis={() => {}}
+      />,
+    );
+  };
+
+  it('continues the newest analysis thread in the live view', () => {
+    renderLive([
+      analysisRow('older', '2026-09-29T13:00:00Z'),
+      analysisRow('newest', '2026-10-01T13:00:00Z'),
+      analysisRow('middle', '2026-09-30T13:00:00Z'),
+    ]);
+    expect(screen.getByTestId('chat-dock').textContent).toBe('newest');
+  });
+
+  it('has no follow-up box before the first analysis exists', () => {
+    renderLive([]);
+    expect(screen.queryByTestId('chat-dock')).toBeNull();
+  });
+});
 
 describe('PreviewCockpit prediction tab', () => {
   it('shows the selected 4h signal data instead of the saved 15m signals', () => {
