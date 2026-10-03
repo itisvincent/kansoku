@@ -132,7 +132,7 @@ describe('reading a Futu account through OpenD', () => {
 
   afterEach(() => new Promise<void>((resolve) => server.close(() => resolve())));
 
-  const settings = () => ({ enabled: true, watchlist: true, host: '127.0.0.1', port });
+  const settings = () => ({ enabled: true, watchlist: true, candles: 'longbridge' as const, host: '127.0.0.1', port });
 
   it('reads real-account positions in Kansoku form, shorts negative, paper accounts skipped', async () => {
     const account = await readFutuAccount(settings());
@@ -162,7 +162,7 @@ describe('reading a Futu account through OpenD', () => {
   });
 
   it('reports OpenD as unreachable when nothing listens', async () => {
-    const status = await futuStatus({ enabled: true, watchlist: false, host: '127.0.0.1', port: 1 });
+    const status = await futuStatus({ enabled: true, watchlist: false, candles: 'longbridge' as const, host: '127.0.0.1', port: 1 });
     expect(status.state).toBe('unreachable');
     expect(status.message).toMatch(/OpenD/);
   });
@@ -187,7 +187,7 @@ describe('withFutu', () => {
     let down = false;
     const warnings: string[] = [];
     const provider = withFutu(base, {
-      settings: () => ({ enabled, watchlist: true, host: '127.0.0.1', port: 11111 }),
+      settings: () => ({ enabled, watchlist: true, candles: 'longbridge' as const, host: '127.0.0.1', port: 11111 }),
       watchedMarkets: () => ['US', 'HK'],
       account: async () => {
         if (down) throw new Error('OpenD is not reachable');
@@ -224,7 +224,7 @@ describe('withFutu', () => {
     } as unknown as MarketDataProvider;
     const overview = { total_asset: '100', market_cap: '80', total_cash: '20', total_pl: '0', total_today_pl: '0', currency: 'USD' };
     const provider = withFutu(base, {
-      settings: () => ({ enabled: true, watchlist: false, host: '127.0.0.1', port: 11111 }),
+      settings: () => ({ enabled: true, watchlist: false, candles: 'longbridge' as const, host: '127.0.0.1', port: 11111 }),
       account: async () => ({ accounts: 1, positions: [futu], holdings: [], overview }),
       watchlist: async () => ['9988.HK'],
       warn: () => {},
@@ -238,7 +238,7 @@ describe('withFutu', () => {
   it('throws the base error when Futu is off', async () => {
     const base = { getPositions: async () => { throw new Error('denied'); } } as unknown as MarketDataProvider;
     const provider = withFutu(base, {
-      settings: () => ({ enabled: false, watchlist: false, host: '127.0.0.1', port: 11111 }),
+      settings: () => ({ enabled: false, watchlist: false, candles: 'longbridge' as const, host: '127.0.0.1', port: 11111 }),
       account: async () => { throw new Error('unused'); },
       watchlist: async () => [],
       warn: () => {},

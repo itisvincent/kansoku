@@ -1,6 +1,7 @@
 import type { RawPortfolio, RawPortfolioHolding, RawPosition } from '../types.js';
 import { openOpenDSession, OpenDError, PROTO, type OpenDSession } from './openDClient.js';
 import { readFutuSettings, type FutuSettings } from './futuSettings.js';
+import { readFutuHistoryQuota, type FutuHistoryQuota } from './futuCandles.js';
 
 /**
  * Read-only view of the user's Futu account through OpenD: positions, holdings and the
@@ -281,6 +282,8 @@ export interface FutuStatus {
   positions: number;
   /** Watchlist symbols Kansoku adds (after the market filter), or null when that is off. */
   watchlist: number | null;
+  /** Futu's 30-day candle-history quota; null when OpenD did not answer. */
+  historyQuota: FutuHistoryQuota | null;
 }
 
 /** Probes OpenD now (no cache), for the Settings card. */
@@ -296,6 +299,7 @@ export async function futuStatus(
       accounts: 0,
       positions: 0,
       watchlist: null,
+      historyQuota: null,
     };
   }
   try {
@@ -304,6 +308,9 @@ export async function futuStatus(
     const watchlist = settings.watchlist
       ? countWatchlist(await readFutuWatchlist(settings))
       : null;
+    const historyQuota = await readFutuHistoryQuota(() =>
+      openOpenDSession({ host: settings.host, port: settings.port }),
+    ).catch(() => null);
     return {
       enabled: true,
       state: 'connected',
@@ -311,6 +318,7 @@ export async function futuStatus(
       accounts: snapshot.accounts,
       positions: snapshot.positions.length,
       watchlist,
+      historyQuota,
     };
   } catch (error) {
     const unreachable = error instanceof OpenDError && error.code === 'unreachable';
@@ -321,6 +329,7 @@ export async function futuStatus(
       accounts: 0,
       positions: 0,
       watchlist: null,
+      historyQuota: null,
     };
   }
 }

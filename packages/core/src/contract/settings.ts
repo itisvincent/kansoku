@@ -12,7 +12,13 @@ import { defineRoutes } from './defineRoutes.js';
 import type { InterfaceLocale } from '../settings/interfaceLocale.js';
 
 export interface FutuAccountOut {
-  settings: { enabled: boolean; watchlist: boolean; host: string; port: number };
+  settings: {
+    enabled: boolean;
+    watchlist: boolean;
+    candles: 'longbridge' | 'futu';
+    host: string;
+    port: number;
+  };
   status: {
     enabled: boolean;
     state: 'disabled' | 'connected' | 'unreachable' | 'error';
@@ -20,6 +26,8 @@ export interface FutuAccountOut {
     accounts: number;
     positions: number;
     watchlist: number | null;
+    /** Futu's 30-day candle-history quota, when connected. */
+    historyQuota: { used: number; remaining: number } | null;
   };
 }
 
@@ -75,6 +83,7 @@ export interface SettingsApi {
   putFutu(input: {
     enabled?: unknown;
     watchlist?: unknown;
+    candles?: unknown;
     host?: unknown;
     port?: unknown;
   }): Promise<FutuAccountOut>;

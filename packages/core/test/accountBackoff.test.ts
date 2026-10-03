@@ -44,7 +44,7 @@ describe('Futu while OpenD is down', () => {
       },
     } as unknown as MarketDataProvider;
     const provider = withFutu(base, {
-      settings: () => ({ enabled: true, watchlist: false, host: '127.0.0.1', port: 11111 }),
+      settings: () => ({ enabled: true, watchlist: false, candles: 'longbridge' as const, host: '127.0.0.1', port: 11111 }),
       account,
       watchlist: async () => [],
       warn,

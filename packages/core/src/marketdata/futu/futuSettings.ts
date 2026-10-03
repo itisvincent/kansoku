@@ -4,6 +4,9 @@ import { getDb, type Db } from '../../db/index.js';
 import { appMeta } from '../../db/schema.js';
 import { ClientError } from '../../platform/errors.js';
 
+/** Which broker's candles are tried first; the other is the fallback. */
+export type CandleSource = 'longbridge' | 'futu';
+
 /** Whether Kansoku reads the user's Futu account through OpenD, and where OpenD listens. */
 export interface FutuSettings {
   enabled: boolean;
@@ -12,6 +15,11 @@ export interface FutuSettings {
    * of symbols, and each one adds live quotes and a money-flow lookup on Longbridge.
    */
   watchlist: boolean;
+  /**
+   * The first source for candles (price history). When it fails or returns nothing, the
+   * other one is tried. Futu is only used while the account link is on.
+   */
+  candles: CandleSource;
   host: string;
   port: number;
 }
@@ -19,6 +27,7 @@ export interface FutuSettings {
 export const DEFAULT_FUTU_SETTINGS: FutuSettings = {
   enabled: false,
   watchlist: false,
+  candles: 'longbridge',
   host: '127.0.0.1',
   port: 11111,
 };
@@ -32,6 +41,7 @@ const LOCAL_HOST = /^(?:127\.0\.0\.1|localhost|::1)$/i;
 const futuSettingsSchema = z.object({
   enabled: z.boolean(),
   watchlist: z.boolean().default(false),
+  candles: z.enum(['longbridge', 'futu']).default('longbridge'),
   host: z.string().trim().regex(LOCAL_HOST, 'OpenD must run on this computer (127.0.0.1)'),
   port: z.number().int().min(1).max(65535),
 });

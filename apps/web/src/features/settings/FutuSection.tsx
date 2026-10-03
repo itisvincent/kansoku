@@ -4,10 +4,12 @@ import type { FutuAccountOut } from '@kansoku/core/contract/settings';
 import { useQuery } from '@web/lib/apiHooks';
 import { client } from '@web/lib/client';
 import { useLocale } from '@web/lib/i18n';
-import { Button, Switch } from '@web/ui';
+import { Button, SegmentedControl, Switch } from '@web/ui';
 import { SettingsGroup, SettingsRow } from './SettingsGroup';
 
 const QUERY_KEY = 'settings.getFutu';
+
+type CandleSource = FutuAccountOut['settings']['candles'];
 
 /**
  * Read-only link to the user's Futu account through OpenD, Futu's own gateway running on
@@ -26,7 +28,7 @@ export function FutuSection() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const save = async (patch: { enabled?: boolean; watchlist?: boolean }) => {
+  const save = async (patch: { enabled?: boolean; watchlist?: boolean; candles?: CandleSource }) => {
     setSaving(true);
     setError(null);
     try {
@@ -77,6 +79,30 @@ export function FutuSection() {
               checked={data.settings.watchlist}
               disabled={saving}
               onCheckedChange={(checked) => void save({ watchlist: checked })}
+            />
+          </SettingsRow>
+          <SettingsRow
+            label={t('futuCandles')}
+            description={
+              status?.historyQuota
+                ? `${t('futuCandlesDescription')} ${t('futuHistoryQuota', {
+                    remaining: status.historyQuota.remaining,
+                    total: status.historyQuota.used + status.historyQuota.remaining,
+                  })}`
+                : t('futuCandlesDescription')
+            }
+          >
+            <SegmentedControl<CandleSource>
+              ariaLabel={t('futuCandles')}
+              fit
+              size="sm"
+              disabled={saving}
+              value={data.settings.candles ?? 'longbridge'}
+              onChange={(candles) => void save({ candles })}
+              options={[
+                { value: 'longbridge', label: t('futuCandlesLongbridge') },
+                { value: 'futu', label: t('futuCandlesFutu') },
+              ]}
             />
           </SettingsRow>
           <SettingsRow

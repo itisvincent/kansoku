@@ -1476,6 +1476,12 @@ const enUS = {
   futuUnreachable: 'OpenD is not reachable. Open OpenD and log in, then check again.',
   futuError: 'OpenD answered with an error: {value1}',
   futuCheckAgain: 'Check again',
+  futuCandles: 'Price history source',
+  futuCandlesDescription:
+    'Where charts and analyses get their candles. If the first source fails or has no data, the other one is used.',
+  futuCandlesLongbridge: 'Longbridge first',
+  futuCandlesFutu: 'Futu first',
+  futuHistoryQuota: 'Futu history quota: {remaining} of {total} stocks left in the current 30 days.',
   futuAddWatchlist: 'Add my Futu watchlist',
   futuWatchlistDescription:
     'Adds the symbols from your Futu watchlist that are in your watched markets. Every symbol gets live quotes, so a long list adds load.',

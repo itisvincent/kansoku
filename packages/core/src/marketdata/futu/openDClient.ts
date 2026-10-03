@@ -22,6 +22,8 @@ export const PROTO = {
   getPositionList: 2102,
   getUserSecurity: 3213,
   getUserSecurityGroup: 3222,
+  requestHistoryKL: 3103,
+  requestHistoryKLQuota: 3104,
 } as const;
 
 const HEADER_BYTES = 44;

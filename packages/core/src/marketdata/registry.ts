@@ -2,14 +2,16 @@ import { ClientError } from '../platform/errors.js';
 import type { Market } from '../symbols/symbol.utils.js';
 import { longbridgeProvider } from './longbridge.js';
 import { withFutu } from './futu/withFutu.js';
+import { withCandleFallback } from './candleFallback.js';
 import { getLongbridgeStream, resetLongbridgeStream } from './longbridgeStream.js';
 import type { QuoteStream } from './quoteStream.js';
 import { resetSharedQuoteSocket } from './sharedSocket.js';
 import type { MarketDataProvider } from './types.js';
 
 const providers: Record<string, MarketDataProvider> = {
-  // Positions, portfolio and watchlist also include the user's Futu account when it is on.
-  longbridge: withFutu(longbridgeProvider),
+  // Positions, portfolio and watchlist also include the user's Futu account when it is on,
+  // and candles fall back between Longbridge and Futu (Settings → Futu).
+  longbridge: withCandleFallback(withFutu(longbridgeProvider)),
 };
 
 const streamFactories: Record<string, () => QuoteStream> = {

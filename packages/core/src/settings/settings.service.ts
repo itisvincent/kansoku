@@ -99,6 +99,7 @@ export const settingsService: SettingsApi = {
     const settings = writeFutuSettings({
       enabled: input.enabled ?? current.enabled,
       watchlist: input.watchlist ?? current.watchlist,
+      candles: input.candles ?? current.candles,
       host: input.host ?? current.host,
       port: input.port ?? current.port,
     });

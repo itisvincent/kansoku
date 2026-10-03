@@ -1420,6 +1420,11 @@ const zhCN = {
   preferredTime: '优先显示的时间',
   localTimezone: '本地时区',
   futuAccount: '富途账户',
+  futuCandles: 'K 线数据来源',
+  futuCandlesDescription: '图表和分析用的 K 线从哪里取。第一个来源失败或没有数据时，自动改用另一个。',
+  futuCandlesLongbridge: '长桥优先',
+  futuCandlesFutu: '富途优先',
+  futuHistoryQuota: '富途历史 K 线额度：当前 30 天内还剩 {remaining}/{total} 只股票。',
   futuReadAccount: '读取我的富途账户',
   futuDescription:
     '通过本机的 OpenD 把富途的持仓和账户总额加入 Kansoku。请先打开 OpenD 并登录。只读：Kansoku 不会下单。',
