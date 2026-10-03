@@ -16,4 +16,10 @@ export class PositionsController {
     const data = await this.service.refresh();
     return { ok: true, data };
   }
+
+  @Get('/plans')
+  async getPlans() {
+    const data = await this.service.plans();
+    return { ok: true, data };
+  }
 }

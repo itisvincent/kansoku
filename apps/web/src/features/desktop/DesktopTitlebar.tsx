@@ -667,6 +667,7 @@ export function DesktopTitlebar({ controller }: { controller: TabsController }) 
           onOpenTrainer={openTrainer}
           onOpenScan={() => focusOrOpenPage('/scan')}
           onOpenScorecard={() => focusOrOpenPage('/scorecard')}
+          onOpenPlans={() => focusOrOpenPage('/plans')}
         />
       </ScrollArea>
       <div className={classNames('desktop-titlebar-actions', styles.titlebarActions)}>

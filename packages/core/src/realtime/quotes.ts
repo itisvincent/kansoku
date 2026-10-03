@@ -244,6 +244,40 @@ function removeExtras(symbols: string[]): string[] {
   return drop;
 }
 
+/**
+ * Live quote cells for `symbols`, for a background consumer such as the plan alerts.
+ * Keeps just these symbols streaming; unlike subscribeQuotes it holds no page snapshot,
+ * keeps no watchlist subscribed, and does not wake onAnyQuoteUpdate listeners.
+ */
+export function watchQuoteCells(
+  symbols: string[],
+  onCell: (cell: QuoteCell) => void,
+): () => void {
+  const cleaned = [...new Set(symbols.filter((s) => /^[\w.]+$/.test(s)))];
+  const wanted = new Set(cleaned);
+  const fresh = addExtras(cleaned);
+  const handles = distinctStreams().map((stream) =>
+    stream.onUpdate((cell) => {
+      if (!wanted.has(cell.symbol)) return;
+      try {
+        onCell(cell);
+      } catch {
+        // A consumer's failure must not stop the stream's other listeners.
+      }
+    }),
+  );
+  if (fresh.length) {
+    void retainSymbols(fresh).catch((err) =>
+      console.warn('[longbridge-stream] retain watched symbols failed', err),
+    );
+  }
+  return () => {
+    for (const off of handles) off();
+    const drop = removeExtras(cleaned);
+    if (drop.length) void releaseSymbols(drop).catch(() => {});
+  };
+}
+
 export function subscribeQuotes(
   push: (envelope: string) => void,
   extraSymbols: string[] = [],

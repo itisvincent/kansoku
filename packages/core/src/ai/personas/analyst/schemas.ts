@@ -103,6 +103,15 @@ export const epsPePlanSchema = Type.Object({
         label: Type.String({ description: 'Starter buy / Add / Trim / Thesis stop' }),
         price: Type.Number(),
         note: Type.Optional(Type.String()),
+        side: Type.Optional(
+          Type.Union(
+            [Type.Literal('buy'), Type.Literal('sell'), Type.Literal('stop'), Type.Literal('note')],
+            {
+              description:
+                'buy = add/starter level (alert when price falls to it); sell = trim level (alert when price rises to it); stop = thesis stop (alert when price falls below it); note = a remark such as "no starter" that is not a level to act on',
+            },
+          ),
+        ),
       }),
     ),
   ),

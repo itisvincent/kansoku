@@ -148,3 +148,12 @@ describe('describeSavedEpsPeFrame', () => {
     expect(describeSavedEpsPeFrame(plan({ scenarios: [] }))).toBeNull();
   });
 });
+
+describe('band side', () => {
+  it('fills in a side the saved band lacked from the same band in this run', () => {
+    const saved = plan();
+    const incoming = plan({ bands: [{ label: 'Add', price: 300, side: 'buy' }] });
+    const locked = applySavedEpsPeFrame(saved, incoming);
+    expect(locked.plan.bands?.[0]).toMatchObject({ label: 'Add', side: 'buy' });
+  });
+});

@@ -118,6 +118,8 @@ export function applySavedEpsPeFrame(
           ...band,
           price: round2(band.price * factor),
           note: fresh?.note ?? band.note,
+          // Older saved bands have no side; a re-run that names it fills it in.
+          ...((band.side ?? fresh?.side) ? { side: band.side ?? fresh?.side } : {}),
         };
       }),
       sources: [note, ...(incoming.sources ?? saved.sources ?? [])],

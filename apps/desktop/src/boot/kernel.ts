@@ -21,6 +21,7 @@ export async function bootKernel() {
     { loadPro },
     { disposeMarketData },
     { stopEventCollector },
+    { stopPlanAlerts },
   ] = await Promise.all([
     import('../../../server/src/runtimeInit.js'),
     import('../kernel/realtime/bridge.js'),
@@ -30,6 +31,7 @@ export async function bootKernel() {
     import('@kansoku/core/pro/loader'),
     import('@kansoku/core/marketdata/registry'),
     import('@kansoku/core/events/collector'),
+    import('@kansoku/core/plans/planAlerts'),
   ]);
 
   // Dev keeps the pre-P3 plaintext keyfile so ELECTRON_DEV workflows are
@@ -99,6 +101,8 @@ export async function bootKernel() {
     dispose: async () => {
       if (disposed) return;
       disposed = true;
+      // Before the market data goes: a reload racing the shutdown would reopen the stream.
+      stopPlanAlerts();
       disposeMarketData();
       // Started by initServerHostRuntime above; the host that owns the process is
       // the one that has to put its background polling down.

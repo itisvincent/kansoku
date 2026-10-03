@@ -8,6 +8,7 @@ import {
   Radar,
   Search,
   Trophy,
+  Crosshair,
 } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
 import { useState } from 'react';
@@ -190,6 +191,7 @@ interface NewTabLauncherProps {
   onOpenTrainer?: (() => void) | null;
   onOpenScan?: (() => void) | null;
   onOpenScorecard?: (() => void) | null;
+  onOpenPlans?: (() => void) | null;
 }
 
 export function NewTabLauncher({
@@ -202,6 +204,7 @@ export function NewTabLauncher({
   onOpenTrainer,
   onOpenScan,
   onOpenScorecard,
+  onOpenPlans,
 }: NewTabLauncherProps) {
   const { t } = useLocale();
   const [symbol, setSymbol] = useState('');
@@ -313,6 +316,16 @@ export function NewTabLauncher({
                 >
                   <Trophy {...stylex.props(styles.menuIcon)} size={14} aria-hidden />
                   <span>{t('scorecardOpen')}</span>
+                </button>
+              )}
+              {onOpenPlans && (
+                <button
+                  {...stylex.props(styles.menuButton)}
+                  type="button"
+                  onClick={() => run(onOpenPlans)}
+                >
+                  <Crosshair {...stylex.props(styles.menuIcon)} size={14} aria-hidden />
+                  <span>{t('plansOpen')}</span>
                 </button>
               )}
               {onOpenTrainer && (

@@ -4,6 +4,7 @@ import { ClientError } from '../platform/errors.js';
 import { getProvider } from '../marketdata/registry.js';
 import { onAccountCacheReset, resetAccountCaches } from '../marketdata/accountRefresh.js';
 import { summarizePortfolio } from './positions.utils.js';
+import { buildPlanBoard, findSavedPlan } from '../plans/planBoard.js';
 
 const CACHE_TTL_MS = 30_000;
 
@@ -33,6 +34,13 @@ export function createPositionsService(): PositionsApi {
     async refresh() {
       resetAccountCaches();
       return list();
+    },
+    plans() {
+      return buildPlanBoard({
+        listPositions: async () => (await list()).positions,
+        findPlan: findSavedPlan,
+        now: () => Date.now(),
+      });
     },
   };
 }

@@ -154,6 +154,9 @@ export function PositionsActions({ count }: { count: number }) {
           )}
         </>
       )}
+      <a {...stylex.props(styles.link)} href="/plans" title={t('plansOpenHint')}>
+        {t('plansOpen')}
+      </a>
       {notice && <span {...stylex.props(styles.error)}>{notice}</span>}
     </span>
   );

@@ -46,6 +46,12 @@ function STATIC_COMMANDS(tr: Translator = chineseTranslator): PaletteCommand[] {
       route: '/scan',
     },
     {
+      id: 'nav:plans',
+      title: tr('plansOpen'),
+      keywords: ['plan', 'plans', 'levels', 'alerts', 'add', 'trim', '计划', '加仓', '减仓', '点位'],
+      route: '/plans',
+    },
+    {
       id: 'nav:scorecard',
       title: tr('scorecardOpen'),
       keywords: ['scorecard', 'hit rate', 'win rate', 'predictions', '成绩', '命中率', '预测'],

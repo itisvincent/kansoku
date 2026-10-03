@@ -17,4 +17,9 @@ export class PositionsIpc extends IpcService implements WrapEnvelope<PositionsAp
   refresh() {
     return toEnvelope('positions.refresh', () => positionsService.refresh());
   }
+
+  @IpcMethod()
+  plans() {
+    return toEnvelope('positions.plans', () => positionsService.plans());
+  }
 }

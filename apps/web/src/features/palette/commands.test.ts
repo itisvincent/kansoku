@@ -13,6 +13,7 @@ describe('buildPaletteCommands', () => {
       'nav:canvases',
       'nav:settings',
       'nav:scan',
+      'nav:plans',
       'nav:scorecard',
       'nav:logs',
     ]);

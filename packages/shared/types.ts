@@ -545,6 +545,8 @@ export interface EpsPeBand {
   label: string;
   price: number;
   note?: string;
+  /** buy / sell / stop / note. Older plans have none and are read from the label. */
+  side?: 'buy' | 'sell' | 'stop' | 'note';
 }
 
 export interface EpsPePlan {
@@ -1066,6 +1068,34 @@ export interface PortfolioSummary {
   positions: PortfolioPositionRow[];
 }
 
+/** The newest EPS × PE plan saved for a holding, as the plan board shows it. */
+export interface PlanBoardPlan {
+  chart_id: string;
+  made_at: string;
+  anchor_year: string | null;
+  targets: { bear: number | null; base: number | null; bull: number | null };
+  bands: EpsPeBand[];
+  /** The earnings date the analysis recorded as upcoming. */
+  next_earnings: string | null;
+  freshness: import('./planLevels.js').PlanFreshness;
+}
+
+export interface PlanBoardRow {
+  symbol: string;
+  name: string;
+  quantity: number;
+  market_value: number;
+  /** Last price from the positions snapshot; the page overlays live quotes. */
+  price: number | null;
+  /** Null when no analysis with an EPS × PE plan exists for the holding yet. */
+  plan: PlanBoardPlan | null;
+}
+
+export interface PlanBoard {
+  generated_at: string;
+  rows: PlanBoardRow[];
+}
+
 export interface RecapSettlementRow {
   symbol: string;
   chart_id: string;
@@ -1102,7 +1132,7 @@ export interface CockpitComment {
 export type ExplainResult =
   { ok: true; comment: CockpitComment } | { ok: false; reason: 'disabled' | 'busy' | 'failed' };
 
-export type NoticeKind = 'analysis_done' | 'deep_dive_done' | 'deep_dive_failed';
+export type NoticeKind = 'analysis_done' | 'deep_dive_done' | 'deep_dive_failed' | 'plan_level';
 
 export interface Notice {
   symbol: string;

@@ -6,6 +6,7 @@ import {
 import { getAiRuntime, initAiSettings } from '@kansoku/core/ai/settings/initAiSettings';
 import { getDb } from '@kansoku/core/db/index';
 import { startEventCollector } from '@kansoku/core/events/collector';
+import { startPlanAlerts } from '@kansoku/core/plans/planAlerts';
 import { setProductionHost } from '@kansoku/core/license/dodoEnv';
 import { startLicenseRevalidation } from '@kansoku/core/license/licenseSchedule';
 import { initLicenseManager } from '@kansoku/core/license/licenseState';
@@ -72,6 +73,12 @@ export async function initServerHostRuntime(opts?: ServerRuntimeOptions): Promis
   // collector itself refuses to run in tests or when EVENT_SOURCES_DISABLED is set.
   await startEventCollector().catch((error: unknown) => {
     console.warn('[host] market event collector did not start', error);
+  });
+
+  // Price-level alerts for holdings. Not awaited: it reads positions from the brokers,
+  // and a slow broker must not hold up the app's start.
+  void startPlanAlerts().catch((error: unknown) => {
+    console.warn('[host] plan level alerts did not start', error);
   });
 }
 

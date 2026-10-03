@@ -17,7 +17,7 @@ const styles = stylex.create({
   },
 });
 
-const SINGLE_PAGE_ROUTES = new Set(['/scan', '/scorecard']);
+const SINGLE_PAGE_ROUTES = new Set(['/scan', '/scorecard', '/plans']);
 
 export function DesktopShell() {
   const controller = useTabsController();
