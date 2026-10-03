@@ -1,4 +1,5 @@
 import { useLocale } from '@web/lib/i18n';
+import { useTitle } from '@web/lib/useTitle';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import type {
   TrainerErrorCode,
@@ -438,6 +439,8 @@ function PoolStatus({
 
 export function TrainerLauncher() {
   const { t: tr } = useLocale();
+  // The trainer is its own window; its static HTML title is only a placeholder.
+  useTitle(tr('training'));
   const bridge = useMemo(() => getTrainerBridge(), []);
   const [session, setSession] = useState<TrainerSession | null>(null);
   const [failure, setFailure] = useState<OpenFailure | null>(null);

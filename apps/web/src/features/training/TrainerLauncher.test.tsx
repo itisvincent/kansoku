@@ -165,3 +165,17 @@ describe('TrainerLauncher', () => {
     expect(open).not.toHaveBeenCalled();
   });
 });
+
+describe('TrainerLauncher window title', () => {
+  it('titles the trainer window in the interface language', async () => {
+    const { LocaleProvider } = await import('@web/lib/i18n');
+    localStorage.clear();
+    getTrainerBridge.mockReturnValue(null);
+    render(
+      <LocaleProvider>
+        <TrainerLauncher />
+      </LocaleProvider>,
+    );
+    expect(document.title).toBe('Blind training · Kansoku');
+  });
+});
