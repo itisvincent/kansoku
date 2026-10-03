@@ -227,3 +227,50 @@ describe('probeOpencli', () => {
     expect(result.state).toBe('not_installed');
   });
 });
+
+describe('probeOpencli failure details and overlap', () => {
+  it('shows opencli’s own error message instead of "ok: false"', async () => {
+    const cli = fakeCli();
+    const exec = vi
+      .fn()
+      .mockResolvedValueOnce({ stdout: DOCTOR_OK, stderr: '' })
+      .mockRejectedValueOnce(
+        Object.assign(new Error('Command failed'), {
+          stdout: `ok: false\nerror:\n  code: COMMAND_EXEC\n  message: 'Pre-navigation to https://x.com failed: Debugger is not attached to the tab with id: 1.'\n  exitCode: 1\n`,
+          stderr: '',
+        }),
+      );
+    const result = await probeOpencli({
+      env: { OPENCLI_PATH: cli, PATH: '', HOME: dirname(cli) },
+      homeBinDirs: [],
+      standardPaths: [],
+      exec,
+    });
+    expect(result.state).toBe('no_session');
+    expect(result.lastError).toBe(
+      'Pre-navigation to https://x.com failed: Debugger is not attached to the tab with id: 1.',
+    );
+  });
+
+  it('never runs two probes’ opencli commands at the same time', async () => {
+    const cli = fakeCli();
+    let active = 0;
+    let peak = 0;
+    const exec = vi.fn(async (_file: string, args: string[]) => {
+      active += 1;
+      peak = Math.max(peak, active);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      active -= 1;
+      return { stdout: args.includes('doctor') ? DOCTOR_OK : 'ok', stderr: '' };
+    });
+    const deps = {
+      env: { OPENCLI_PATH: cli, PATH: '', HOME: dirname(cli) },
+      homeBinDirs: [],
+      standardPaths: [],
+      exec,
+    } as unknown as Parameters<typeof probeOpencli>[0];
+    const results = await Promise.all([probeOpencli(deps), probeOpencli(deps)]);
+    expect(results.map((r) => r.state)).toEqual(['ready', 'ready']);
+    expect(peak).toBe(1);
+  });
+});

@@ -3,6 +3,8 @@ import { locateLongbridgeCli } from '../marketdata/longbridgeCli.js';
 import { readLongbridgeToken, LongbridgeTokenError } from '../marketdata/longbridgeToken.js';
 import { probeOpencli } from './opencli.js';
 
+let opencliProbe: ReturnType<typeof probeOpencli> | null = null;
+
 export const credentialsService: CredentialsApi = {
   async status() {
     let cliPath: string;
@@ -30,7 +32,11 @@ export const credentialsService: CredentialsApi = {
       return { configured: false, method: 'cli', lastError: message, state, cliPath };
     }
   },
+  // A check reads the X profile (about 20 seconds); a second request meanwhile shares it.
   opencliStatus() {
-    return probeOpencli();
+    opencliProbe ??= probeOpencli().finally(() => {
+      opencliProbe = null;
+    });
+    return opencliProbe;
   },
 };

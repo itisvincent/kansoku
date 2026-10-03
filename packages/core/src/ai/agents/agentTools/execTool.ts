@@ -11,6 +11,7 @@ import { dirname, join } from 'node:path';
 import type { AgentTool } from '@earendil-works/pi-agent-core';
 import { Type } from 'typebox';
 import { locateOpencli } from '../../../credentials/opencli.js';
+import { usesOpencli, withOpencliLock } from '../../../credentials/opencliLock.js';
 import { locateLongbridgeCli } from '../../../marketdata/longbridgeCli.js';
 import { resolveAugmentedPath, resetUserPathCacheForTests } from '../../../platform/userPath.js';
 import { textResult } from '../dataTools.js';
@@ -143,57 +144,71 @@ export function createDefaultExec(repoRoot: string): ExecFn {
       ? join(tmpdir(), `kansoku-bash-${randomUUID()}.pid`).replaceAll('\\', '/')
       : null;
     if (pidFile) env.KANSOKU_PID_FILE = pidFile;
-    if (signal?.aborted) return { stdout: '', stderr: 'aborted', exitCode: 130 };
-    return await new Promise<ExecResult>((resolve, reject) => {
-      let stopped: 'aborted' | 'timeout' | null = null;
-      const options = {
-        cwd: repoRoot,
-        env,
-        maxBuffer: BASH_MAX_BUFFER,
-        windowsHide: true,
-      };
-      const onDone = (error: ExecException | null, stdout: string, stderr: string) => {
-        clearTimeout(timer);
-        if (pidFile) void rm(pidFile, { force: true }).catch(() => {});
-        signal?.removeEventListener('abort', onAbort);
-        if (stopped) {
-          resolve({
-            stdout,
-            stderr: stopped === 'timeout' ? `timed out after ${BASH_TIMEOUT_MS / 1000}s` : 'aborted',
-            exitCode: stopped === 'timeout' ? 124 : 130,
-          });
-          return;
-        }
-        if (!error) {
-          resolve({ stdout, stderr, exitCode: 0 });
-          return;
-        }
-        if (typeof error.code !== 'number') {
-          reject(error);
-          return;
-        }
-        resolve({ stdout, stderr, exitCode: error.code });
-      };
-      const child = shell
-        ? nodeExecFile(
-            shell,
-            ['-c', 'printf %s "$$" > "$KANSOKU_PID_FILE"; eval "$KANSOKU_BASH_COMMAND"'],
-            options,
-            onDone,
-          )
-        : nodeExec(command, options, onDone);
-      // No command is interactive; an open stdin would make `cat` with no file wait forever.
-      child.stdin?.end();
-      const stop = (reason: 'aborted' | 'timeout') => {
-        if (stopped) return;
-        stopped = reason;
-        killTree(child, shell, pidFile);
-      };
-      const timer = setTimeout(() => stop('timeout'), BASH_TIMEOUT_MS);
-      const onAbort = () => stop('aborted');
-      signal?.addEventListener('abort', onAbort, { once: true });
-    });
+    // opencli drives one browser tab, so its commands wait for each other (two analysts in a
+    // scan otherwise collide). The timeout starts once the command actually runs.
+    const run = () => runCommand(command, shell, pidFile, env, repoRoot, signal);
+    return usesOpencli(command) ? withOpencliLock(run) : run();
   };
+}
+
+function runCommand(
+  command: string,
+  shell: string | undefined,
+  pidFile: string | null,
+  env: NodeJS.ProcessEnv,
+  repoRoot: string,
+  signal: AbortSignal | undefined,
+): Promise<ExecResult> {
+  if (signal?.aborted) return Promise.resolve({ stdout: '', stderr: 'aborted', exitCode: 130 });
+  return new Promise<ExecResult>((resolve, reject) => {
+    let stopped: 'aborted' | 'timeout' | null = null;
+    const options = {
+      cwd: repoRoot,
+      env,
+      maxBuffer: BASH_MAX_BUFFER,
+      windowsHide: true,
+    };
+    const onDone = (error: ExecException | null, stdout: string, stderr: string) => {
+      clearTimeout(timer);
+      if (pidFile) void rm(pidFile, { force: true }).catch(() => {});
+      signal?.removeEventListener('abort', onAbort);
+      if (stopped) {
+        resolve({
+          stdout,
+          stderr: stopped === 'timeout' ? `timed out after ${BASH_TIMEOUT_MS / 1000}s` : 'aborted',
+          exitCode: stopped === 'timeout' ? 124 : 130,
+        });
+        return;
+      }
+      if (!error) {
+        resolve({ stdout, stderr, exitCode: 0 });
+        return;
+      }
+      if (typeof error.code !== 'number') {
+        reject(error);
+        return;
+      }
+      resolve({ stdout, stderr, exitCode: error.code });
+    };
+    const child = shell
+      ? nodeExecFile(
+          shell,
+          ['-c', 'printf %s "$$" > "$KANSOKU_PID_FILE"; eval "$KANSOKU_BASH_COMMAND"'],
+          options,
+          onDone,
+        )
+      : nodeExec(command, options, onDone);
+    // No command is interactive; an open stdin would make `cat` with no file wait forever.
+    child.stdin?.end();
+    const stop = (reason: 'aborted' | 'timeout') => {
+      if (stopped) return;
+      stopped = reason;
+      killTree(child, shell, pidFile);
+    };
+    const timer = setTimeout(() => stop('timeout'), BASH_TIMEOUT_MS);
+    const onAbort = () => stop('aborted');
+    signal?.addEventListener('abort', onAbort, { once: true });
+  });
 }
 
 async function cleanupOldTranscripts(now = Date.now()): Promise<void> {

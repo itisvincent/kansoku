@@ -1,6 +1,7 @@
 import { execFile } from 'node:child_process';
 import { access, constants, stat } from 'node:fs/promises';
 import { delimiter, dirname, isAbsolute, join } from 'node:path';
+import { withOpencliLock } from './opencliLock.js';
 import { promisify } from 'node:util';
 import type { OpencliStatus } from '../contract/credentials.js';
 import {
@@ -14,7 +15,8 @@ import { launchSpec } from '../platform/windowsLaunch.js';
 
 const execFileAsync = promisify(execFile);
 const DOCTOR_TIMEOUT_MS = 20_000;
-const PROFILE_TIMEOUT_MS = 30_000;
+// Reading the X profile opens x.com in the browser and takes about 20 seconds.
+const PROFILE_TIMEOUT_MS = 60_000;
 const MAX_ERROR_LENGTH = 200;
 
 export interface OpencliDeps {
@@ -180,7 +182,10 @@ export async function probeOpencli(deps: OpencliDeps = {}): Promise<OpencliStatu
   if (!cliPath) {
     return { state: 'not_installed', cliPath: null, lastError: '未找到 opencli CLI' };
   }
+  return withOpencliLock(() => probeWith(cliPath, deps));
+}
 
+async function probeWith(cliPath: string, deps: OpencliDeps): Promise<OpencliStatus> {
   const exec = deps.exec ?? execFileAsync;
   let doctorStdout: string;
   let doctorError: unknown = null;
@@ -216,8 +221,19 @@ export async function probeOpencli(deps: OpencliDeps = {}): Promise<OpencliStatu
     await runCli(exec, cliPath, ['twitter', 'profile'], deps, PROFILE_TIMEOUT_MS);
     return { state: 'ready', cliPath, lastError: null };
   } catch (error) {
-    return { state: 'no_session', cliPath, lastError: truncate(errorMessage(error)) };
+    return { state: 'no_session', cliPath, lastError: truncate(opencliFailure(error)) };
   }
+}
+
+/**
+ * opencli reports a failure as YAML (`ok: false`, then `message: ...`) on stdout or stderr.
+ * The message line is the part worth showing; `ok: false` alone says nothing.
+ */
+function opencliFailure(error: unknown): string {
+  const { stdout, stderr } = error as { stdout?: unknown; stderr?: unknown };
+  const text = [stdout, stderr].filter((part) => typeof part === 'string').join('\n');
+  const message = /^\s*message:\s*(['"]?)(.+?)\1\s*$/m.exec(text)?.[2];
+  return message ?? errorMessage(error);
 }
 
 function errorMessage(error: unknown): string {
