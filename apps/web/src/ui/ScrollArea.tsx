@@ -14,6 +14,10 @@ const styles = stylex.create({
   viewport: {
     height: '100%',
     outline: 'none',
+    // Anchors absolutely positioned content (e.g. visually hidden labels) inside the viewport.
+    // Anchored to the root instead, it escapes the viewport's clipping and stretches the page
+    // around a nested scroll area — the Dashboard scrolled into empty space that way.
+    position: 'relative',
     width: '100%',
     ':focus-visible': {
       boxShadow: colors.focusRing,
