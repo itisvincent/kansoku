@@ -47,13 +47,13 @@ describe('PredictionTab null-prediction branch', () => {
   });
 });
 
-describe('PredictionTab Darren EPS × PE section', () => {
+describe('PredictionTab EPS × PE section', () => {
   it('always shows the EPS × PE heading, with an empty note when the plan is missing', () => {
     renderTab(<PredictionTab built={nullPredictionBuilt} activeTf="m5" />);
 
-    expect(screen.getByText('EPS × PE 情景（Darren）')).toBeTruthy();
+    expect(screen.getByText('EPS × PE 情景')).toBeTruthy();
     expect(
-      screen.getByText(/当前快照还没有 Darren EPS × PE 情景/),
+      screen.getByText(/当前快照还没有 EPS × PE 情景/),
     ).toBeTruthy();
   });
 
@@ -88,7 +88,7 @@ describe('PredictionTab Darren EPS × PE section', () => {
 
     renderTab(<PredictionTab built={built} activeTf="4h" />);
 
-    expect(screen.getByText('EPS × PE 情景（Darren） · FY2028')).toBeTruthy();
+    expect(screen.getByText('EPS × PE 情景 · FY2028')).toBeTruthy();
     expect(screen.getByText('乐观')).toBeTruthy();
     expect(screen.getByText('悲观')).toBeTruthy();
     expect(screen.getByText('加权目标价')).toBeTruthy();

@@ -627,9 +627,9 @@ const zhCN = {
   chartProbabilityTotal: '概率合计 {total}%，未凑够100',
   chartTrigger: ' · 触发：{trigger}',
   chartRangePlan: '震荡应对',
-  chartEpsPe: 'EPS × PE 情景（Darren）',
+  chartEpsPe: 'EPS × PE 情景',
   chartEpsPeEmpty:
-    '当前快照还没有 Darren EPS × PE 情景。重新运行分析后会生成悲观/中性/乐观目标价、PEG 与加减仓区间。',
+    '当前快照还没有 EPS × PE 情景。重新运行分析后会生成悲观/中性/乐观目标价、PEG 与加减仓区间。',
   chartEpsPeBear: '悲观',
   chartEpsPeBase: '中性',
   chartEpsPeBull: '乐观',
