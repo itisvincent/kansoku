@@ -1284,6 +1284,7 @@ const zhCN = {
   quotesReconnecting: '行情已断开，重连中…',
   popoutChart: '弹出盯盘小窗',
   closeTab: '关闭标签页',
+  appMenu: '菜单',
   downloadingUpdate: '正在下载更新',
   preparingUpdate: '正在准备更新',
   restartToUpdate: '重启并安装更新',

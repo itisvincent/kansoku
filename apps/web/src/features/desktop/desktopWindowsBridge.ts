@@ -52,6 +52,23 @@ export function getPopoutBridge(
   };
 }
 
+export interface AppMenuBridge {
+  /** Opens the app menu with its top-left corner at (x, y) in window coordinates. */
+  popupAppMenu(x: number, y: number): Promise<void>;
+}
+
+/** The app menu for windows without a menu bar (Windows, Linux). */
+export function getAppMenuBridge(
+  win: unknown = typeof window === 'undefined' ? undefined : window,
+): AppMenuBridge | null {
+  const rpc = getShellRpc(win);
+  if (!rpc) return null;
+  return {
+    popupAppMenu: (x: number, y: number) =>
+      rpc.invoke('windows.popupAppMenu', x, y) as Promise<void>,
+  };
+}
+
 export interface OpenTrainerBridge {
   openTrainer(): Promise<void>;
 }

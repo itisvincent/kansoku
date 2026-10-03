@@ -9,6 +9,7 @@ import { tfDataOf, tfLabel, type ChartTf } from '../charts/intraday/timeframes';
 import type { DrawingChartHandle } from '../charts/intraday/useIntradayCharts';
 import type { TrainerBridge } from '../desktop/desktopTrainerBridge';
 import { getShellRpc } from '../desktop/shellRpc';
+import { isMacPlatform } from '../desktop/windowChrome';
 import {
   buildTrainerIntradayBuilt,
   isTrainerLadderTf,
@@ -63,6 +64,9 @@ const styles = stylex.create({
   },
   trafficSpacer: {
     flex: '0 0 66px',
+  },
+  headerControlsInset: {
+    paddingRight: 'calc(12px + 100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))',
   },
   stickyHeader: {
     order: 0,
@@ -233,9 +237,9 @@ export function TrainerChart({ view, sessionId, bridge, onViewChange }: TrainerC
       >
         <IntradayControlsProvider storageNamespace={STORAGE_NAMESPACE}>
           <div
-            className={`trainer-header ${stylex.props(styles.header, styles.headerContext, settling && styles.stickyHeader).className}`}
+            className={`trainer-header ${stylex.props(styles.header, styles.headerContext, styles.headerControlsInset, settling && styles.stickyHeader).className}`}
           >
-            {isDesktop && (
+            {isDesktop && isMacPlatform() && (
               <div
                 className={`popout-traffic-spacer ${stylex.props(styles.trafficSpacer).className}`}
               />

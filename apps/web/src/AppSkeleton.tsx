@@ -2,6 +2,7 @@ import { clsx } from 'clsx';
 import * as stylex from '@stylexjs/stylex';
 import { colors, fonts, fontSizes, radii } from './theme/tokens.stylex';
 import { useLocale } from './lib/i18n';
+import { isMacPlatform } from './features/desktop/windowChrome';
 
 const shimmer = stylex.keyframes({
   from: { backgroundPosition: '100% 0' },
@@ -605,7 +606,9 @@ export function AppSkeleton() {
     >
       {desktop && (
         <div className={classNames('app-skeleton-titlebar', styles.titlebar)}>
-          <div className={classNames('app-skeleton-traffic', styles.traffic)} />
+          {isMacPlatform() && (
+            <div className={classNames('app-skeleton-traffic', styles.traffic)} />
+          )}
           <div className={classNames('app-skeleton-tabstrip', styles.tabstrip)}>
             <Bone className="app-skeleton-bone--tab" style={styles.tabBone} />
           </div>

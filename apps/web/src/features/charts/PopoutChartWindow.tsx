@@ -7,6 +7,7 @@ import { withViewTimeframe } from './intraday/timeframes';
 import { useViewTimeframe } from './intraday/useViewTimeframe';
 import { IntradayControlsProvider } from './intraday/controlsContext';
 import { getShellRpc } from '../desktop/shellRpc';
+import { isMacPlatform } from '../desktop/windowChrome';
 import { resolveIntradayTf } from './intraday/useIntradayDoc';
 import { useIntradayPreview } from './intraday/useIntradayPreview';
 import { TopbarQuote } from '../quotes/QuoteBar';
@@ -34,6 +35,9 @@ const styles = stylex.create({
     fontSize: fontSizes.md,
     userSelect: 'none',
     WebkitAppRegion: 'drag',
+  },
+  headerControlsInset: {
+    paddingRight: 'calc(12px + 100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))',
   },
   symbol: {
     color: colors.textPrimary,
@@ -68,8 +72,10 @@ export function PopoutChartWindow({ sym }: { sym: string }) {
   return (
     <IntradayControlsProvider>
       <div className={`popout-shell ${stylex.props(styles.shell).className}`}>
-        <div className={`popout-header ${stylex.props(styles.header).className}`}>
-          {isDesktop && (
+        <div
+          className={`popout-header ${stylex.props(styles.header, styles.headerControlsInset).className}`}
+        >
+          {isDesktop && isMacPlatform() && (
             <div
               className={`popout-traffic-spacer ${stylex.props(styles.trafficSpacer).className}`}
             />

@@ -39,6 +39,7 @@ describe('WindowsIpc', () => {
       openPopout: vi.fn(),
       openWindow: vi.fn(),
       openTrainer: vi.fn(),
+      popupAppMenu: vi.fn(),
     });
 
     const result = await handlers.get(WINDOWS_CONTEXT_CHANNEL)?.({ sender: { id: 7 } } as never);
@@ -55,6 +56,7 @@ describe('WindowsIpc', () => {
       openPopout: vi.fn(),
       openWindow: vi.fn(),
       openTrainer: vi.fn(),
+      popupAppMenu: vi.fn(),
     });
 
     const result = await handlers.get(WINDOWS_CONTEXT_CHANNEL)?.({ sender: { id: 99 } } as never);
@@ -70,6 +72,7 @@ describe('WindowsIpc', () => {
       openPopout: vi.fn(),
       openWindow: vi.fn(),
       openTrainer: vi.fn(),
+      popupAppMenu: vi.fn(),
     });
 
     await handlers
@@ -87,6 +90,7 @@ describe('WindowsIpc', () => {
       openPopout,
       openWindow: vi.fn(),
       openTrainer: vi.fn(),
+      popupAppMenu: vi.fn(),
     });
 
     await handlers.get(WINDOWS_POPOUT_CHANNEL)?.({ sender: { id: 1 } } as never, 'NVDA' as never);
@@ -102,10 +106,36 @@ describe('WindowsIpc', () => {
       openPopout: vi.fn(),
       openWindow: vi.fn(),
       openTrainer,
+      popupAppMenu: vi.fn(),
     });
 
     await handlers.get(WINDOWS_TRAINER_CHANNEL)?.({ sender: { id: 1 } } as never);
 
     expect(openTrainer).toHaveBeenCalled();
+  });
+});
+
+describe('WindowsIpc app menu', () => {
+  beforeEach(() => {
+    handlers.clear();
+    ipcMain.handle.mockClear();
+  });
+
+  it('opens the app menu for the calling window at whole-pixel coordinates', async () => {
+    const popupAppMenu = vi.fn();
+    await registerWindowsIpc({
+      getContext: vi.fn(),
+      reportActiveTab: vi.fn(),
+      openPopout: vi.fn(),
+      openWindow: vi.fn(),
+      openTrainer: vi.fn(),
+      popupAppMenu,
+    });
+
+    await handlers
+      .get('windows.popupAppMenu')
+      ?.({ sender: { id: 4 } } as never, 8.6 as never, 'x' as never);
+
+    expect(popupAppMenu).toHaveBeenCalledWith(4, 9, 0);
   });
 });

@@ -108,3 +108,18 @@ describe('DesktopTitlebar pinned tabs', () => {
     expect(menuItem('close-right')?.disabled).toBe(true);
   });
 });
+
+describe('DesktopTitlebar app menu on Windows', () => {
+  it('shows a menu button that opens the app menu under itself', () => {
+    const invoke = vi.fn(async () => undefined);
+    (window as unknown as { desktop: unknown }).desktop = { rpc: { invoke } };
+    try {
+      render(<DesktopTitlebar controller={controllerWith([home, nvda])} />);
+      fireEvent.click(screen.getByRole('button', { name: t('appMenu') }));
+      expect(invoke).toHaveBeenCalledWith('windows.popupAppMenu', expect.any(Number), expect.any(Number));
+      expect(document.querySelector('.desktop-titlebar-traffic-spacer')).toBeNull();
+    } finally {
+      delete (window as unknown as { desktop?: unknown }).desktop;
+    }
+  });
+});

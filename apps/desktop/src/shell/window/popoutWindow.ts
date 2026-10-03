@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow, screen } from 'electron';
+import { windowFrameOptions } from './frame.js';
 import { IS_DEV } from '../../boot/env.js';
 import {
   APP_ICON_PNG,
@@ -85,8 +86,7 @@ export function createPopoutWindow(symbol: string): BrowserWindow {
     minHeight: POPOUT_MIN_HEIGHT,
     backgroundColor: WINDOW_BG,
     show: false,
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 12, y: 12 },
+    ...windowFrameOptions(),
     ...(existsSync(APP_ICON_PNG) ? { icon: APP_ICON_PNG } : {}),
     webPreferences: {
       sandbox: true,

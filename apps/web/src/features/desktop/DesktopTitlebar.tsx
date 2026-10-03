@@ -7,6 +7,7 @@ import {
   Download,
   LayoutDashboard,
   Library,
+  Menu,
   MessageCircle,
   PictureInPicture2,
   Pin,
@@ -22,7 +23,13 @@ import { useAnalystRunIndicator } from '../cockpit/analystRunsStore';
 import { useCapabilities } from '../edition/capabilitiesStore';
 import { requestTrainerWindow } from '../training/requestTrainerWindow';
 import { symbolFromRoute } from '../../lib/symbol';
-import { getOpenTrainerBridge, getOpenWindowBridge, getPopoutBridge } from './desktopWindowsBridge';
+import {
+  getAppMenuBridge,
+  getOpenTrainerBridge,
+  getOpenWindowBridge,
+  getPopoutBridge,
+} from './desktopWindowsBridge';
+import { isMacPlatform } from './windowChrome';
 import { getDesktopUpdaterBridge, isAvailableStatus, type UpdaterUiStatus } from './desktopUpdater';
 import { tabKind, type TabState } from './tabsStore';
 import type { TabsController } from './tabsController';
@@ -63,7 +70,24 @@ const styles = stylex.create({
     WebkitAppRegion: 'drag',
     zIndex: 80,
   },
+  titlebarControlsInset: {
+    paddingRight: 'calc(100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))',
+  },
   trafficSpacer: { flex: '0 0 78px' },
+  appMenuButton: {
+    'alignItems': 'center',
+    'backgroundColor': 'transparent',
+    'border': 'none',
+    'color': { 'default': colors.textMuted, ':hover': colors.textPrimary },
+    'cursor': 'pointer',
+    'display': 'inline-flex',
+    'flex': '0 0 40px',
+    'height': '40px',
+    'justifyContent': 'center',
+    'padding': 0,
+    'WebkitAppRegion': 'no-drag',
+    ':hover': { backgroundColor: colors.backgroundHover },
+  },
   tabstrip: { flex: 1, height: '100%' },
   viewport: {
     'WebkitAppRegion': 'drag',
@@ -272,6 +296,27 @@ const TAB_ICONS: Record<ReturnType<typeof tabKind>, typeof LayoutDashboard> = {
   symbol: TrendingUp,
   other: Circle,
 };
+
+/** Windows and Linux have no menu bar; this opens the same app menu macOS shows at the top. */
+function AppMenuButton() {
+  const { t } = useLocale();
+  const bridge = getAppMenuBridge();
+  if (!bridge) return null;
+  return (
+    <button
+      type="button"
+      className={classNames('desktop-app-menu', styles.appMenuButton)}
+      aria-label={t('appMenu')}
+      title={t('appMenu')}
+      onClick={(event) => {
+        const rect = event.currentTarget.getBoundingClientRect();
+        void bridge.popupAppMenu(rect.left, rect.bottom);
+      }}
+    >
+      <Menu size={15} />
+    </button>
+  );
+}
 
 function TabStatusDots({ symbol }: { symbol: string }) {
   const [running, isUnseen] = useAnalystRunIndicator(symbol);
@@ -632,8 +677,12 @@ export function DesktopTitlebar({ controller }: { controller: TabsController }) 
   };
 
   return (
-    <div className={classNames('desktop-titlebar', styles.titlebar)}>
-      <div className={classNames('desktop-titlebar-traffic-spacer', styles.trafficSpacer)} />
+    <div className={classNames('desktop-titlebar', styles.titlebar, styles.titlebarControlsInset)}>
+      {isMacPlatform() ? (
+        <div className={classNames('desktop-titlebar-traffic-spacer', styles.trafficSpacer)} />
+      ) : (
+        <AppMenuButton />
+      )}
       <ScrollArea
         className={classNames('desktop-tabstrip', styles.tabstrip)}
         viewportClassName={classNames('desktop-tabstrip-viewport', styles.viewport)}

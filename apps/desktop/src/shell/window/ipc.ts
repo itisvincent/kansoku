@@ -11,6 +11,8 @@ export interface WindowsIpcDeps {
   openPopout(symbol: string): void;
   openWindow(activeTabId: string): void;
   openTrainer(): void;
+  /** Opens the app menu under the given point (window coordinates); Windows has no menu bar. */
+  popupAppMenu(senderId: number, x: number, y: number): void;
 }
 
 export class WindowsIpc extends IpcService {
@@ -43,5 +45,11 @@ export class WindowsIpc extends IpcService {
   @IpcMethod()
   openTrainer(): void {
     this.deps.openTrainer();
+  }
+
+  @IpcMethod()
+  popupAppMenu(x: unknown, y: unknown): void {
+    const at = (value: unknown) => (typeof value === 'number' && Number.isFinite(value) ? Math.round(value) : 0);
+    this.deps.popupAppMenu(getIpcContext().sender.id, at(x), at(y));
   }
 }

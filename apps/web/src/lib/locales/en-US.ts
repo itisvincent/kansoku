@@ -1327,6 +1327,7 @@ const enUS = {
   quotesReconnecting: 'Quotes disconnected; reconnecting…',
   popoutChart: 'Open chart popout',
   closeTab: 'Close tab',
+  appMenu: 'Menu',
   downloadingUpdate: 'Downloading update',
   preparingUpdate: 'Preparing update',
   restartToUpdate: 'Restart and install update',

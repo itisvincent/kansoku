@@ -13,6 +13,7 @@ import { errorMessage } from '@web/lib/api';
 import { Button } from '@web/ui';
 import { getTrainerBridge } from '../desktop/desktopTrainerBridge';
 import { getShellRpc } from '../desktop/shellRpc';
+import { isMacPlatform } from '../desktop/windowChrome';
 import { TrainerChart } from './TrainerChart';
 import { useTrainerFill } from './useTrainerFill';
 import { colors, fontSizes, fonts, radii } from '../../theme/tokens.stylex';
@@ -32,6 +33,7 @@ const styles = stylex.create({
     WebkitAppRegion: 'drag',
     display: 'flex',
     flexShrink: 0,
+    minHeight: '40px',
     padding: '8px 12px',
   },
   trafficSpacer: {
@@ -218,7 +220,7 @@ function TrainerBoot({ children }: { children: ReactNode }) {
   return (
     <div className={`trainer-boot ${stylex.props(styles.boot).className}`}>
       <div className={`trainer-boot-bar ${stylex.props(styles.bootBar).className}`}>
-        {isDesktop && (
+        {isDesktop && isMacPlatform() && (
           <div
             className={`popout-traffic-spacer ${stylex.props(styles.trafficSpacer).className}`}
           />

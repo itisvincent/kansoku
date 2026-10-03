@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow, shell } from 'electron';
+import { windowFrameOptions } from './frame.js';
 import windowStateKeeper from 'electron-window-state';
 import { LOCAL_APP_ORIGIN } from '@kansoku/shared/localApp';
 import { resolveRepoRoot } from '../../boot/paths.js';
@@ -55,8 +56,7 @@ export function createWindow(options: CreateWindowOptions = {}): BrowserWindow {
     minHeight: 720,
     backgroundColor: WINDOW_BG,
     show: false,
-    titleBarStyle: 'hiddenInset',
-    trafficLightPosition: { x: 12, y: 12 },
+    ...windowFrameOptions(),
     ...(existsSync(APP_ICON_PNG) ? { icon: APP_ICON_PNG } : {}),
     webPreferences: {
       sandbox: true,

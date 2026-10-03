@@ -1,5 +1,5 @@
 import { join } from 'node:path';
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, Menu } from 'electron';
 import { createWindow } from './mainWindow.js';
 import { WindowsIpc } from './ipc.js';
 import { createPopoutWindow } from './popoutWindow.js';
@@ -71,6 +71,11 @@ export async function createWindowManager(options: WindowManagerOptions): Promis
     },
     openTrainer() {
       createTrainerWindow();
+    },
+    popupAppMenu(senderId, x, y) {
+      const win = BrowserWindow.getAllWindows().find((item) => item.webContents.id === senderId);
+      if (!win) return;
+      Menu.getApplicationMenu()?.popup({ window: win, x, y });
     },
   });
 
