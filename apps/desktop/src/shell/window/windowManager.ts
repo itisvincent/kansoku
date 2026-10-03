@@ -1,5 +1,6 @@
 import { join } from 'node:path';
 import { app, BrowserWindow, Menu } from 'electron';
+import { applyWindowTheme, loadWindowTheme, rememberWindowTheme } from './frame.js';
 import { createWindow } from './mainWindow.js';
 import { WindowsIpc } from './ipc.js';
 import { createPopoutWindow } from './popoutWindow.js';
@@ -34,6 +35,8 @@ export async function createWindowManager(options: WindowManagerOptions): Promis
     options.debounceMs,
   );
   let state: WindowsState = await fileStore.load();
+  // New windows open in the theme the pages last reported, so they never flash the other one.
+  loadWindowTheme(options.userDataDir);
   const registry = new Map<string, BrowserWindow>();
   let quitting = false;
 
@@ -71,6 +74,11 @@ export async function createWindowManager(options: WindowManagerOptions): Promis
     },
     openTrainer() {
       createTrainerWindow();
+    },
+    setTheme(senderId, theme) {
+      rememberWindowTheme(theme, options.userDataDir);
+      const win = BrowserWindow.getAllWindows().find((item) => item.webContents.id === senderId);
+      if (win && !win.isDestroyed()) applyWindowTheme(win, theme);
     },
     popupAppMenu(senderId, x, y) {
       const win = BrowserWindow.getAllWindows().find((item) => item.webContents.id === senderId);

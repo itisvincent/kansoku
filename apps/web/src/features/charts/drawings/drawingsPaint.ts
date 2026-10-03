@@ -109,7 +109,7 @@ function paintCmd(ctx: CanvasRenderingContext2D, cmd: DrawCmd): void {
     case 'measureLabel':
     case 'label': {
       setDash(ctx, false);
-      ctx.fillStyle = 'rgba(10, 10, 10, 0.85)';
+      ctx.fillStyle = theme.labelBg;
       drawRoundedRect(ctx, cmd.x, cmd.y, cmd.w, cmd.h, 4);
       ctx.fill();
       ctx.font = '11px sans-serif';

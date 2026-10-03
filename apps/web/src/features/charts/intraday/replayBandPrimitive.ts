@@ -8,6 +8,7 @@ import type {
   SeriesAttachedParameter,
   Time,
 } from 'lightweight-charts';
+import { theme } from '../../../lib/theme';
 
 // `fog` is the stretch the trader never reached — they closed out or were flattened before it.
 // It is drawn on the review chart only, where the whole case is on screen at once.
@@ -35,9 +36,9 @@ const DIVIDER_LABEL_COLOR = 'rgba(255, 176, 0, 0.9)';
 type DrawTarget = Parameters<IPrimitivePaneRenderer['draw']>[0];
 
 export const REPLAY_BAND_FILL: Record<ReplayBandKind, string> = {
-  given: 'rgba(232, 232, 232, 0.045)',
+  given: theme.bandGiven,
   played: 'rgba(38, 166, 154, 0.10)',
-  fog: 'rgba(232, 232, 232, 0.10)',
+  fog: theme.bandFog,
   epilogue: 'rgba(255, 176, 0, 0.10)',
 };
 

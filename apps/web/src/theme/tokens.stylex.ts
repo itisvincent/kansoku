@@ -11,6 +11,8 @@ export const colors = stylex.defineVars({
   border: '#262626',
   borderStrong: '#3a3a3a',
   textBright: '#fff',
+  /** Text on a filled up/down/accent button. */
+  textOnColor: '#fff',
   textPrimary: '#e8e8e8',
   textSecondary: '#9a9a9a',
   textMuted: '#5c5c5c',

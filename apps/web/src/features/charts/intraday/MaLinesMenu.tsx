@@ -37,7 +37,7 @@ const styles = stylex.create({
     zIndex: 200,
   },
   popup: {
-    backgroundColor: 'rgb(10 10 10 / 0.96)',
+    backgroundColor: `color-mix(in srgb, ${colors.backgroundSurface} 96%, transparent)`,
     borderColor: colors.border,
     borderRadius: radii.default,
     borderStyle: 'solid',

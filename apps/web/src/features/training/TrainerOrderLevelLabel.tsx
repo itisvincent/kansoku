@@ -58,7 +58,7 @@ const styles = stylex.create({
   },
   pill: {
     alignItems: 'center',
-    backgroundColor: 'rgb(10 10 10 / 0.92)',
+    backgroundColor: `color-mix(in srgb, ${colors.backgroundSurface} 92%, transparent)`,
     borderColor: 'currentColor',
     borderRadius: radii.default,
     borderStyle: 'solid',
@@ -73,7 +73,7 @@ const styles = stylex.create({
     whiteSpace: 'nowrap',
   },
   pillFilled: {
-    backgroundColor: 'color-mix(in srgb, currentColor 22%, rgb(10 10 10 / 0.94))',
+    backgroundColor: `color-mix(in srgb, currentColor 22%, color-mix(in srgb, ${colors.backgroundCanvas} 94%, transparent))`,
   },
   pillDrag: {
     cursor: 'ns-resize',

@@ -40,6 +40,7 @@ describe('WindowsIpc', () => {
       openWindow: vi.fn(),
       openTrainer: vi.fn(),
       popupAppMenu: vi.fn(),
+      setTheme: vi.fn(),
     });
 
     const result = await handlers.get(WINDOWS_CONTEXT_CHANNEL)?.({ sender: { id: 7 } } as never);
@@ -57,6 +58,7 @@ describe('WindowsIpc', () => {
       openWindow: vi.fn(),
       openTrainer: vi.fn(),
       popupAppMenu: vi.fn(),
+      setTheme: vi.fn(),
     });
 
     const result = await handlers.get(WINDOWS_CONTEXT_CHANNEL)?.({ sender: { id: 99 } } as never);
@@ -73,6 +75,7 @@ describe('WindowsIpc', () => {
       openWindow: vi.fn(),
       openTrainer: vi.fn(),
       popupAppMenu: vi.fn(),
+      setTheme: vi.fn(),
     });
 
     await handlers
@@ -91,6 +94,7 @@ describe('WindowsIpc', () => {
       openWindow: vi.fn(),
       openTrainer: vi.fn(),
       popupAppMenu: vi.fn(),
+      setTheme: vi.fn(),
     });
 
     await handlers.get(WINDOWS_POPOUT_CHANNEL)?.({ sender: { id: 1 } } as never, 'NVDA' as never);
@@ -107,6 +111,7 @@ describe('WindowsIpc', () => {
       openWindow: vi.fn(),
       openTrainer,
       popupAppMenu: vi.fn(),
+      setTheme: vi.fn(),
     });
 
     await handlers.get(WINDOWS_TRAINER_CHANNEL)?.({ sender: { id: 1 } } as never);
@@ -130,6 +135,7 @@ describe('WindowsIpc app menu', () => {
       openWindow: vi.fn(),
       openTrainer: vi.fn(),
       popupAppMenu,
+      setTheme: vi.fn(),
     });
 
     await handlers
@@ -137,5 +143,31 @@ describe('WindowsIpc app menu', () => {
       ?.({ sender: { id: 4 } } as never, 8.6 as never, 'x' as never);
 
     expect(popupAppMenu).toHaveBeenCalledWith(4, 9, 0);
+  });
+});
+
+describe('WindowsIpc theme', () => {
+  beforeEach(() => {
+    handlers.clear();
+    ipcMain.handle.mockClear();
+  });
+
+  it('passes the page’s theme on for its window, reading anything unknown as dark', async () => {
+    const setTheme = vi.fn();
+    await registerWindowsIpc({
+      getContext: vi.fn(),
+      reportActiveTab: vi.fn(),
+      openPopout: vi.fn(),
+      openWindow: vi.fn(),
+      openTrainer: vi.fn(),
+      popupAppMenu: vi.fn(),
+      setTheme,
+    });
+    await handlers.get('windows.setTheme')?.({ sender: { id: 3 } } as never, 'light' as never);
+    await handlers.get('windows.setTheme')?.({ sender: { id: 3 } } as never, 'pink' as never);
+    expect(setTheme.mock.calls).toEqual([
+      [3, 'light'],
+      [3, 'dark'],
+    ]);
   });
 });

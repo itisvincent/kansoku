@@ -13,6 +13,7 @@ import { WorkspaceSection } from './WorkspaceSection';
 import type { SettingsSectionId } from './types';
 import { useProComposition } from '../edition/useProComposition';
 import { useLocale } from '../../lib/i18n';
+import { readThemeMode, setThemeMode, type ThemeMode } from '../../lib/themeMode';
 import { FutuSection } from './FutuSection';
 
 function ProSections({ section }: { section: SettingsSectionId }) {
@@ -36,6 +37,18 @@ export function DisplayPane() {
         >
           <option value="en-US">{t('english')}</option>
           <option value="zh-CN">{t('chinese')}</option>
+        </select>
+      </section>
+      <section className="settings-group">
+        <h2>{t('theme')}</h2>
+        <p>{t('themeDescription')}</p>
+        <select
+          aria-label={t('theme')}
+          value={readThemeMode()}
+          onChange={(event) => setThemeMode(event.target.value as ThemeMode)}
+        >
+          <option value="dark">{t('themeDark')}</option>
+          <option value="light">{t('themeLight')}</option>
         </select>
       </section>
       <TimeDisplaySettingsCard />

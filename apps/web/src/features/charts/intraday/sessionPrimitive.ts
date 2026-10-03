@@ -8,11 +8,12 @@ import type {
   Time,
 } from 'lightweight-charts';
 import type { OffSessionSegment } from '@kansoku/shared/types';
+import { theme } from '../../../lib/theme';
 
 type DrawTarget = Parameters<IPrimitivePaneRenderer['draw']>[0];
 
 const colorFor = (kind: OffSessionSegment['kind']): string =>
-  kind === 'overnight' ? 'rgba(70, 100, 180, 0.22)' : 'rgba(232, 232, 232, 0.08)';
+  kind === 'overnight' ? theme.overnightShade : theme.sessionShade;
 
 interface BandPx {
   x: number;

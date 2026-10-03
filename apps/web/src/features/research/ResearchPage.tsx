@@ -433,7 +433,7 @@ const styles = stylex.create({
     'transition': 'background-color 120ms ease',
     'width': '100%',
     ':hover': {
-      backgroundColor: 'rgba(255, 255, 255, 0.025)',
+      backgroundColor: `color-mix(in srgb, ${colors.textBright} 2.5%, transparent)`,
     },
     ':focus-visible': {
       outline: `1px solid ${colors.borderStrong}`,
@@ -441,9 +441,9 @@ const styles = stylex.create({
     },
   },
   documentRowActive: {
-    'backgroundColor': 'rgba(255, 255, 255, 0.055)',
+    'backgroundColor': `color-mix(in srgb, ${colors.textBright} 5.5%, transparent)`,
     ':hover': {
-      backgroundColor: 'rgba(255, 255, 255, 0.065)',
+      backgroundColor: `color-mix(in srgb, ${colors.textBright} 6.5%, transparent)`,
     },
   },
   documentRowHead: {

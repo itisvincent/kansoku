@@ -18,7 +18,7 @@ const styles = stylex.create({
   },
   rail: {
     alignItems: 'center',
-    backgroundColor: 'rgb(20 20 20 / 0.86)',
+    backgroundColor: `color-mix(in srgb, ${colors.backgroundSurface} 86%, transparent)`,
     borderColor: colors.border,
     borderStyle: 'solid',
     borderWidth: '1px',

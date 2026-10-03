@@ -251,7 +251,7 @@ const styles = stylex.create({
   composerStopAction: {
     backgroundColor: colors.down,
     borderColor: 'transparent',
-    color: colors.textBright,
+    color: colors.textOnColor,
   },
   composerSendIcon: {
     marginLeft: '1px',

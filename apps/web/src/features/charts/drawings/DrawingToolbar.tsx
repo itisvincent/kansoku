@@ -29,7 +29,7 @@ const styles = stylex.create({
     flexDirection: 'column',
     gap: '2px',
     padding: '4px',
-    backgroundColor: 'rgb(10 10 10 / 0.7)',
+    backgroundColor: `color-mix(in srgb, ${colors.backgroundSurface} 70%, transparent)`,
     borderColor: colors.border,
     borderStyle: 'solid',
     borderWidth: '1px',

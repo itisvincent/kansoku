@@ -71,7 +71,7 @@ const styles = stylex.create({
     gap: '12px',
   },
   operation: {
-    backgroundColor: 'rgba(255, 255, 255, 0.018)',
+    backgroundColor: `color-mix(in srgb, ${colors.textBright} 1.8%, transparent)`,
     borderRadius: radii.lg,
     boxShadow: `0 0 0 1px ${colors.border}`,
     opacity: 0.58,

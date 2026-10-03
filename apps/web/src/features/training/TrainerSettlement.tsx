@@ -147,7 +147,7 @@ const styles = stylex.create({
     position: 'relative',
   },
   trackPlan: {
-    backgroundImage: `repeating-linear-gradient(115deg, #191919 0 7px, ${colors.backgroundSurface} 7px 14px)`,
+    backgroundImage: `repeating-linear-gradient(115deg, color-mix(in srgb, ${colors.textPrimary} 3%, ${colors.backgroundSurface}) 0 7px, ${colors.backgroundSurface} 7px 14px)`,
     inset: 0,
     position: 'absolute',
   },
@@ -375,13 +375,13 @@ const styles = stylex.create({
     width: '8px',
   },
   bandGiven: {
-    backgroundColor: '#161616',
+    backgroundColor: `color-mix(in srgb, ${colors.textPrimary} 5%, ${colors.backgroundCanvas})`,
   },
   bandPlayed: {
-    backgroundColor: '#14211f',
+    backgroundColor: `color-mix(in srgb, ${colors.up} 14%, ${colors.backgroundCanvas})`,
   },
   bandEpilogue: {
-    backgroundColor: '#241a10',
+    backgroundColor: `color-mix(in srgb, ${colors.accent} 11%, ${colors.backgroundCanvas})`,
   },
 });
 

@@ -56,7 +56,7 @@ const styles = stylex.create({
   },
   actionStop: {
     backgroundColor: colors.down,
-    color: colors.textBright,
+    color: colors.textOnColor,
   },
   actionIcon: {
     alignItems: 'center',
@@ -213,7 +213,7 @@ export function ChatComposer({
         borderColor: 'transparent',
         borderRadius: 999,
         borderStyle: 'none',
-        color: busy ? colors.textBright : actionDisabled ? colors.textMuted : '#000',
+        color: busy ? colors.textOnColor : actionDisabled ? colors.textMuted : '#000',
         flexShrink: 0,
       }}
       aria-label={busy ? i18n('chatStop') : i18n('chatSend')}

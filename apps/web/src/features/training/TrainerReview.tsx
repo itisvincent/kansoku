@@ -59,7 +59,7 @@ const styles = stylex.create({
   },
   chip: {
     alignItems: 'center',
-    backgroundColor: 'rgb(20 20 20 / 0.88)',
+    backgroundColor: `color-mix(in srgb, ${colors.backgroundSurface} 88%, transparent)`,
     borderColor: colors.borderStrong,
     borderRadius: radii.default,
     borderStyle: 'solid',
@@ -113,16 +113,16 @@ const styles = stylex.create({
     width: '8px',
   },
   bandSwatchGiven: {
-    backgroundColor: '#161616',
+    backgroundColor: `color-mix(in srgb, ${colors.textPrimary} 5%, ${colors.backgroundCanvas})`,
   },
   bandSwatchPlayed: {
-    backgroundColor: '#14211f',
+    backgroundColor: `color-mix(in srgb, ${colors.up} 14%, ${colors.backgroundCanvas})`,
   },
   bandSwatchFog: {
-    backgroundColor: '#202020',
+    backgroundColor: `color-mix(in srgb, ${colors.textPrimary} 10%, ${colors.backgroundCanvas})`,
   },
   bandSwatchEpilogue: {
-    backgroundColor: '#241a10',
+    backgroundColor: `color-mix(in srgb, ${colors.accent} 11%, ${colors.backgroundCanvas})`,
   },
   epilogueToggle: {
     alignItems: 'center',

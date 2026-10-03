@@ -46,7 +46,7 @@ const styles = stylex.create({
     width: '100%',
   },
   chartLabel: {
-    backgroundColor: 'rgba(10, 10, 10, 0.7)',
+    backgroundColor: `color-mix(in srgb, ${colors.backgroundSurface} 70%, transparent)`,
     color: colors.textSecondary,
     fontSize: fontSizes.sm,
     left: '12px',
@@ -58,7 +58,7 @@ const styles = stylex.create({
     zIndex: 10,
   },
   chartLegend: {
-    backgroundColor: 'rgba(10, 10, 10, 0.7)',
+    backgroundColor: `color-mix(in srgb, ${colors.backgroundSurface} 70%, transparent)`,
     color: colors.textPrimary,
     display: 'flex',
     fontSize: fontSizes.base,

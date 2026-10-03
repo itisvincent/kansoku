@@ -24,7 +24,7 @@ import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
 
 const styles = stylex.create({
   markerTooltip: {
-    backgroundColor: 'rgba(20, 20, 20, 0.97)',
+    backgroundColor: `color-mix(in srgb, ${colors.backgroundSurface} 97%, transparent)`,
     borderColor: colors.borderStrong,
     borderRadius: radii.default,
     borderStyle: 'solid',

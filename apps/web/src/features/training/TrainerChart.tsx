@@ -147,12 +147,12 @@ const styles = stylex.create({
     'position': 'absolute',
     'zIndex': 12,
     ':hover': {
-      backgroundColor: 'rgb(232 232 232 / 0.03)',
+      backgroundColor: `color-mix(in srgb, ${colors.textPrimary} 3%, transparent)`,
     },
   },
   thumbExpand: {
     alignSelf: 'flex-end',
-    backgroundColor: 'rgb(10 10 10 / 0.86)',
+    backgroundColor: `color-mix(in srgb, ${colors.backgroundSurface} 86%, transparent)`,
     borderColor: colors.borderStrong,
     borderRadius: radii.default,
     borderStyle: 'solid',

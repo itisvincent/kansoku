@@ -13,6 +13,8 @@ export interface WindowsIpcDeps {
   openTrainer(): void;
   /** Opens the app menu under the given point (window coordinates); Windows has no menu bar. */
   popupAppMenu(senderId: number, x: number, y: number): void;
+  /** The page reports its theme so the window background and buttons match it. */
+  setTheme(senderId: number, theme: 'dark' | 'light'): void;
 }
 
 export class WindowsIpc extends IpcService {
@@ -45,6 +47,11 @@ export class WindowsIpc extends IpcService {
   @IpcMethod()
   openTrainer(): void {
     this.deps.openTrainer();
+  }
+
+  @IpcMethod()
+  setTheme(theme: unknown): void {
+    this.deps.setTheme(getIpcContext().sender.id, theme === 'light' ? 'light' : 'dark');
   }
 
   @IpcMethod()

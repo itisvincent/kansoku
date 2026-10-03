@@ -27,7 +27,7 @@ const styles = stylex.create({
     position: 'relative',
   },
   trackFog: {
-    backgroundColor: 'rgb(232 232 232 / 0.05)',
+    backgroundColor: `color-mix(in srgb, ${colors.textPrimary} 5%, transparent)`,
     bottom: 0,
     position: 'absolute',
     right: 0,

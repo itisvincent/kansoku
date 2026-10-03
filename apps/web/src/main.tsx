@@ -7,6 +7,14 @@ import { installRouter } from './lib/router';
 import './styles.css';
 import { LocaleProvider } from './lib/i18n';
 import { LocaleBackendSync } from './features/settings/LocaleBackendSync';
+import { applyThemeMode, followThemeChanges, readThemeMode } from './lib/themeMode';
+import { reportThemeToShell } from './features/desktop/desktopWindowsBridge';
+
+// Before the first render, so nothing paints in the wrong palette.
+const themeMode = readThemeMode();
+applyThemeMode(themeMode);
+followThemeChanges(themeMode);
+reportThemeToShell(themeMode);
 
 installRouter();
 // At module scope rather than in an effect: this counts page loads, and React would double-fire

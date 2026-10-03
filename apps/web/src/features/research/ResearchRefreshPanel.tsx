@@ -26,7 +26,7 @@ const styles = stylex.create({
   card: {
     backgroundColor: `color-mix(in srgb, ${colors.backgroundElement} 72%, ${colors.backgroundSurface})`,
     borderRadius: radii.lg,
-    boxShadow: '0 0 0 1px rgb(255 255 255 / 0.075), 0 8px 24px rgb(0 0 0 / 0.12)',
+    boxShadow: `0 0 0 1px color-mix(in srgb, ${colors.textBright} 7.5%, transparent), 0 8px 24px rgb(0 0 0 / 0.12)`,
     overflow: 'hidden',
   },
   progress: {

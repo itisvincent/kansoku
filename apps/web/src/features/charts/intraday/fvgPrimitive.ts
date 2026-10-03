@@ -95,7 +95,7 @@ class FvgRenderer implements IPrimitivePaneRenderer {
 
         if (r.x1 > 0 && w >= LABEL_WIDTH + 12) {
           const labelY = Math.max(2, r.yTop + 2);
-          ctx.fillStyle = 'rgba(10, 10, 10, 0.82)';
+          ctx.fillStyle = theme.labelBg;
           ctx.fillRect(r.x1 + 3, labelY, LABEL_WIDTH, LABEL_HEIGHT);
           ctx.fillStyle = hexToRgba(r.base, r.hovered ? 1 : 0.78 * r.fade);
           ctx.font = `9px ${theme.fontMono}`;

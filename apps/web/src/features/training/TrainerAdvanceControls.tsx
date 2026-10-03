@@ -37,7 +37,7 @@ interface StepOutcome {
 const styles = stylex.create({
   chip: {
     alignItems: 'center',
-    backgroundColor: 'rgb(20 20 20 / 0.88)',
+    backgroundColor: `color-mix(in srgb, ${colors.backgroundSurface} 88%, transparent)`,
     borderColor: colors.borderStrong,
     borderRadius: radii.default,
     borderStyle: 'solid',

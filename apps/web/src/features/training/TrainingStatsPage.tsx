@@ -86,7 +86,7 @@ const styles = stylex.create({
   },
   locked: {
     backgroundImage:
-      'repeating-linear-gradient(135deg, transparent, transparent 5px, rgb(255 255 255 / 0.028) 5px, rgb(255 255 255 / 0.028) 10px)',
+      `repeating-linear-gradient(135deg, transparent, transparent 5px, color-mix(in srgb, ${colors.textBright} 2.8%, transparent) 5px, color-mix(in srgb, ${colors.textBright} 2.8%, transparent) 10px)`,
     borderColor: colors.borderStrong,
     borderRadius: radii.default,
     borderStyle: 'dashed',

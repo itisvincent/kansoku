@@ -35,6 +35,19 @@ a {
   outline-offset: 2px;
 }
 
+html[data-theme='light'] body {
+  background: #f4f4f5;
+  color: #18181b;
+}
+
+html[data-theme='light'] a {
+  color: #18181b;
+}
+
+html[data-theme='light'] :focus-visible {
+  outline-color: rgb(24 24 27 / 0.35);
+}
+
 /* Held for the length of a level drag. The pointer spends nearly all of it off the handle, so the
    cursor must be pinned on every element until the gesture ends. */
 body.trainer-dragging-level,

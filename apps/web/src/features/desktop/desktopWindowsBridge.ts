@@ -69,6 +69,16 @@ export function getAppMenuBridge(
   };
 }
 
+/** Lets the desktop shell paint this window's title bar and background in the same theme. */
+export function reportThemeToShell(
+  mode: 'dark' | 'light',
+  win: unknown = typeof window === 'undefined' ? undefined : window,
+): void {
+  const rpc = getShellRpc(win);
+  if (!rpc) return;
+  void rpc.invoke('windows.setTheme', mode).catch(() => {});
+}
+
 export interface OpenTrainerBridge {
   openTrainer(): Promise<void>;
 }

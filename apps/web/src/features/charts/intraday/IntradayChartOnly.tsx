@@ -12,6 +12,7 @@ import { bollinger, rsi } from '@kansoku/core/analysis/indicators';
 import { useMaSeries } from './useMaLines';
 import { useIntradayCharts, type DrawingChartHandle } from './useIntradayCharts';
 import { IndicatorPane } from './IndicatorPane';
+import { theme } from '../../../lib/theme';
 
 const styles = stylex.create({
   chartsCol: {
@@ -52,7 +53,7 @@ const styles = stylex.create({
     width: '100%',
   },
   chartLabel: {
-    backgroundColor: 'rgba(10, 10, 10, 0.7)',
+    backgroundColor: `color-mix(in srgb, ${colors.backgroundSurface} 70%, transparent)`,
     color: colors.textSecondary,
     fontSize: fontSizes.sm,
     left: '12px',
@@ -64,7 +65,7 @@ const styles = stylex.create({
     zIndex: 10,
   },
   chartLegend: {
-    backgroundColor: 'rgba(10, 10, 10, 0.7)',
+    backgroundColor: `color-mix(in srgb, ${colors.backgroundSurface} 70%, transparent)`,
     color: colors.textPrimary,
     display: 'flex',
     fontSize: fontSizes.sm,
@@ -211,7 +212,7 @@ export function IntradayChartOnly({
               <span>
                 <span
                   className={`swatch ${stylex.props(styles.swatch).className}`}
-                  style={{ background: 'rgba(232,232,232,0.3)' }}
+                  style={{ background: theme.sessionSwatch }}
                 />
                 {i18n('chartExtendedSession')}
               </span>

@@ -17,7 +17,7 @@ const styles = stylex.create({
     flexDirection: 'column',
     gap: '6px',
     padding: '8px',
-    backgroundColor: 'rgba(10, 10, 10, 0.9)',
+    backgroundColor: `color-mix(in srgb, ${colors.backgroundSurface} 90%, transparent)`,
     borderColor: colors.border,
     borderStyle: 'solid',
     borderWidth: '1px',

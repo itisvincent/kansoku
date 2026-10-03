@@ -1,14 +1,13 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow } from 'electron';
-import { windowFrameOptions } from './frame.js';
+import { windowBackground, windowFrameOptions } from './frame.js';
 import { IS_DEV } from '../../boot/env.js';
 import {
   APP_ICON_PNG,
   applyWindowSecurity,
   DEV_WEB_URL,
   PROD_APP_URL,
-  WINDOW_BG,
 } from './mainWindow.js';
 
 const TRAINER_DEFAULT_WIDTH = 1280;
@@ -32,7 +31,7 @@ export function createTrainerWindow(): BrowserWindow {
     height: TRAINER_DEFAULT_HEIGHT,
     minWidth: TRAINER_MIN_WIDTH,
     minHeight: TRAINER_MIN_HEIGHT,
-    backgroundColor: WINDOW_BG,
+    backgroundColor: windowBackground(),
     show: false,
     fullscreenable: true,
     ...windowFrameOptions(),

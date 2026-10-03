@@ -33,7 +33,7 @@ const styles = stylex.create({
     ':not(:disabled):is([data-danger="true"])': {
       backgroundColor: colors.down,
       borderColor: colors.down,
-      color: colors.textBright,
+      color: colors.textOnColor,
     },
     ':not(:disabled):is([data-state="busy"])': {
       color: colors.textSecondary,

@@ -312,7 +312,7 @@ export function useIntradayCharts(
     });
     const rsiMarkers = attachMarkers(rsiLine);
     const rsiGuide = {
-      color: 'rgba(232, 232, 232, 0.28)',
+      color: theme.guideLine,
       lineWidth: 1 as const,
       lineStyle: LineStyle.Dashed,
       axisLabelVisible: true,
@@ -323,7 +323,7 @@ export function useIntradayCharts(
     rsiLine.createPriceLine({
       ...rsiGuide,
       price: RSI_MIDLINE,
-      color: 'rgba(232, 232, 232, 0.16)',
+      color: theme.guideLineFaint,
     });
 
     const stopTimeScaleSync = syncTimeScales([main, macd, rsiChart]);

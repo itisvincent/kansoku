@@ -1,14 +1,13 @@
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { app, BrowserWindow, screen } from 'electron';
-import { windowFrameOptions } from './frame.js';
+import { windowBackground, windowFrameOptions } from './frame.js';
 import { IS_DEV } from '../../boot/env.js';
 import {
   APP_ICON_PNG,
   applyWindowSecurity,
   DEV_WEB_URL,
   PROD_APP_URL,
-  WINDOW_BG,
 } from './mainWindow.js';
 
 const SYMBOL_PATTERN = /^(?=.*[\da-z])[\d.a-z\-]{1,20}$/i;
@@ -84,7 +83,7 @@ export function createPopoutWindow(symbol: string): BrowserWindow {
     height: POPOUT_DEFAULT_HEIGHT,
     minWidth: POPOUT_MIN_WIDTH,
     minHeight: POPOUT_MIN_HEIGHT,
-    backgroundColor: WINDOW_BG,
+    backgroundColor: windowBackground(),
     show: false,
     ...windowFrameOptions(),
     ...(existsSync(APP_ICON_PNG) ? { icon: APP_ICON_PNG } : {}),
