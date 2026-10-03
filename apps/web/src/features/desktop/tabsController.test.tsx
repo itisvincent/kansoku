@@ -383,6 +383,36 @@ describe('useTabsController with shared bridge', () => {
     expect(getController().snapshot.activeTabId).toBe('b');
   });
 
+  it('keeps a user-pinned tab on its page and opens other pages in a new tab', async () => {
+    bridge.seed([makeTab('/', 'a'), { ...makeTab('/scan', 'scan'), pinned: true }]);
+    const getController = renderController();
+    await waitFor(() => expect(getController().snapshot.tabs).toHaveLength(2));
+    act(() => getController().activateTab('scan'));
+    await waitFor(() => expect(getController().snapshot.activeTabId).toBe('scan'));
+
+    act(() => navigate('/symbol/NVDA.US?analysis=x'));
+    await waitFor(() => expect(getController().snapshot.tabs).toHaveLength(3));
+
+    const opened = bridge.mutateCalls.find((op) => op.op === 'open');
+    expect(opened).toMatchObject({ op: 'open', route: '/symbol/NVDA.US?analysis=x' });
+    expect(bridge.mutateCalls.some((op) => op.op === 'updateRoute' && op.id === 'scan')).toBe(false);
+    expect(getController().snapshot.tabs.find((tab) => tab.id === 'scan')?.route).toBe('/scan');
+  });
+
+  it('lets a user-pinned tab change its own query in place', async () => {
+    bridge.seed([makeTab('/', 'a'), { ...makeTab('/symbol/APP.US', 'app'), pinned: true }]);
+    const getController = renderController();
+    await waitFor(() => expect(getController().snapshot.tabs).toHaveLength(2));
+    act(() => getController().activateTab('app'));
+    await waitFor(() => expect(getController().snapshot.activeTabId).toBe('app'));
+
+    act(() => navigate('/symbol/APP.US?analysis=older'));
+    await settlePendingMutations();
+
+    expect(bridge.mutateCalls.some((op) => op.op === 'open')).toBe(false);
+    expect(getController().snapshot.activeTabId).toBe('app');
+  });
+
   it('opens an explicitly requested route in a new tab from a non-pinned tab', async () => {
     bridge.seed([makeTab('/', 'a'), makeTab('/research', 'b')]);
     const getController = renderController();

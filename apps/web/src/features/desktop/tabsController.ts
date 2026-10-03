@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createMemoryRouter } from 'react-router';
 import type { DataRouter } from 'react-router';
-import { setActiveRouter, setNavigationInterceptor } from '../../lib/router';
+import { routePathname, setActiveRouter, setNavigationInterceptor } from '../../lib/router';
 import { getAppRoutes } from '../../lib/router/appRoutes';
 import { __setActiveTitleSink } from '../../lib/useTitle';
 import {
@@ -412,6 +412,13 @@ export function useTabsController(): TabsController {
       }
       const { tabs, activeTabId } = snapshotRef.current;
       const pinned = tabs[0];
+      const active = tabs.find((tab) => tab.id === activeTabId);
+      // A user-pinned tab keeps its page: leaving it opens a new tab, while a change that
+      // stays on the same page (another analysis of the same symbol) still happens in place.
+      if (active?.pinned && routePathname(route) !== routePathname(active.route)) {
+        openTab(route);
+        return true;
+      }
       if (!pinned || pinned.id !== activeTabId) return false;
       openTab(route);
       return true;
