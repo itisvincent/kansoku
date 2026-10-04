@@ -16,9 +16,44 @@ export const DEFAULT_GRID_TFS: Record<MultiLayout, ChartTf[]> = {
   '4': ['week', 'day', '4h', 'h1'],
 };
 
+/** Where the dividers sit: the first column's and the first row's share of the space. */
+export interface GridSplits {
+  col: number;
+  row: number;
+}
+export type SplitAxis = keyof GridSplits;
+
+export const DEFAULT_SPLITS: Record<MultiLayout, GridSplits> = {
+  '2h': { col: 0.5, row: 0.5 },
+  '2v': { col: 0.5, row: 0.5 },
+  '4': { col: 0.5, row: 0.5 },
+};
+
 export interface StoredGrid {
   layout: GridLayout;
   tfs: Record<MultiLayout, ChartTf[]>;
+  splits: Record<MultiLayout, GridSplits>;
+}
+
+const SPLIT_MIN = 0.1;
+const SPLIT_MAX = 0.9;
+/** The narrowest a chart in a grid may get, in pixels. */
+const MIN_CHART_PX = 180;
+
+function sanitizeSplit(raw: unknown): number {
+  return typeof raw === 'number' && raw >= SPLIT_MIN && raw <= SPLIT_MAX ? raw : 0.5;
+}
+
+function sanitizeSplits(raw: unknown): GridSplits {
+  const value = (typeof raw === 'object' && raw !== null ? raw : {}) as Partial<GridSplits>;
+  return { col: sanitizeSplit(value.col), row: sanitizeSplit(value.row) };
+}
+
+/** How far a divider may move across `size` pixels, leaving every chart its minimum. */
+export function splitBounds(size: number): [number, number] {
+  const lo = Math.max(SPLIT_MIN, MIN_CHART_PX / size);
+  const hi = Math.min(SPLIT_MAX, (size - MIN_CHART_PX) / size);
+  return lo > hi ? [0.5, 0.5] : [lo, hi];
 }
 
 const TF_KEYS = new Set<string>(TF_OPTIONS.map((o) => o.key));
@@ -57,17 +92,24 @@ export function sanitizeGrid(raw: unknown): StoredGrid {
   const value = (typeof raw === 'object' && raw !== null ? raw : {}) as {
     layout?: unknown;
     tfs?: Partial<Record<MultiLayout, unknown>>;
+    splits?: Partial<Record<MultiLayout, unknown>>;
   };
   const layout = GRID_LAYOUTS.includes(value.layout as GridLayout)
     ? (value.layout as GridLayout)
     : '1';
   const tfs = value.tfs ?? {};
+  const splits = value.splits ?? {};
   return {
     layout,
     tfs: {
       '2h': sanitizeCells(tfs['2h'], '2h'),
       '2v': sanitizeCells(tfs['2v'], '2v'),
       '4': sanitizeCells(tfs['4'], '4'),
+    },
+    splits: {
+      '2h': sanitizeSplits(splits['2h']),
+      '2v': sanitizeSplits(splits['2v']),
+      '4': sanitizeSplits(splits['4']),
     },
   };
 }
@@ -121,6 +163,10 @@ export interface ChartGridState {
   setCellTf: (index: number, tf: ChartTf) => void;
   /** Trade two charts' places (a chart dragged onto another). */
   swapCells: (from: number, to: number) => void;
+  /** This layout's divider positions. */
+  splits: GridSplits;
+  /** Move a divider; kept between a tenth and nine tenths of the space. */
+  setSplit: (axis: SplitAxis, value: number) => void;
   maximized: number | null;
   toggleMaximize: (index: number) => void;
   /** The timeframe the page follows: the selected chart's in a grid, the page's own otherwise. */
@@ -185,6 +231,15 @@ export function useChartGrid(
     if (swapped) setActiveCell((now) => (now === from ? to : now === to ? from : now));
   }, []);
 
+  const setSplit = useCallback((axis: SplitAxis, value: number) => {
+    const next = Math.round(Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, value)) * 1000) / 1000;
+    updateGrid((prev) => {
+      if (prev.layout === '1' || prev.splits[prev.layout][axis] === next) return prev;
+      const splits = { ...prev.splits[prev.layout], [axis]: next };
+      return { ...prev, splits: { ...prev.splits, [prev.layout]: splits } };
+    });
+  }, []);
+
   const toggleMaximize = useCallback((index: number) => {
     setActiveCell(index);
     setMaximized((now) => (now === index ? null : index));
@@ -206,6 +261,8 @@ export function useChartGrid(
     selectCell: setActiveCell,
     setCellTf,
     swapCells,
+    splits: layout === '1' ? DEFAULT_SPLITS['4'] : stored.splits[layout],
+    setSplit,
     maximized: layout === '1' ? null : maximized,
     toggleMaximize,
     tf: layout === '1' ? pageTf : (tfs[cell] ?? pageTf),

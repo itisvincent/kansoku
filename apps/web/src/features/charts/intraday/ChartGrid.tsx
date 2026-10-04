@@ -6,7 +6,14 @@ import type { IntradayBuilt } from '@kansoku/shared/types';
 import { colors, fontSizes, radii } from '../../../theme/tokens.stylex';
 import { IntradayChartOnly } from './IntradayChartOnly';
 import { IntradayTimeframeSwitch } from './IntradayTimeframeSwitch';
-import { cellKeys, type ChartGridState, type GridLayout } from './chartGridState';
+import {
+  cellKeys,
+  type ChartGridState,
+  type GridLayout,
+  type GridSplits,
+  type SplitAxis,
+} from './chartGridState';
+import { GridSplitter } from './GridSplitter';
 import { linkGridCrosshairs, type GridPane } from './gridCrosshair';
 import { isViewPeriod, tfDataOf, tfLabel, withViewTimeframe, type ChartTf } from './timeframes';
 import { resolveIntradayTf } from './useIntradayDoc';
@@ -22,6 +29,7 @@ const styles = stylex.create({
     minHeight: 0,
     minWidth: 0,
     overflow: 'hidden',
+    position: 'relative',
   },
   cell: {
     backgroundColor: colors.backgroundSurface,
@@ -109,10 +117,23 @@ const styles = stylex.create({
   },
 });
 
-const TEMPLATES: Record<Exclude<GridLayout, '1'>, { columns: string; rows: string }> = {
-  '2h': { columns: 'minmax(0, 1fr) minmax(0, 1fr)', rows: 'minmax(0, 1fr)' },
-  '2v': { columns: 'minmax(0, 1fr)', rows: 'minmax(0, 1fr) minmax(0, 1fr)' },
-  '4': { columns: 'minmax(0, 1fr) minmax(0, 1fr)', rows: 'minmax(0, 1fr) minmax(0, 1fr)' },
+const ONE_TRACK = 'minmax(0, 1fr)';
+const twoTracks = (first: number) =>
+  `minmax(0, ${first}fr) minmax(0, ${Math.round((1 - first) * 1000) / 1000}fr)`;
+
+/** Grid tracks for a layout: the dividers set each chart's share of the space. */
+function templateFor(layout: Exclude<GridLayout, '1'>, splits: GridSplits) {
+  return {
+    columns: layout === '2v' ? ONE_TRACK : twoTracks(splits.col),
+    rows: layout === '2h' ? ONE_TRACK : twoTracks(splits.row),
+  };
+}
+
+/** Which dividers a layout has: between columns, between rows, or both. */
+const SPLIT_AXES: Record<Exclude<GridLayout, '1'>, SplitAxis[]> = {
+  '2h': ['col'],
+  '2v': ['row'],
+  '4': ['col', 'row'],
 };
 
 interface ChartGridProps {
@@ -154,6 +175,9 @@ export function ChartGrid({
   const panesRef = useRef(new Map<string, GridPane>());
   const [paneVersion, setPaneVersion] = useState(0);
   const [drag, setDrag] = useState<DragState | null>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
+  // A divider being dragged moves here first; the saved position updates when it is let go.
+  const [draft, setDraft] = useState<{ axis: SplitAxis; value: number } | null>(null);
 
   const setPane = useCallback((key: string, pane: GridPane | null) => {
     if (pane) panesRef.current.set(key, pane);
@@ -168,8 +192,11 @@ export function ChartGrid({
   }, [paneVersion]);
 
   const layout = grid.layout === '1' ? '4' : grid.layout;
+  const splits: GridSplits = draft ? { ...grid.splits, [draft.axis]: draft.value } : grid.splits;
   const template =
-    grid.maximized !== null ? { columns: 'minmax(0, 1fr)', rows: 'minmax(0, 1fr)' } : TEMPLATES[layout];
+    grid.maximized !== null
+      ? { columns: ONE_TRACK, rows: ONE_TRACK }
+      : templateFor(layout, splits);
   const canDrag = count > 1 && grid.maximized === null;
 
   const dnd = (index: number): CellDnd => ({
@@ -199,6 +226,7 @@ export function ChartGrid({
 
   return (
     <div
+      ref={gridRef}
       className={`chart-grid ${stylex.props(styles.grid).className}${className ? ` ${className}` : ''}`}
       style={{ gridTemplateColumns: template.columns, gridTemplateRows: template.rows }}
       data-layout={grid.layout}
@@ -223,6 +251,17 @@ export function ChartGrid({
           dnd={dnd(index)}
         />
       ))}
+      {grid.maximized === null &&
+        SPLIT_AXES[layout].map((axis) => (
+          <GridSplitter
+            key={axis}
+            axis={axis}
+            value={splits[axis]}
+            containerRef={gridRef}
+            onDraft={(value) => setDraft(value === null ? null : { axis, value })}
+            onCommit={(value) => grid.setSplit(axis, value)}
+          />
+        ))}
     </div>
   );
 }

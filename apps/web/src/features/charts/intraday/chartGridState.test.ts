@@ -5,12 +5,14 @@ import {
   barEnd,
   cellCount,
   cellKeys,
+  DEFAULT_SPLITS,
   DEFAULT_GRID_TFS,
   GRID_STORAGE_KEY,
   matchingBarIndex,
   resetChartGridStore,
   sanitizeGrid,
   sessionShift,
+  splitBounds,
   tfRank,
   useChartGrid,
 } from './chartGridState';
@@ -26,8 +28,8 @@ const DAY = 86_400;
 
 describe('sanitizeGrid', () => {
   it('starts as one chart with the default timeframes', () => {
-    expect(sanitizeGrid(null)).toEqual({ layout: '1', tfs: DEFAULT_GRID_TFS });
-    expect(sanitizeGrid('junk')).toEqual({ layout: '1', tfs: DEFAULT_GRID_TFS });
+    expect(sanitizeGrid(null)).toEqual({ layout: '1', tfs: DEFAULT_GRID_TFS, splits: DEFAULT_SPLITS });
+    expect(sanitizeGrid('junk')).toEqual({ layout: '1', tfs: DEFAULT_GRID_TFS, splits: DEFAULT_SPLITS });
   });
 
   it('keeps valid entries and replaces bad ones slot by slot', () => {
@@ -38,8 +40,28 @@ describe('sanitizeGrid', () => {
     expect(grid.tfs['2v']).toEqual(DEFAULT_GRID_TFS['2v']);
   });
 
+  it('keeps saved divider positions and evens out bad ones', () => {
+    const grid = sanitizeGrid({ splits: { '2h': { col: 0.3 }, '4': { col: 2, row: 'x' } } });
+    expect(grid.splits['2h']).toEqual({ col: 0.3, row: 0.5 });
+    expect(grid.splits['4']).toEqual({ col: 0.5, row: 0.5 });
+  });
+
   it('drops an unknown layout', () => {
     expect(sanitizeGrid({ layout: '9' }).layout).toBe('1');
+  });
+});
+
+describe('splitBounds', () => {
+  it('keeps each chart at least the minimum size', () => {
+    expect(splitBounds(1000)).toEqual([0.18, 0.82]);
+  });
+
+  it('never lets a divider past a tenth of the space', () => {
+    expect(splitBounds(4000)).toEqual([0.1, 0.9]);
+  });
+
+  it('pins the divider to the middle when there is no room to move it', () => {
+    expect(splitBounds(300)).toEqual([0.5, 0.5]);
   });
 });
 
@@ -277,6 +299,19 @@ describe('useChartGrid', () => {
     act(() => result.current.swapCells(1, 1));
     act(() => result.current.swapCells(0, 3));
     expect(result.current.tfs).toEqual(['day', 'h1']);
+  });
+
+  it('remembers divider positions for each layout', () => {
+    const { result } = setup('h1');
+    act(() => result.current.setLayout('4'));
+    expect(result.current.splits).toEqual({ col: 0.5, row: 0.5 });
+    act(() => result.current.setSplit('col', 0.6234));
+    act(() => result.current.setSplit('row', 0.02));
+    expect(result.current.splits).toEqual({ col: 0.623, row: 0.1 });
+    act(() => result.current.setLayout('2h'));
+    expect(result.current.splits).toEqual({ col: 0.5, row: 0.5 });
+    const saved = JSON.parse(localStorage.getItem(GRID_STORAGE_KEY) ?? '{}');
+    expect(saved.splits['4']).toEqual({ col: 0.623, row: 0.1 });
   });
 
   it('opens with the remembered layout', () => {

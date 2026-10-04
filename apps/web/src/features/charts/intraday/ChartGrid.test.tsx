@@ -54,6 +54,8 @@ function gridState(layout: GridLayout, tfs: ChartTf[], overrides: Partial<ChartG
     selectCell: vi.fn(),
     setCellTf: vi.fn(),
     swapCells: vi.fn(),
+    splits: { col: 0.5, row: 0.5 },
+    setSplit: vi.fn(),
     maximized: null,
     toggleMaximize: vi.fn(),
     tf: tfs[0],
@@ -159,6 +161,44 @@ describe('ChartGrid', () => {
     const grid = gridState('4', ['week', 'day', '4h', 'h1'], { maximized: 1, activeCell: 1 });
     const { container } = render(<ChartGrid symbol="NVDA.US" built={built} grid={grid} />);
     expect(headers(container).every((h) => h.getAttribute('draggable') === 'false')).toBe(true);
+  });
+
+  it('puts a divider between the charts of each layout', () => {
+    const axes = (layout: GridLayout, tfs: ChartTf[]) => {
+      const { container, unmount } = render(
+        <ChartGrid symbol="NVDA.US" built={built} grid={gridState(layout, tfs)} />,
+      );
+      const found = [...container.querySelectorAll('[role="separator"]')].map((el) =>
+        el.getAttribute('aria-orientation'),
+      );
+      unmount();
+      return found;
+    };
+    expect(axes('2h', ['day', 'h1'])).toEqual(['vertical']);
+    expect(axes('2v', ['day', 'h1'])).toEqual(['horizontal']);
+    expect(axes('4', ['week', 'day', '4h', 'h1'])).toEqual(['vertical', 'horizontal']);
+  });
+
+  it('has no dividers while one chart is enlarged', () => {
+    const grid = gridState('4', ['week', 'day', '4h', 'h1'], { maximized: 0 });
+    const { container } = render(<ChartGrid symbol="NVDA.US" built={built} grid={grid} />);
+    expect(container.querySelectorAll('[role="separator"]')).toHaveLength(0);
+  });
+
+  it('sizes the charts from the saved split, follows a drag, and saves it on release', () => {
+    const grid = gridState('2h', ['day', 'h1'], { splits: { col: 0.3, row: 0.5 } });
+    const { container, getByRole } = render(<ChartGrid symbol="NVDA.US" built={built} grid={grid} />);
+    const el = container.querySelector<HTMLElement>('.chart-grid')!;
+    expect(el.style.gridTemplateColumns).toBe('minmax(0, 0.3fr) minmax(0, 0.7fr)');
+    el.getBoundingClientRect = () =>
+      ({ left: 0, top: 0, width: 1000, height: 600, right: 1000, bottom: 600 }) as DOMRect;
+    const divider = getByRole('separator');
+    fireEvent.pointerDown(divider, { button: 0, clientX: 300, pointerId: 1 });
+    fireEvent.pointerMove(window, { clientX: 600, pointerId: 1 });
+    expect(el.style.gridTemplateColumns).toBe('minmax(0, 0.6fr) minmax(0, 0.4fr)');
+    expect(grid.setSplit).not.toHaveBeenCalled();
+    fireEvent.pointerUp(window, { pointerId: 1 });
+    expect(grid.setSplit).toHaveBeenCalledWith('col', 0.6);
   });
 
   it('links every chart, and unlinks charts that leave the layout', () => {
