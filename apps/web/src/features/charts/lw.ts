@@ -20,6 +20,7 @@ import {
 import { formatMarketDateTime, formatMarketTick } from '@kansoku/shared/time';
 import type { Candle, ColoredPoint, LinePoint, SeriesMarker } from '@kansoku/shared/types';
 import { theme } from '../../lib/theme';
+import { isChartShown } from './chartVisibility';
 import { colors, fontSizes, radii } from '../../theme/tokens.stylex';
 
 const styles = stylex.create({
@@ -246,23 +247,27 @@ export function syncCrosshair(panes: CrosshairPane[]): () => void {
       // Data updates on a pane holding a synthetic crosshair re-fire crosshairMove
       // without sourceEvent; forwarding those echoes makes the crosshair ping-pong.
       if (param.time !== undefined && param.sourceEvent === undefined) return;
+      // Cleared in finally: a throw left it set once, which silently ended the sync.
       syncing = true;
-      for (const dst of panes) {
-        if (dst === src) continue;
-        if (param.time === undefined || param.logical === undefined) {
-          dst.chart.clearCrosshairPosition();
-          continue;
+      try {
+        for (const dst of panes) {
+          if (dst === src || !isChartShown(dst.chart)) continue;
+          if (param.time === undefined || param.logical === undefined) {
+            dst.chart.clearCrosshairPosition();
+            continue;
+          }
+          const bar = dst.series.dataByIndex(param.logical);
+          const value =
+            bar && 'value' in bar && bar.value !== undefined
+              ? bar.value
+              : bar && 'close' in bar
+                ? bar.close
+                : 0;
+          dst.chart.setCrosshairPosition(value, param.time, dst.series);
         }
-        const bar = dst.series.dataByIndex(param.logical);
-        const value =
-          bar && 'value' in bar && bar.value !== undefined
-            ? bar.value
-            : bar && 'close' in bar
-              ? bar.close
-              : 0;
-        dst.chart.setCrosshairPosition(value, param.time, dst.series);
+      } finally {
+        syncing = false;
       }
-      syncing = false;
     };
     src.chart.subscribeCrosshairMove(onMove);
     return () => src.chart.unsubscribeCrosshairMove(onMove);
