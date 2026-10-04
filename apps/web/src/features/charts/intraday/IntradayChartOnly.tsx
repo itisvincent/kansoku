@@ -77,6 +77,13 @@ const styles = stylex.create({
     top: '8px',
     zIndex: 10,
   },
+  chartLegendCompact: {
+    columnGap: '10px',
+    flexWrap: 'wrap',
+    left: '8px',
+    right: '72px',
+    rowGap: '2px',
+  },
   swatch: {
     display: 'inline-block',
     height: '2px',
@@ -108,10 +115,14 @@ export interface IntradayChartOnlyProps {
   activeTf: ChartTf;
   onLoadHistory?: () => void;
   drawings?: boolean;
+  /** Show the drawing toolbar; a chart grid shows it on the selected chart only. */
+  drawingToolbar?: boolean;
   storageNamespace?: string;
   onChartHandle?: (handle: DrawingChartHandle | null) => void;
   popout?: boolean;
   live?: boolean;
+  /** A small chart in a grid: no pane label, and the legend wraps instead of running on. */
+  compact?: boolean;
   className?: string;
 }
 
@@ -121,10 +132,12 @@ export function IntradayChartOnly({
   activeTf,
   onLoadHistory,
   drawings = true,
+  drawingToolbar = true,
   storageNamespace,
   onChartHandle,
   popout = false,
   live = false,
+  compact = false,
   className,
 }: IntradayChartOnlyProps) {
   const { t: i18n } = useLocale();
@@ -181,10 +194,14 @@ export function IntradayChartOnly({
         ref={mainBlockRef}
         className={`chart-block ${stylex.props(styles.chartBlock, styles.mainChart).className}`}
       >
-        <div className={`chart-label ${stylex.props(styles.chartLabel).className}`}>
-          {i18n('chartCandlesVolume')}
-        </div>
-        <div className={`chart-legend ${stylex.props(styles.chartLegend).className}`}>
+        {!compact && (
+          <div className={`chart-label ${stylex.props(styles.chartLabel).className}`}>
+            {i18n('chartCandlesVolume')}
+          </div>
+        )}
+        <div
+          className={`chart-legend ${stylex.props(styles.chartLegend, compact && styles.chartLegendCompact).className}`}
+        >
           {maSeries
             .filter((s) => s.line.visible)
             .map((s) => (
@@ -229,7 +246,12 @@ export function IntradayChartOnly({
         {drawings && (
           <DrawingsBoundary>
             <Suspense fallback={null}>
-              <DrawingsLayer symbol={symbol} handle={drawingHandle} barTimes={barTimes} />
+              <DrawingsLayer
+                symbol={symbol}
+                handle={drawingHandle}
+                barTimes={barTimes}
+                toolbar={drawingToolbar}
+              />
             </Suspense>
           </DrawingsBoundary>
         )}

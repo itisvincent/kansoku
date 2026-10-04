@@ -635,6 +635,17 @@ const enUS = {
   chartTfAnalysisHint: 'Use this period as an analysis window (up to 3)',
   chartTfHelp:
     'Mark up to 3 Analysis windows (default 5m / 15m / 1h). Those drive the prediction panel. Other periods load live. Hide any tab you do not need.',
+  chartLayout: 'Chart layout',
+  chartLayoutSingle: 'One chart',
+  chartLayoutSideBySide: 'Two side by side',
+  chartLayoutStacked: 'Two stacked',
+  chartLayoutFour: 'Four (2 × 2)',
+  chartLayoutHelp:
+    'Each chart has its own timeframe. Hover one chart and the others mark the same moment. Click a chart to select it: the drawing tools and the analysis panel follow it. Double-click a chart’s title bar to enlarge it, and again to go back.',
+  chartGridCell: 'Chart {n}: {tf}',
+  chartGridHeaderHelp: 'Double-click to enlarge this chart, and again to go back',
+  chartGridMaximize: 'Enlarge this chart',
+  chartGridRestore: 'Back to all charts',
   chartNewsConclusion: 'News assessment',
   chartPositionView: 'Position overview',
   chartCost: 'Cost',

@@ -48,6 +48,8 @@ export interface DrawingsApi {
   hasAi: boolean;
   count: number;
   selected: Annotation | null;
+  /** Drop the selection (a chart that loses its toolbar must not keep one for Delete). */
+  clearSelection: () => void;
   updateStyle: (id: string, patch: Partial<AnnotationStyle>) => void;
   draftStyle: AnnotationStyle;
   updateDraftStyle: (patch: Partial<AnnotationStyle>) => void;
@@ -295,6 +297,12 @@ export function useDrawings(
     commitAnnotations(next, true);
   }, [commitAnnotations, setSelected]);
 
+  const clearSelection = useCallback(() => {
+    if (selectedIdRef.current === null) return;
+    setSelected(null);
+    pushState();
+  }, [pushState, setSelected]);
+
   const updateStyle = useCallback(
     (id: string, patch: Partial<AnnotationStyle>) => {
       const next = annotationsRef.current.map((a) =>
@@ -407,6 +415,7 @@ export function useDrawings(
     hasAi,
     count: annotations.length,
     selected,
+    clearSelection,
     updateStyle,
     draftStyle,
     updateDraftStyle,

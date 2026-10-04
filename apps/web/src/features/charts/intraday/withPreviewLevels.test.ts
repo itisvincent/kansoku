@@ -37,4 +37,10 @@ describe('withPreviewLevels', () => {
     expect(withPreviewLevels(built, [])).toBe(built);
     expect(withPreviewLevels(built, undefined)).toBe(built);
   });
+
+  it('returns the same object for the same inputs so the charts do not redraw', () => {
+    const first = withPreviewLevels(built, levels);
+    expect(withPreviewLevels(built, levels)).toBe(first);
+    expect(withPreviewLevels(built, [...levels])).not.toBe(first);
+  });
 });

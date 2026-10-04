@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ChartBuilt, ChartDoc, IntradayBuilt } from '@kansoku/shared/types';
-import { isViewPeriod, type ChartTf } from './timeframes';
+import { DEFAULT_CHART_TF, isViewPeriod, type ChartTf } from './timeframes';
 import { useQuery } from '@web/lib/apiHooks';
 import { client } from '@web/lib/client';
 import { isCurrentSessionId } from '@web/lib/easternDate';
@@ -13,7 +13,7 @@ export type ChartDocView = ChartDoc & { prediction_stale?: boolean; sepa_stale?:
 // 本地偏好：未手动选周期时默认看 4h（不再回落到图表锚点周期/15m）。
 export function resolveIntradayTf(built: IntradayBuilt, preferred: ChartTf | null): ChartTf {
   if (preferred && (isViewPeriod(preferred) || preferred in built.timeframes)) return preferred;
-  return '4h';
+  return DEFAULT_CHART_TF;
 }
 
 export function useIntradayDoc(id: string | null) {

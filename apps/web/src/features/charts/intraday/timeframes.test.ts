@@ -69,6 +69,15 @@ describe('withViewTimeframe', () => {
     expect(withViewTimeframe(built, 'day', { ...viewTf })).not.toBe(first);
     expect(withViewTimeframe(built, 'week', viewTf)).not.toBe(first);
   });
+
+  it('keeps each timeframe stable when several charts share one doc', () => {
+    const shared = { ...built } as IntradayBuilt;
+    const weekTf = { candles: [{ time: 7 }] } as unknown as IntradayTfData;
+    const day = withViewTimeframe(shared, 'day', viewTf);
+    const week = withViewTimeframe(shared, 'week', weekTf);
+    expect(withViewTimeframe(shared, 'day', viewTf)).toBe(day);
+    expect(withViewTimeframe(shared, 'week', weekTf)).toBe(week);
+  });
 });
 
 describe('sanitizeAnalysisTimeframes', () => {

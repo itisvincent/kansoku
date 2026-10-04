@@ -8,6 +8,9 @@ import {
   IntradayTimeframeSwitch,
 } from '@web/features/charts/intraday/IntradayDashboard';
 import { ChartLayerMenu } from '@web/features/charts/intraday/ChartLayerMenu';
+import { ChartLayoutMenu } from '@web/features/charts/intraday/ChartLayoutMenu';
+import { useChartGrid } from '@web/features/charts/intraday/chartGridState';
+import { TimeframeSettingsMenu } from '@web/features/charts/intraday/TimeframeSettingsMenu';
 import { MaLinesMenu } from '@web/features/charts/intraday/MaLinesMenu';
 import { withPreviewLevels, withViewTimeframe } from '@web/features/charts/intraday/timeframes';
 import { useViewTimeframe } from '@web/features/charts/intraday/useViewTimeframe';
@@ -164,7 +167,8 @@ export function PreviewCockpit({
     commentsLoaded,
     activeTab === 'analysis' && analysisSection === 'commentary' ? 'ai' : activeTab,
   );
-  const viewTimeframe = useViewTimeframe(sym, intradayTf ?? '4h', { live: true });
+  const grid = useChartGrid(intradayTf, setIntradayTf);
+  const viewTimeframe = useViewTimeframe(sym, grid.tf ?? '4h', { live: true });
   const analystRunStatus = useAnalystRunStatus(sym);
   const analystRunLastEndedRaw = useAnalystRunLastEnded(sym);
   const analystRunLastEnded =
@@ -189,17 +193,15 @@ export function PreviewCockpit({
 
   if (!built) return <CockpitSkeleton />;
 
-  const activeIntradayTf = resolveIntradayTf(built, intradayTf);
+  const activeIntradayTf = resolveIntradayTf(built, grid.tf);
   // Follow-ups belong to a saved analysis; live view continues the newest one's thread.
   const latestAnalysis = newestAnalysis(analysesRows);
   const previewLevels = built.sidebar.prediction
     ? undefined
     : (analystRunStatus?.sections?.technical?.levels ??
       analystRunLastEnded?.sections?.technical?.levels);
-  const chartBuilt = withPreviewLevels(
-    withViewTimeframe(built, activeIntradayTf, viewTimeframe.tf),
-    previewLevels,
-  );
+  const baseBuilt = withPreviewLevels(built, previewLevels);
+  const chartBuilt = withViewTimeframe(baseBuilt, activeIntradayTf, viewTimeframe.tf);
 
   const sidebarTabs = buildSharedSidebarTabs({
     locale,
@@ -259,7 +261,12 @@ export function PreviewCockpit({
               </a>
               <span className={`meta ${stylex.props(styles.topbarMeta).className}`}>{sym}</span>
               {degraded && <Dot tone="accent" pulse title={i18n('cockpitStale')} />}
-              <IntradayTimeframeSwitch activeTf={activeIntradayTf} onChange={setIntradayTf} />
+              <ChartLayoutMenu layout={grid.layout} onChange={grid.setLayout} />
+              {grid.layout === '1' ? (
+                <IntradayTimeframeSwitch activeTf={activeIntradayTf} onChange={grid.setTf} />
+              ) : (
+                <TimeframeSettingsMenu />
+              )}
               <AnalysisTimeline
                 rows={analysesRows}
                 activeId={null}
@@ -299,6 +306,8 @@ export function PreviewCockpit({
               sidebarTabs={sidebarTabs}
               activeTab={activeTab}
               onTabChange={setActiveTab}
+              grid={grid}
+              gridBuilt={baseBuilt}
               dock={
                 latestAnalysis ? (
                   <ChatDock chartId={latestAnalysis.id} docCreatedAt={latestAnalysis.created_at} />

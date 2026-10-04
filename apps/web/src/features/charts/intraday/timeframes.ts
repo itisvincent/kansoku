@@ -68,6 +68,9 @@ export const tfShortLabel = (tf: ChartTf, locale: Locale = 'zh-CN'): string => {
 
 export const isViewPeriod = (tf: ChartTf): tf is ViewPeriod => !ANALYSIS_SET.has(tf);
 
+/** The period a chart opens on when nothing else was picked. */
+export const DEFAULT_CHART_TF: ChartTf = '4h';
+
 const SESSIONLESS = new Set<string>(['day', 'week', 'month']);
 
 export const isSessionlessTf = (tf: ChartTf): boolean => SESSIONLESS.has(tf);
@@ -77,9 +80,10 @@ export const tfDataOf = (built: IntradayBuilt, tf: ChartTf): IntradayTfData | un
 
 // Keyed by object identity: the same inputs must return the same object, or every parent
 // render (quote and run-status pushes) makes the chart tear down and redraw all its series.
+// One entry per timeframe, because a chart grid grafts several onto the same doc.
 const viewTimeframeCache = new WeakMap<
   IntradayBuilt,
-  { tf: ChartTf; data: IntradayTfData; result: IntradayBuilt }
+  Map<ChartTf, { data: IntradayTfData; result: IntradayBuilt }>
 >();
 
 export function withViewTimeframe(
@@ -88,22 +92,34 @@ export function withViewTimeframe(
   data: IntradayTfData | null,
 ): IntradayBuilt {
   if (!data || !isViewPeriod(tf)) return built;
-  const cached = viewTimeframeCache.get(built);
-  if (cached && cached.tf === tf && cached.data === data) return cached.result;
+  const perTf = viewTimeframeCache.get(built) ?? new Map();
+  const cached = perTf.get(tf);
+  if (cached && cached.data === data) return cached.result;
   const result: IntradayBuilt = {
     ...built,
     timeframes: { ...built.timeframes, [tf]: data } as IntradayBuilt['timeframes'],
   };
-  viewTimeframeCache.set(built, { tf, data, result });
+  perTf.set(tf, { data, result });
+  viewTimeframeCache.set(built, perTf);
   return result;
 }
+
+const previewLevelsCache = new WeakMap<
+  IntradayBuilt,
+  { levels: NonNullable<IntradayBuilt['previewLevels']>; result: IntradayBuilt }
+>();
 
 export function withPreviewLevels(
   built: IntradayBuilt,
   levels: IntradayBuilt['previewLevels'],
 ): IntradayBuilt {
   if (!levels || levels.length === 0) return built;
-  return { ...built, previewLevels: levels };
+  // Same inputs, same object: the live page re-renders on every run-status push.
+  const cached = previewLevelsCache.get(built);
+  if (cached && cached.levels === levels) return cached.result;
+  const result = { ...built, previewLevels: levels };
+  previewLevelsCache.set(built, { levels, result });
+  return result;
 }
 
 export const TIMEFRAMES_STORAGE_KEY = 'intraday-timeframes';

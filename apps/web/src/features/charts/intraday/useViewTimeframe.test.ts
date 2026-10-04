@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, renderHook, waitFor } from '@testing-library/react';
+import { act, cleanup, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { IntradayTfData } from '@kansoku/shared/types';
 
@@ -25,7 +25,11 @@ beforeEach(() => {
   viewTimeframe.mockResolvedValue({ period: 'day', bars: 2, tf: tfOf(100) });
 });
 
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  // Unmount every hook so its shared feed stops before the next test.
+  cleanup();
+  vi.useRealTimers();
+});
 
 describe('applyLiveQuote', () => {
   it('moves the last bar close to the live price and stretches high/low around it', () => {
@@ -134,6 +138,29 @@ describe('useViewTimeframe', () => {
     });
 
     expect(viewTimeframe).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('useViewTimeframe shared between charts', () => {
+  it('fetches once for two charts on the same period and hands both the same candles', async () => {
+    const { result } = renderHook(() => ({
+      page: useViewTimeframe('NVDA.US', 'day', { live: true }),
+      cell: useViewTimeframe('NVDA.US', 'day', { live: true }),
+    }));
+    await waitFor(() => expect(result.current.page.tf).toBeTruthy());
+    expect(viewTimeframe).toHaveBeenCalledTimes(1);
+    expect(result.current.cell.tf).toBe(result.current.page.tf);
+  });
+
+  it('keeps the feed alive while another chart still shows it', async () => {
+    const first = renderHook(() => useViewTimeframe('NVDA.US', 'day'));
+    await waitFor(() => expect(first.result.current.tf).toBeTruthy());
+    const second = renderHook(() => useViewTimeframe('NVDA.US', 'day'));
+    expect(second.result.current.tf).toBe(first.result.current.tf);
+    first.unmount();
+    expect(second.result.current.tf).toBeTruthy();
+    expect(viewTimeframe).toHaveBeenCalledTimes(1);
+    second.unmount();
   });
 });
 

@@ -4,6 +4,9 @@ import { ArrowLeft, Bell, ChevronsRight, TriangleAlert } from 'lucide-react';
 import * as stylex from '@stylexjs/stylex';
 import { IntradayDashboard, IntradayTimeframeSwitch } from '../charts/intraday/IntradayDashboard';
 import { ChartLayerMenu } from '../charts/intraday/ChartLayerMenu';
+import { ChartLayoutMenu } from '../charts/intraday/ChartLayoutMenu';
+import { useChartGrid } from '../charts/intraday/chartGridState';
+import { TimeframeSettingsMenu } from '../charts/intraday/TimeframeSettingsMenu';
 import { MaLinesMenu } from '../charts/intraday/MaLinesMenu';
 import { withViewTimeframe } from '../charts/intraday/timeframes';
 import { useViewTimeframe } from '../charts/intraday/useViewTimeframe';
@@ -265,10 +268,9 @@ export function SymbolCockpit({ sym }: { sym: string }) {
   );
 
   const intradaySidebar = doc?.built.kind === 'intraday' ? doc.built.sidebar : null;
-  const viewTimeframe = useViewTimeframe(sym, intradayTf ?? '4h', {
-    asOf: live ? undefined : intradaySidebar?.asOf,
-    live,
-  });
+  const grid = useChartGrid(intradayTf, setIntradayTf);
+  const viewAsOf = live ? undefined : intradaySidebar?.asOf;
+  const viewTimeframe = useViewTimeframe(sym, grid.tf ?? '4h', { asOf: viewAsOf, live });
   const reassessNow = Date.now();
   const reassessNeeded =
     conclusionOutdated(
@@ -352,7 +354,7 @@ export function SymbolCockpit({ sym }: { sym: string }) {
       </div>
     );
 
-  const activeIntradayTf = resolveIntradayTf(doc.built, intradayTf);
+  const activeIntradayTf = resolveIntradayTf(doc.built, grid.tf);
   const chartBuilt = withViewTimeframe(doc.built, activeIntradayTf, viewTimeframe.tf);
   const analysesRows = analyses;
 
@@ -408,7 +410,12 @@ export function SymbolCockpit({ sym }: { sym: string }) {
               </a>
               <span className={`meta ${stylex.props(styles.topbarMeta).className}`}>{sym}</span>
               {degraded && <Dot tone="accent" pulse title={i18n('cockpitStale')} />}
-              <IntradayTimeframeSwitch activeTf={activeIntradayTf} onChange={setIntradayTf} />
+              <ChartLayoutMenu layout={grid.layout} onChange={grid.setLayout} />
+              {grid.layout === '1' ? (
+                <IntradayTimeframeSwitch activeTf={activeIntradayTf} onChange={grid.setTf} />
+              ) : (
+                <TimeframeSettingsMenu />
+              )}
               <AnalysisTimeline
                 rows={analysesRows}
                 activeId={latestId}
@@ -526,6 +533,9 @@ export function SymbolCockpit({ sym }: { sym: string }) {
               onTabChange={setActiveTab}
               dock={<ChatDock chartId={doc.id} docCreatedAt={doc.created_at} />}
               live={live}
+              grid={grid}
+              gridBuilt={doc.built}
+              asOf={viewAsOf}
             />
           </div>
         </div>

@@ -1,15 +1,13 @@
-import { useLocale } from '@web/lib/i18n';
-import { useEffect, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import type { IntradayBuilt, TimeframeKey } from '@kansoku/shared/types';
 import * as stylex from '@stylexjs/stylex';
 import type { SidebarTab } from '../SidebarTabs';
 import type { ConclusionReassess } from './ConclusionCard';
 import { IntradayChartOnly } from './IntradayChartOnly';
+import { ChartGrid } from './ChartGrid';
+import type { ChartGridState } from './chartGridState';
 import { IntradaySidebar } from './IntradaySidebar';
-import { useIntradayControls } from './controlsContext';
-import { TimeframeSettingsMenu } from './TimeframeSettingsMenu';
-import { isViewPeriod, tfLabel, tfShortLabel, type ChartTf } from './timeframes';
-import { colors, fontSizes, radii } from '../../../theme/tokens.stylex';
+import type { ChartTf } from './timeframes';
 import { ResizablePanel } from '@web/ui';
 
 export const TF_LABELS: Record<TimeframeKey, string> = { m5: '5分钟', m15: '15分钟', h1: '1小时' };
@@ -28,41 +26,10 @@ const styles = stylex.create({
     minWidth: 0,
     minHeight: 0,
   },
-  timeframeSwitch: {
-    display: 'inline-flex',
-    gap: '2px',
-    padding: '2px',
-    backgroundColor: colors.backgroundCanvas,
-    borderColor: colors.border,
-    borderStyle: 'solid',
-    borderWidth: '1px',
-    borderRadius: radii.default,
-  },
-  timeframeButton: {
-    'minWidth': '30px',
-    'height': '20px',
-    'padding': '0 7px',
-    'backgroundColor': 'transparent',
-    'borderStyle': 'none',
-    'borderWidth': 0,
-    'borderRadius': radii.default,
-    'color': colors.textSecondary,
-    'fontSize': fontSizes.sm,
-    'fontVariantNumeric': 'tabular-nums',
-    'lineHeight': '20px',
-    'cursor': 'pointer',
-    ':hover': {
-      color: colors.textPrimary,
-      backgroundColor: colors.backgroundHover,
-    },
-  },
-  timeframeButtonActive: {
-    color: colors.textPrimary,
-    backgroundColor: colors.backgroundHover,
-  },
 });
 
 export { IntradayChartOnly } from './IntradayChartOnly';
+export { IntradayTimeframeSwitch } from './IntradayTimeframeSwitch';
 
 interface IntradayDashboardProps {
   symbol: string;
@@ -78,43 +45,15 @@ interface IntradayDashboardProps {
   onTabChange?: (key: string) => void;
   dock?: ReactNode;
   live?: boolean;
-}
-
-export function IntradayTimeframeSwitch({
-  activeTf,
-  onChange,
-}: {
-  activeTf: ChartTf;
-  onChange: (tf: ChartTf) => void;
-}) {
-  const { t: i18n, locale } = useLocale();
-  const { visibleTfs } = useIntradayControls();
-  useEffect(() => {
-    if (visibleTfs.length && !visibleTfs.includes(activeTf) && !isViewPeriod(activeTf))
-      onChange(visibleTfs[0]);
-  }, [visibleTfs, activeTf, onChange]);
-  return (
-    <div
-      className={`chart-timeframe-switch ${stylex.props(styles.timeframeSwitch).className}`}
-      aria-label={i18n('chartTimeframe')}
-    >
-      {visibleTfs.map((k) => (
-        <button
-          key={k}
-          className={
-            stylex.props(styles.timeframeButton, k === activeTf && styles.timeframeButtonActive)
-              .className
-          }
-          aria-pressed={k === activeTf}
-          onClick={() => onChange(k)}
-          title={tfLabel(k, locale)}
-        >
-          {tfShortLabel(k, locale)}
-        </button>
-      ))}
-      <TimeframeSettingsMenu />
-    </div>
-  );
+  /** Several charts side by side; without it (or with one chart) the page shows one chart. */
+  grid?: ChartGridState;
+  /**
+   * The chart data before the page adds its own timeframe's candles. Each grid chart adds
+   * its own, so a page-level refresh does not redraw every chart.
+   */
+  gridBuilt?: IntradayBuilt;
+  /** The analysis time a frozen view loads its extra timeframes up to. */
+  asOf?: string;
 }
 
 export function IntradayDashboard({
@@ -131,17 +70,32 @@ export function IntradayDashboard({
   onTabChange,
   dock,
   live,
+  grid,
+  gridBuilt,
+  asOf,
 }: IntradayDashboardProps) {
   return (
     <div className={`layout ${stylex.props(styles.layout).className}`}>
-      <IntradayChartOnly
-        symbol={symbol}
-        built={built}
-        activeTf={activeTf}
-        onLoadHistory={onLoadHistory}
-        live={live}
-        className={stylex.props(styles.chartPane).className}
-      />
+      {grid && grid.layout !== '1' ? (
+        <ChartGrid
+          symbol={symbol}
+          built={gridBuilt ?? built}
+          grid={grid}
+          asOf={asOf}
+          live={live}
+          onLoadHistory={onLoadHistory}
+          className={stylex.props(styles.chartPane).className}
+        />
+      ) : (
+        <IntradayChartOnly
+          symbol={symbol}
+          built={built}
+          activeTf={activeTf}
+          onLoadHistory={onLoadHistory}
+          live={live}
+          className={stylex.props(styles.chartPane).className}
+        />
+      )}
       <ResizablePanel
         side="end"
         defaultSize={340}
