@@ -619,9 +619,10 @@ const zhCN = {
   chartLayoutStacked: '上下两图',
   chartLayoutFour: '四图（2 × 2）',
   chartLayoutHelp:
-    '每张图各选各的周期。鼠标停在一张图上，其他图会标出同一时刻。点一下选中某张图，画线工具和右侧分析跟着它；双击图上方的标题栏放大，再双击还原。',
+    '每张图各选各的周期。鼠标停在一张图上，其他图会标出同一时刻。点一下选中某张图，画线工具和右侧分析跟着它；按住图上方的标题栏拖到另一张图上，两张图交换位置；双击标题栏放大，再双击还原。',
   chartGridCell: '第 {n} 张图：{tf}',
-  chartGridHeaderHelp: '双击放大这张图，再双击还原',
+  chartGridHeaderHelp: '拖到另一张图上交换位置；双击放大这张图，再双击还原',
+  chartGridHeaderHelpEnlarged: '双击还原多图',
   chartGridMaximize: '放大这张图',
   chartGridRestore: '还原多图',
   chartNewsConclusion: '消息面结论',

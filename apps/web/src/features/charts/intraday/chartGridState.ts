@@ -23,6 +23,19 @@ export interface StoredGrid {
 
 const TF_KEYS = new Set<string>(TF_OPTIONS.map((o) => o.key));
 
+/**
+ * A stable name for each chart: its timeframe, numbered when two charts share one. Keyed by
+ * it, a chart keeps its zoom, drawings and candles when it moves to another place.
+ */
+export function cellKeys(tfs: ChartTf[]): string[] {
+  const seen = new Map<ChartTf, number>();
+  return tfs.map((tf) => {
+    const n = seen.get(tf) ?? 0;
+    seen.set(tf, n + 1);
+    return n === 0 ? tf : `${tf}#${n}`;
+  });
+}
+
 export function cellCount(layout: GridLayout): number {
   return layout === '4' ? 4 : layout === '1' ? 1 : 2;
 }
@@ -106,6 +119,8 @@ export interface ChartGridState {
   activeCell: number;
   selectCell: (index: number) => void;
   setCellTf: (index: number, tf: ChartTf) => void;
+  /** Trade two charts' places (a chart dragged onto another). */
+  swapCells: (from: number, to: number) => void;
   maximized: number | null;
   toggleMaximize: (index: number) => void;
   /** The timeframe the page follows: the selected chart's in a grid, the page's own otherwise. */
@@ -155,6 +170,21 @@ export function useChartGrid(
     });
   }, []);
 
+  const swapCells = useCallback((from: number, to: number) => {
+    if (from === to) return;
+    let swapped = false;
+    updateGrid((prev) => {
+      if (prev.layout === '1') return prev;
+      const cells = prev.tfs[prev.layout];
+      if (from < 0 || to < 0 || from >= cells.length || to >= cells.length) return prev;
+      swapped = true;
+      const next = cells.map((t, i) => (i === from ? cells[to] : i === to ? cells[from] : t));
+      return { ...prev, tfs: { ...prev.tfs, [prev.layout]: next } };
+    });
+    // The selection travels with the chart that moved.
+    if (swapped) setActiveCell((now) => (now === from ? to : now === to ? from : now));
+  }, []);
+
   const toggleMaximize = useCallback((index: number) => {
     setActiveCell(index);
     setMaximized((now) => (now === index ? null : index));
@@ -175,6 +205,7 @@ export function useChartGrid(
     activeCell: cell,
     selectCell: setActiveCell,
     setCellTf,
+    swapCells,
     maximized: layout === '1' ? null : maximized,
     toggleMaximize,
     tf: layout === '1' ? pageTf : (tfs[cell] ?? pageTf),

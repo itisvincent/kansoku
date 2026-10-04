@@ -641,9 +641,11 @@ const enUS = {
   chartLayoutStacked: 'Two stacked',
   chartLayoutFour: 'Four (2 × 2)',
   chartLayoutHelp:
-    'Each chart has its own timeframe. Hover one chart and the others mark the same moment. Click a chart to select it: the drawing tools and the analysis panel follow it. Double-click a chart’s title bar to enlarge it, and again to go back.',
+    'Each chart has its own timeframe. Hover one chart and the others mark the same moment. Click a chart to select it: the drawing tools and the analysis panel follow it. Drag a chart by its title bar onto another to swap them. Double-click a title bar to enlarge that chart, and again to go back.',
   chartGridCell: 'Chart {n}: {tf}',
-  chartGridHeaderHelp: 'Double-click to enlarge this chart, and again to go back',
+  chartGridHeaderHelp:
+    'Drag onto another chart to swap them. Double-click to enlarge this chart, and again to go back',
+  chartGridHeaderHelpEnlarged: 'Double-click to go back to all charts',
   chartGridMaximize: 'Enlarge this chart',
   chartGridRestore: 'Back to all charts',
   chartNewsConclusion: 'News assessment',

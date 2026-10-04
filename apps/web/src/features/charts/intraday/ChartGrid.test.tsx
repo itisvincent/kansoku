@@ -9,6 +9,7 @@ import type { DrawingChartHandle } from './useIntradayCharts';
 
 const chartProps: Array<{ activeTf: ChartTf; drawingToolbar?: boolean; compact?: boolean }> = [];
 const linked: number[] = [];
+let mounts = 0;
 
 vi.mock('./IntradayChartOnly', () => ({
   IntradayChartOnly: (props: {
@@ -19,6 +20,9 @@ vi.mock('./IntradayChartOnly', () => ({
   }) => {
     chartProps.push(props);
     const { onChartHandle } = props;
+    useEffect(() => {
+      mounts += 1;
+    }, []);
     useEffect(() => {
       onChartHandle?.({ chart: {}, series: {}, container: {} } as unknown as DrawingChartHandle);
       return () => onChartHandle?.(null);
@@ -49,6 +53,7 @@ function gridState(layout: GridLayout, tfs: ChartTf[], overrides: Partial<ChartG
     activeCell: 0,
     selectCell: vi.fn(),
     setCellTf: vi.fn(),
+    swapCells: vi.fn(),
     maximized: null,
     toggleMaximize: vi.fn(),
     tf: tfs[0],
@@ -61,7 +66,27 @@ afterEach(() => {
   cleanup();
   chartProps.length = 0;
   linked.length = 0;
+  mounts = 0;
 });
+
+/** jsdom has no DataTransfer; this keeps what the drag sets. */
+function fakeTransfer() {
+  const data = new Map<string, string>();
+  return {
+    get types() {
+      return [...data.keys()];
+    },
+    setData: (type: string, value: string) => data.set(type, value),
+    getData: (type: string) => data.get(type) ?? '',
+    effectAllowed: '',
+    dropEffect: '',
+  };
+}
+
+const headers = (container: HTMLElement) =>
+  [...container.querySelectorAll<HTMLElement>('.chart-grid-cell-header')];
+const cells = (container: HTMLElement) =>
+  [...container.querySelectorAll<HTMLElement>('.chart-grid-cell')];
 
 const lastPropsFor = (tf: ChartTf) => chartProps.filter((p) => p.activeTf === tf).at(-1);
 
@@ -87,6 +112,53 @@ describe('ChartGrid', () => {
     const { container } = render(<ChartGrid symbol="NVDA.US" built={built} grid={grid} />);
     const hidden = container.querySelectorAll('.chart-grid-cell[aria-hidden="true"]');
     expect(hidden).toHaveLength(3);
+  });
+
+  it('swaps two charts when one is dragged by its title bar onto the other', () => {
+    const grid = gridState('4', ['week', 'day', '4h', 'h1']);
+    const { container } = render(<ChartGrid symbol="NVDA.US" built={built} grid={grid} />);
+    const dataTransfer = fakeTransfer();
+    fireEvent.dragStart(headers(container)[0], { dataTransfer });
+    fireEvent.dragOver(cells(container)[2], { dataTransfer });
+    expect(container.querySelector('.chart-grid-drop')).not.toBeNull();
+    fireEvent.drop(cells(container)[2], { dataTransfer });
+    expect(grid.swapCells).toHaveBeenCalledWith(0, 2);
+    expect(container.querySelector('.chart-grid-drop')).toBeNull();
+  });
+
+  it('ignores a drop that is not one of its charts', () => {
+    const grid = gridState('2h', ['day', 'h1']);
+    const { container } = render(<ChartGrid symbol="NVDA.US" built={built} grid={grid} />);
+    const file = fakeTransfer();
+    file.setData('Files', '');
+    fireEvent.dragOver(cells(container)[1], { dataTransfer: file });
+    fireEvent.drop(cells(container)[1], { dataTransfer: file });
+    expect(grid.swapCells).not.toHaveBeenCalled();
+  });
+
+  it('does not start a move from a button in the title bar', () => {
+    const grid = gridState('2h', ['day', 'h1']);
+    const { container } = render(<ChartGrid symbol="NVDA.US" built={built} grid={grid} />);
+    const enlarge = container.querySelector<HTMLElement>('.chart-grid-enlarge')!;
+    fireEvent.pointerDown(enlarge);
+    const dataTransfer = fakeTransfer();
+    fireEvent.dragStart(headers(container)[0], { dataTransfer });
+    expect(dataTransfer.types).toEqual([]);
+  });
+
+  it('keeps each chart, with its zoom and drawings, when two trade places', () => {
+    const { rerender } = render(
+      <ChartGrid symbol="NVDA.US" built={built} grid={gridState('2h', ['day', 'h1'])} />,
+    );
+    expect(mounts).toBe(2);
+    rerender(<ChartGrid symbol="NVDA.US" built={built} grid={gridState('2h', ['h1', 'day'])} />);
+    expect(mounts).toBe(2);
+  });
+
+  it('offers no move while one chart is enlarged', () => {
+    const grid = gridState('4', ['week', 'day', '4h', 'h1'], { maximized: 1, activeCell: 1 });
+    const { container } = render(<ChartGrid symbol="NVDA.US" built={built} grid={grid} />);
+    expect(headers(container).every((h) => h.getAttribute('draggable') === 'false')).toBe(true);
   });
 
   it('links every chart, and unlinks charts that leave the layout', () => {

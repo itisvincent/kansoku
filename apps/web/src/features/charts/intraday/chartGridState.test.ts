@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   barEnd,
   cellCount,
+  cellKeys,
   DEFAULT_GRID_TFS,
   GRID_STORAGE_KEY,
   matchingBarIndex,
@@ -39,6 +40,16 @@ describe('sanitizeGrid', () => {
 
   it('drops an unknown layout', () => {
     expect(sanitizeGrid({ layout: '9' }).layout).toBe('1');
+  });
+});
+
+describe('cellKeys', () => {
+  it('names each chart by its timeframe, numbering repeats', () => {
+    expect(cellKeys(['week', 'day', 'day', 'h1'])).toEqual(['week', 'day', 'day#1', 'h1']);
+  });
+
+  it('gives a chart the same name wherever it sits', () => {
+    expect(cellKeys(['h1', 'day'])).toEqual(['h1', 'day']);
   });
 });
 
@@ -237,6 +248,35 @@ describe('useChartGrid', () => {
       result.current.setCellTf(3, 'm15');
     });
     expect(result.current.tfs).toEqual(['m5', 'day', '4h', 'm15']);
+  });
+
+  it('swaps two charts, remembers it, and keeps the moved chart selected', () => {
+    const { result } = setup('h1');
+    act(() => result.current.setLayout('4'));
+    act(() => result.current.selectCell(0));
+    act(() => result.current.swapCells(0, 3));
+    expect(result.current.tfs).toEqual(['h1', 'day', '4h', 'week']);
+    expect(result.current.activeCell).toBe(3);
+    expect(result.current.tf).toBe('week');
+    const saved = JSON.parse(localStorage.getItem(GRID_STORAGE_KEY) ?? '{}');
+    expect(saved.tfs['4']).toEqual(['h1', 'day', '4h', 'week']);
+  });
+
+  it('moves the selection off a chart that another one was dropped onto', () => {
+    const { result } = setup('h1');
+    act(() => result.current.setLayout('4'));
+    act(() => result.current.selectCell(2));
+    act(() => result.current.swapCells(0, 2));
+    expect(result.current.activeCell).toBe(0);
+    expect(result.current.tf).toBe('4h');
+  });
+
+  it('ignores a swap onto itself or past the layout', () => {
+    const { result } = setup('h1');
+    act(() => result.current.setLayout('2h'));
+    act(() => result.current.swapCells(1, 1));
+    act(() => result.current.swapCells(0, 3));
+    expect(result.current.tfs).toEqual(['day', 'h1']);
   });
 
   it('opens with the remembered layout', () => {
