@@ -98,18 +98,20 @@ describe('reading a Futu account through OpenD', () => {
         if (market === 1) {
           return {
             positionList: [
-              { positionID: '11', code: '00700', name: '腾讯控股', qty: 200, canSellQty: 200, averageCostPrice: 480.5, price: 500, val: 100000, secMarket: 1, positionSide: 0 },
+              { positionID: '11', code: '00700', name: '腾讯控股', qty: 200, canSellQty: 200, averageCostPrice: 480.5, price: 500, val: 100000, secMarket: 1, positionSide: 0, currency: 1, unrealizedPL: 3900, plVal: 3950, tdPlVal: 780 },
             ],
           };
         }
         return {
           positionList: [
-            { positionID: '21', code: 'NVDA', name: 'NVIDIA', qty: 10, canSellQty: 10, costPrice: 120, price: 130, val: 1300, secMarket: 2, positionSide: 0 },
-            { positionID: '22', code: 'TSLA', name: 'Tesla', qty: 5, canSellQty: 0, costPrice: 300, price: 280, val: 1400, secMarket: 2, positionSide: 1 },
+            { positionID: '21', code: 'NVDA', name: 'NVIDIA', qty: 10, canSellQty: 10, costPrice: 120, price: 130, val: 1300, secMarket: 2, positionSide: 0, currency: 2, unrealizedPL: 100, tdPlVal: 20 },
+            { positionID: '22', code: 'TSLA', name: 'Tesla', qty: 5, canSellQty: 0, costPrice: 300, price: 280, val: 1400, secMarket: 2, positionSide: 1, currency: 2, unrealizedPL: 100, tdPlVal: -10 },
           ],
         };
       }
       if (protoId === PROTO.getFunds) {
+        // The same account priced in HKD, which is how the HKD → USD rate is found.
+        if (c2s.currency === 1) return { funds: { totalAssets: 18471.24 * 7.8, currency: 1 } };
         return { funds: { totalAssets: 18471.24, cash: -16697.98, marketVal: 28327.56, currency: 2 } };
       }
       if (protoId === PROTO.getUserSecurityGroup) {
@@ -150,6 +152,14 @@ describe('reading a Futu account through OpenD', () => {
     );
     // The closed account is never asked for positions.
     expect(seen.some((s) => (s.c2s.header as { accID?: string } | undefined)?.accID === '777')).toBe(false);
+  });
+
+  it('adds up open and today P&L from the positions, in USD', async () => {
+    // A universal account's funds answer carries no P&L, so the totals come from the positions:
+    // 700.HK 3900 HKD open / 780 HKD today, NVDA 100 / 20, TSLA (short) 100 / −10.
+    const account = await readFutuAccount(settings());
+    expect(Number(account.overview?.total_pl)).toBeCloseTo(3900 / 7.8 + 100 + 100, 6);
+    expect(Number(account.overview?.total_today_pl)).toBeCloseTo(780 / 7.8 + 20 - 10, 6);
   });
 
   it('reads the watchlist from the system All group', async () => {

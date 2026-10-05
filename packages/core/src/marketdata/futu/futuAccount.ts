@@ -47,7 +47,6 @@ interface FutuFunds {
   totalAssets?: number;
   cash?: number;
   marketVal?: number;
-  unrealizedPL?: number;
 }
 
 interface FutuPosition {
@@ -63,6 +62,11 @@ interface FutuPosition {
   val?: number;
   secMarket?: number;
   currency?: number;
+  /** Open P&L in the position's currency; `plVal` also counts realised P&L. */
+  unrealizedPL?: number;
+  plVal?: number;
+  /** Today's P&L in the position's currency. */
+  tdPlVal?: number;
 }
 
 const str = (value: number | undefined) =>
@@ -121,6 +125,80 @@ export interface FutuAccountSnapshot {
   overview: RawPortfolio['overview'] | null;
 }
 
+/** One position's open and today P&L, in the position's own currency. */
+interface PositionPl {
+  accID: string;
+  currency: number;
+  open: number;
+  today: number;
+}
+
+function positionPl(acc: FutuAcc, p: FutuPosition): PositionPl {
+  const value = (x: number | undefined) => (typeof x === 'number' && Number.isFinite(x) ? x : 0);
+  return {
+    accID: String(acc.accID),
+    currency: p.currency ?? CURRENCY_USD,
+    open: value(p.unrealizedPL ?? p.plVal),
+    today: value(p.tdPlVal),
+  };
+}
+
+async function readFunds(
+  session: OpenDSession,
+  acc: FutuAcc,
+  currency: number,
+): Promise<FutuFunds | null> {
+  try {
+    const { funds } = await session.request<{ funds?: FutuFunds }>(PROTO.getFunds, {
+      header: {
+        trdEnv: TRD_ENV_REAL,
+        accID: String(acc.accID),
+        trdMarket: acc.trdMarketAuthList?.[0] ?? 1,
+      },
+      currency,
+    });
+    return funds ?? null;
+  } catch (error) {
+    if (error instanceof OpenDError && error.code === 'rejected') return null;
+    throw error;
+  }
+}
+
+/**
+ * Open and today P&L in USD. A non-USD currency is converted at the rate OpenD itself uses:
+ * the same account's assets priced in that currency over its assets priced in USD. A
+ * currency with no such rate is left out rather than added unconverted.
+ */
+async function plInUsd(
+  session: OpenDSession,
+  accounts: FutuAcc[],
+  pl: PositionPl[],
+  usdAssets: Map<string, number>,
+): Promise<{ open: number; today: number }> {
+  const rates = new Map<string, number>();
+  const rateFor = async (accID: string, currency: number): Promise<number | null> => {
+    if (currency === CURRENCY_USD) return 1;
+    const key = `${accID}:${currency}`;
+    if (rates.has(key)) return rates.get(key) ?? null;
+    const acc = accounts.find((a) => String(a.accID) === accID);
+    const usd = usdAssets.get(accID) ?? 0;
+    const funds = acc && usd > 0 ? await readFunds(session, acc, currency) : null;
+    const local = Number(funds?.totalAssets ?? 0);
+    const rate = local > 0 ? local / usd : null;
+    rates.set(key, rate ?? Number.NaN);
+    return rate;
+  };
+  let open = 0;
+  let today = 0;
+  for (const item of pl) {
+    const rate = await rateFor(item.accID, item.currency);
+    if (rate === null || !Number.isFinite(rate)) continue;
+    open += item.open / rate;
+    today += item.today / rate;
+  }
+  return { open, today };
+}
+
 async function fetchAccount(settings: FutuSettings): Promise<FutuAccountSnapshot> {
   return withSession(settings, async (session) => {
     const { accList = [] } = await session.request<{ accList?: FutuAcc[] }>(PROTO.getAccList, {
@@ -136,6 +214,9 @@ async function fetchAccount(settings: FutuSettings): Promise<FutuAccountSnapshot
     const seen = new Set<string>();
     const positions: RawPosition[] = [];
     const holdings: RawPortfolioHolding[] = [];
+    // A universal account's funds answer carries no P&L, so open and today P&L are added up
+    // from the positions, per account and currency, and turned into USD further down.
+    const pl: PositionPl[] = [];
     for (const acc of real) {
       // A universal account answers for every market at once; asking per authorised
       // market covers single-market accounts too. Duplicates are dropped by position id.
@@ -161,41 +242,31 @@ async function fetchAccount(settings: FutuSettings): Promise<FutuAccountSnapshot
           if (!mapped) continue;
           positions.push(mapped.position);
           holdings.push(mapped.holding);
+          pl.push(positionPl(acc, p));
         }
       }
     }
     // Totals in USD: OpenD converts a universal account's assets into the requested
     // currency, so accounts can be added up without exchange rates here.
-    const totals = { assets: 0, cash: 0, market: 0, pl: 0, any: false };
+    const totals = { assets: 0, cash: 0, market: 0, any: false };
+    const usdAssets = new Map<string, number>();
     for (const acc of real) {
-      try {
-        const { funds } = await session.request<{ funds?: FutuFunds }>(PROTO.getFunds, {
-          header: {
-            trdEnv: TRD_ENV_REAL,
-            accID: String(acc.accID),
-            trdMarket: acc.trdMarketAuthList?.[0] ?? 1,
-          },
-          currency: CURRENCY_USD,
-        });
-        if (!funds) continue;
-        totals.any = true;
-        totals.assets += Number(funds.totalAssets ?? 0) || 0;
-        totals.cash += Number(funds.cash ?? 0) || 0;
-        totals.market += Number(funds.marketVal ?? 0) || 0;
-        totals.pl += Number(funds.unrealizedPL ?? 0) || 0;
-      } catch (error) {
-        if (error instanceof OpenDError && error.code === 'rejected') continue;
-        throw error;
-      }
+      const funds = await readFunds(session, acc, CURRENCY_USD);
+      if (!funds) continue;
+      totals.any = true;
+      totals.assets += Number(funds.totalAssets ?? 0) || 0;
+      totals.cash += Number(funds.cash ?? 0) || 0;
+      totals.market += Number(funds.marketVal ?? 0) || 0;
+      usdAssets.set(String(acc.accID), Number(funds.totalAssets ?? 0) || 0);
     }
+    const { open, today } = await plInUsd(session, real, pl, usdAssets);
     const overview = totals.any
       ? {
           total_asset: String(totals.assets),
           market_cap: String(totals.market),
           total_cash: String(totals.cash),
-          total_pl: String(totals.pl),
-          // The funds answer has no "today" P&L.
-          total_today_pl: '0',
+          total_pl: String(open),
+          total_today_pl: String(today),
           currency: 'USD',
         }
       : null;
