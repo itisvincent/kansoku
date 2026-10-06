@@ -12,7 +12,7 @@ export declare const theme: {
     readonly accent: '#ffb000';
     readonly up: '#26a69a';
     readonly down: '#ef5350';
-    readonly fontMono: "ui-monospace, 'SF Mono', Menlo, monospace";
+    readonly fontMono: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace";
     readonly fontUi: "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif";
     readonly radius: 2;
 };

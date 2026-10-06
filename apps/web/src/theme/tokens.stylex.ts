@@ -26,7 +26,7 @@ export const colors = stylex.defineVars({
 });
 
 export const fonts = stylex.defineConsts({
-  mono: "ui-monospace, 'SF Mono', Menlo, monospace",
+  mono: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
   ui: "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif",
 });
 

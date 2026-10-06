@@ -25,7 +25,7 @@ const dark = {
   /** Trainer replay bands: the given history and the hidden future. */
   bandGiven: 'rgba(232, 232, 232, 0.045)',
   bandFog: 'rgba(232, 232, 232, 0.10)',
-  fontMono: "ui-monospace, 'SF Mono', Menlo, monospace",
+  fontMono: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
 } as const;
 
 const light: { [K in keyof typeof dark]: string } = {

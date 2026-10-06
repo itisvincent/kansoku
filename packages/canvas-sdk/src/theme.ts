@@ -12,7 +12,7 @@ export const theme = {
   accent: '#ffb000',
   up: '#26a69a',
   down: '#ef5350',
-  fontMono: "ui-monospace, 'SF Mono', Menlo, monospace",
+  fontMono: "ui-monospace, 'SF Mono', Menlo, Consolas, monospace",
   fontUi: "-apple-system, BlinkMacSystemFont, 'PingFang SC', 'Helvetica Neue', sans-serif",
   radius: 2,
 } as const;
