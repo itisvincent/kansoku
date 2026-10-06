@@ -18,6 +18,7 @@ import type {
   RawPosition,
   RawQuote,
 } from './types.js';
+import { createRateGate } from './rateGate.js';
 
 export type LongbridgeRunner = <T>(args: string[]) => Promise<T>;
 
@@ -96,6 +97,11 @@ async function newsStrict(
     url: row.url,
   }));
 }
+
+// Longbridge allows one finance-calendar request per second. Every calendar read goes
+// through this gate: one at a time, spaced out, retried when refused. Without it the home
+// calendar's parallel reads were mostly refused and those stocks showed no earnings date.
+const calendarGate = createRateGate({ minIntervalMs: 1100 });
 
 async function callCli<T>(label: string, run: LongbridgeRunner, args: string[]): Promise<T> {
   try {
@@ -476,12 +482,14 @@ export function createLongbridgeProvider(
       symbol: string,
       fromDate: string,
     ): Promise<EarningsCalendarEntry | null> {
-      const payload = await callCli<CliCalendarPayload>('finance calendar report', run, [
-        'finance-calendar',
-        'report',
-        '--symbol',
-        symbol,
-      ]);
+      const payload = await calendarGate.run(() =>
+        callCli<CliCalendarPayload>('finance calendar report', run, [
+          'finance-calendar',
+          'report',
+          '--symbol',
+          symbol,
+        ]),
+      );
       for (const day of payload.list ?? []) {
         if (!day.date || day.date < fromDate) continue;
         const info =
@@ -499,18 +507,20 @@ export function createLongbridgeProvider(
       minStar: number,
     ): Promise<MacroCalendarResult> {
       if (!MACRO_SUPPORTED_MARKETS.has(market)) return { supported: false };
-      const payload = await callCli<CliCalendarPayload>('finance calendar macrodata', run, [
-        'finance-calendar',
-        'macrodata',
-        '--market',
-        market,
-        '--star',
-        String(minStar),
-        '--start',
-        startDate,
-        '--end',
-        endDate,
-      ]);
+      const payload = await calendarGate.run(() =>
+        callCli<CliCalendarPayload>('finance calendar macrodata', run, [
+          'finance-calendar',
+          'macrodata',
+          '--market',
+          market,
+          '--star',
+          String(minStar),
+          '--start',
+          startDate,
+          '--end',
+          endDate,
+        ]),
+      );
       const items: MacroEventItem[] = [];
       for (const day of payload.list ?? []) {
         for (const info of day.infos ?? []) {
