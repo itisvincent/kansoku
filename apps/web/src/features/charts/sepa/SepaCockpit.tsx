@@ -9,6 +9,7 @@ import { isDesktopRealtime } from '../../../lib/portTransport';
 import type { ChartDocView } from '../intraday/useIntradayDoc';
 import { colors, fontSizes } from '../../../theme/tokens.stylex';
 import { SepaDashboard } from './SepaDashboard';
+import { PriceSignProvider } from '@web/lib/priceSignContext';
 
 const styles = stylex.create({
   icon: {
@@ -119,7 +120,9 @@ export function SepaCockpit({
         </span>
       </div>
       <div className={`detail-body ${stylex.props(styles.detailBody).className}`}>
-        <SepaDashboard built={doc.built} />
+        <PriceSignProvider symbol={sym}>
+          <SepaDashboard built={doc.built} />
+        </PriceSignProvider>
       </div>
     </div>
   );

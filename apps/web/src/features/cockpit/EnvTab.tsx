@@ -21,6 +21,7 @@ import {
 import { fmt, signed, upDown } from '@web/lib/format';
 import { Num, SectionTitle } from '@web/ui';
 import { colors, fontSizes } from '../../theme/tokens.stylex';
+import { usePriceSign } from '@web/lib/priceSignContext';
 
 const styles = stylex.create({
   grid: {
@@ -153,6 +154,7 @@ export function EnvTab({
   relvol,
 }: EnvTabProps) {
   const { t: i18n } = useLocale();
+  const sign = usePriceSign();
   const relvolStatus = relvol ? relvolTone(relvol.ratio) : '';
   const positionStatus = position ? upDown(position.unrealized) : '';
 
@@ -190,9 +192,15 @@ export function EnvTab({
             </div>
             <div className={`v ${valueClassName()}`}>{position.shares} sh</div>
             <div className={`k ${stylex.props(styles.key).className}`}>{i18n('cockpitCost')}</div>
-            <div className={`v ${valueClassName()}`}>${fmt(position.cost)}</div>
+            <div className={`v ${valueClassName()}`}>
+              {sign}
+              {fmt(position.cost)}
+            </div>
             <div className={`k ${stylex.props(styles.key).className}`}>{i18n('cockpitPrice')}</div>
-            <div className={`v ${valueClassName()}`}>${fmt(position.last)}</div>
+            <div className={`v ${valueClassName()}`}>
+              {sign}
+              {fmt(position.last)}
+            </div>
             <div className={`k ${stylex.props(styles.key).className}`}>
               {i18n(position.unrealized >= 0 ? 'cockpitUnrealizedGain' : 'cockpitUnrealizedLoss')}
             </div>

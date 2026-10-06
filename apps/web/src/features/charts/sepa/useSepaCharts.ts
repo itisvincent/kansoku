@@ -27,6 +27,7 @@ import {
 import { seriesPalette, theme } from '@web/lib/theme';
 import { useLocale } from '../../../lib/i18n';
 import { analysisLabel, localizeDetectorMarker } from '../analysisLabels';
+import { usePriceSign } from '@web/lib/priceSignContext';
 
 const VP_WIDTH = 90;
 
@@ -39,6 +40,7 @@ export function useSepaCharts(
 ): LayerGroup[] {
   const { t: tr, locale } = useLocale();
   const t = tr;
+  const sign = usePriceSign();
   const [groups, setGroups] = useState<LayerGroup[]>([]);
 
   useEffect(() => {
@@ -133,7 +135,7 @@ export function useSepaCharts(
           color: theme.up,
           lineWidth: 2,
           lineStyle: 0,
-          title: `${t('buy')} pivot $${ep.pivot.toFixed(2)}`,
+          title: `${t('buy')} pivot ${sign}${ep.pivot.toFixed(2)}`,
         }),
         makeTogglableLine(candle, {
           price: ep.buy_zone_high,
@@ -147,21 +149,21 @@ export function useSepaCharts(
           color: theme.down,
           lineWidth: 2,
           lineStyle: 2,
-          title: `${t('stopLoss')} $${ep.stop.toFixed(2)}`,
+          title: `${t('stopLoss')} ${sign}${ep.stop.toFixed(2)}`,
         }),
         makeTogglableLine(candle, {
           price: ep.target1,
           color: theme.accent,
           lineWidth: 1,
           lineStyle: 2,
-          title: `T1 +${ep.target1_pct.toFixed(0)}% $${ep.target1.toFixed(2)}`,
+          title: `T1 +${ep.target1_pct.toFixed(0)}% ${sign}${ep.target1.toFixed(2)}`,
         }),
         makeTogglableLine(candle, {
           price: ep.target2,
           color: seriesPalette[1],
           lineWidth: 1,
           lineStyle: 2,
-          title: `T2 +${ep.target2_pct.toFixed(0)}% $${ep.target2.toFixed(2)}`,
+          title: `T2 +${ep.target2_pct.toFixed(0)}% ${sign}${ep.target2.toFixed(2)}`,
         }),
       ];
     }
@@ -183,7 +185,7 @@ export function useSepaCharts(
         color: z.border,
         lineWidth: 0,
         lineStyle: 0,
-        title: `${analysisLabel(z.label, locale)} $${z.low.toFixed(0)}-${z.high.toFixed(0)}`,
+        title: `${analysisLabel(z.label, locale)} ${sign}${z.low.toFixed(0)}-${z.high.toFixed(0)}`,
       });
       return { series, line, info: z };
     });

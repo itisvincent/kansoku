@@ -2,7 +2,7 @@ import { useLocale } from '@web/lib/i18n';
 import { Component, lazy, Suspense, useMemo, useRef, useState, type ReactNode } from 'react';
 import * as stylex from '@stylexjs/stylex';
 import type { IntradayBuilt } from '@kansoku/shared/types';
-import { fmt } from '@web/lib/format';
+import { fmt, priceSign } from '@web/lib/format';
 import { colors, fontSizes } from '../../../theme/tokens.stylex';
 import type { DrawingsHandle } from '../drawings/useDrawings';
 import { namespacedKey, useIntradayControls } from './controlsContext';
@@ -142,6 +142,7 @@ export function IntradayChartOnly({
 }: IntradayChartOnlyProps) {
   const { t: i18n } = useLocale();
   const built = useLiveBuilt(frozenBuilt, activeTf, symbol, live);
+  const sign = priceSign(symbol);
   const mainBlockRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);
   const macdRef = useRef<HTMLDivElement>(null);
@@ -183,6 +184,7 @@ export function IntradayChartOnly({
       setDrawingHandle(handle);
       onChartHandle?.(handle);
     },
+    sign,
   );
   const barTimes = useMemo(() => candles.map((c) => c.time), [candles]);
 
@@ -211,7 +213,7 @@ export function IntradayChartOnly({
                   style={{ background: s.line.color }}
                 />
                 EMA{s.line.period}
-                {s.last !== null && ` $${fmt(s.last)}`}
+                {s.last !== null && ` ${sign}${fmt(s.last)}`}
               </span>
             ))}
           {toggles.boll && (
@@ -221,7 +223,7 @@ export function IntradayChartOnly({
                 style={{ background: '#38bdf8' }}
               />
               BOLL(20)
-              {bollLast !== null && ` $${fmt(bollLast)}`}
+              {bollLast !== null && ` ${sign}${fmt(bollLast)}`}
             </span>
           )}
           {!isSessionlessTf(activeTf) && (

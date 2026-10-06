@@ -14,6 +14,7 @@ import { TopbarQuote } from '../quotes/QuoteBar';
 import { Dot, Empty, ErrorBox } from '../../ui';
 import { useTitle } from '../../lib/useTitle';
 import { colors, fontSizes } from '../../theme/tokens.stylex';
+import { PriceSignProvider } from '@web/lib/priceSignContext';
 
 const styles = stylex.create({
   shell: {
@@ -37,7 +38,8 @@ const styles = stylex.create({
     WebkitAppRegion: 'drag',
   },
   headerControlsInset: {
-    paddingRight: 'calc(12px + 100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))',
+    paddingRight:
+      'calc(12px + 100vw - env(titlebar-area-x, 0px) - env(titlebar-area-width, 100vw))',
   },
   symbol: {
     color: colors.textPrimary,
@@ -71,45 +73,47 @@ export function PopoutChartWindow({ sym }: { sym: string }) {
 
   return (
     <IntradayControlsProvider>
-      <div className={`popout-shell ${stylex.props(styles.shell).className}`}>
-        <div
-          className={`popout-header ${stylex.props(styles.header, styles.headerControlsInset).className}`}
-        >
-          {isDesktop && isMacPlatform() && (
-            <div
-              className={`popout-traffic-spacer ${stylex.props(styles.trafficSpacer).className}`}
-            />
-          )}
-          <span className={`popout-symbol ${stylex.props(styles.symbol).className}`}>
-            {symLabel}
-          </span>
-          {degraded && <Dot tone="accent" pulse title={i18n('chartStale')} />}
-          {activeTf && <IntradayTimeframeSwitch activeTf={activeTf} onChange={setIntradayTf} />}
-          {viewTimeframe.notice && (
-            <span role="status" title={viewTimeframe.notice}>
-              {i18n('chartHistoryShort')}
-            </span>
-          )}
-          <span className={`topbar-chart-tail ${stylex.props(styles.chartTail).className}`}>
-            {chartBuilt && activeTf && (
-              <>
-                <MaLinesMenu built={chartBuilt} activeTf={activeTf} symbol={sym} live />
-                <ChartLayerMenu built={chartBuilt} activeTf={activeTf} />
-              </>
+      <PriceSignProvider symbol={sym}>
+        <div className={`popout-shell ${stylex.props(styles.shell).className}`}>
+          <div
+            className={`popout-header ${stylex.props(styles.header, styles.headerControlsInset).className}`}
+          >
+            {isDesktop && isMacPlatform() && (
+              <div
+                className={`popout-traffic-spacer ${stylex.props(styles.trafficSpacer).className}`}
+              />
             )}
-            <TopbarQuote sym={sym} />
-          </span>
+            <span className={`popout-symbol ${stylex.props(styles.symbol).className}`}>
+              {symLabel}
+            </span>
+            {degraded && <Dot tone="accent" pulse title={i18n('chartStale')} />}
+            {activeTf && <IntradayTimeframeSwitch activeTf={activeTf} onChange={setIntradayTf} />}
+            {viewTimeframe.notice && (
+              <span role="status" title={viewTimeframe.notice}>
+                {i18n('chartHistoryShort')}
+              </span>
+            )}
+            <span className={`topbar-chart-tail ${stylex.props(styles.chartTail).className}`}>
+              {chartBuilt && activeTf && (
+                <>
+                  <MaLinesMenu built={chartBuilt} activeTf={activeTf} symbol={sym} live />
+                  <ChartLayerMenu built={chartBuilt} activeTf={activeTf} />
+                </>
+              )}
+              <TopbarQuote sym={sym} />
+            </span>
+          </div>
+          <div className={`popout-body ${stylex.props(styles.body).className}`}>
+            {error ? (
+              <ErrorBox>{error}</ErrorBox>
+            ) : !chartBuilt || !activeTf ? (
+              <Empty>{i18n('chartLoading')}</Empty>
+            ) : (
+              <IntradayChartOnly symbol={sym} built={chartBuilt} activeTf={activeTf} popout live />
+            )}
+          </div>
         </div>
-        <div className={`popout-body ${stylex.props(styles.body).className}`}>
-          {error ? (
-            <ErrorBox>{error}</ErrorBox>
-          ) : !chartBuilt || !activeTf ? (
-            <Empty>{i18n('chartLoading')}</Empty>
-          ) : (
-            <IntradayChartOnly symbol={sym} built={chartBuilt} activeTf={activeTf} popout live />
-          )}
-        </div>
-      </div>
+      </PriceSignProvider>
     </IntradayControlsProvider>
   );
 }

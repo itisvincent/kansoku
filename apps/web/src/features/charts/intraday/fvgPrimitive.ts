@@ -48,6 +48,8 @@ export interface FvgDisplayContext {
   currentPrice?: number;
   lastBarTime?: number;
   timeframeLabel?: string;
+  /** Currency sign for prices ("HK$" on a Hong Kong stock); "$" when left out. */
+  priceSign?: string;
 }
 
 interface RectPx {
@@ -260,7 +262,7 @@ export class FvgPrimitive implements ISeriesPrimitive<Time> {
   }
 }
 
-const formatPrice = (price: number) => `$${price.toFixed(2)}`;
+const formatPrice = (price: number, sign = '$') => `${sign}${price.toFixed(2)}`;
 
 export function formatFvgTooltip(
   zone: IntradayFvgZone,
@@ -291,10 +293,13 @@ export function formatFvgTooltip(
 
   return [
     `${direction}${timeframe}`,
-    tr('fvgOriginal', { value1: formatPrice(zone.low), value2: formatPrice(zone.high) }),
+    tr('fvgOriginal', {
+      value1: formatPrice(zone.low, context.priceSign),
+      value2: formatPrice(zone.high, context.priceSign),
+    }),
     tr('fvgRemaining', {
-      value1: formatPrice(activeLow),
-      value2: formatPrice(activeHigh),
+      value1: formatPrice(activeLow, context.priceSign),
+      value2: formatPrice(activeHigh, context.priceSign),
       value3: mitigation,
     }),
     [age, gap.replace(/^ · /, ''), distance].filter(Boolean).join(' · '),

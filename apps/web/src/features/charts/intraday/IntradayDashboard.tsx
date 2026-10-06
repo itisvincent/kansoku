@@ -9,6 +9,7 @@ import type { ChartGridState } from './chartGridState';
 import { IntradaySidebar } from './IntradaySidebar';
 import type { ChartTf } from './timeframes';
 import { ResizablePanel } from '@web/ui';
+import { PriceSignProvider } from '@web/lib/priceSignContext';
 
 export const TF_LABELS: Record<TimeframeKey, string> = { m5: '5分钟', m15: '15分钟', h1: '1小时' };
 
@@ -75,50 +76,52 @@ export function IntradayDashboard({
   asOf,
 }: IntradayDashboardProps) {
   return (
-    <div className={`layout ${stylex.props(styles.layout).className}`}>
-      {grid && grid.layout !== '1' ? (
-        <ChartGrid
-          symbol={symbol}
-          built={gridBuilt ?? built}
-          grid={grid}
-          asOf={asOf}
-          live={live}
-          onLoadHistory={onLoadHistory}
-          className={stylex.props(styles.chartPane).className}
-        />
-      ) : (
-        <IntradayChartOnly
-          symbol={symbol}
-          built={built}
-          activeTf={activeTf}
-          onLoadHistory={onLoadHistory}
-          live={live}
-          className={stylex.props(styles.chartPane).className}
-        />
-      )}
-      <ResizablePanel
-        side="end"
-        defaultSize={340}
-        minSize={280}
-        maxSize={640}
-        storageKey="kansoku-cockpit-sidebar-width"
-        handleLabel="Resize chart details panel"
-        contentClassName="intraday-sidebar-resizable-content"
-      >
-        <IntradaySidebar
-          built={built}
-          activeTf={activeTf}
-          predictionUpdatedAt={predictionUpdatedAt}
-          predictionStale={predictionStale}
-          conclusionReassess={conclusionReassess}
-          tabsOverride={sidebarTabs}
-          extraTabs={extraTabs}
-          active={activeTab}
-          onActiveChange={onTabChange}
-          dock={dock}
-          live={live}
-        />
-      </ResizablePanel>
-    </div>
+    <PriceSignProvider symbol={symbol}>
+      <div className={`layout ${stylex.props(styles.layout).className}`}>
+        {grid && grid.layout !== '1' ? (
+          <ChartGrid
+            symbol={symbol}
+            built={gridBuilt ?? built}
+            grid={grid}
+            asOf={asOf}
+            live={live}
+            onLoadHistory={onLoadHistory}
+            className={stylex.props(styles.chartPane).className}
+          />
+        ) : (
+          <IntradayChartOnly
+            symbol={symbol}
+            built={built}
+            activeTf={activeTf}
+            onLoadHistory={onLoadHistory}
+            live={live}
+            className={stylex.props(styles.chartPane).className}
+          />
+        )}
+        <ResizablePanel
+          side="end"
+          defaultSize={340}
+          minSize={280}
+          maxSize={640}
+          storageKey="kansoku-cockpit-sidebar-width"
+          handleLabel="Resize chart details panel"
+          contentClassName="intraday-sidebar-resizable-content"
+        >
+          <IntradaySidebar
+            built={built}
+            activeTf={activeTf}
+            predictionUpdatedAt={predictionUpdatedAt}
+            predictionStale={predictionStale}
+            conclusionReassess={conclusionReassess}
+            tabsOverride={sidebarTabs}
+            extraTabs={extraTabs}
+            active={activeTab}
+            onActiveChange={onTabChange}
+            dock={dock}
+            live={live}
+          />
+        </ResizablePanel>
+      </div>
+    </PriceSignProvider>
   );
 }

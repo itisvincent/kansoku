@@ -5,7 +5,7 @@ import { TriangleAlert } from 'lucide-react';
 import type { IntradayBuilt, QuoteCell } from '@kansoku/shared/types';
 import type { ChartTf } from './timeframes';
 import { useLiveQuote } from '@web/features/quotes/useLiveQuote';
-import { fmt } from '@web/lib/format';
+import { fmt, priceSign } from '@web/lib/format';
 import { marketOfSymbol } from '@web/lib/market';
 import { MarketTime } from '@web/ui';
 import type { SidebarTab } from '../SidebarTabs';
@@ -27,12 +27,12 @@ const styles = stylex.create({
     overflow: 'hidden',
   },
   sidebarScroll: {
-    flex: '1 1 auto',
-    minHeight: 0,
-    overflowY: 'auto',
-    padding: 16,
-    scrollbarWidth: 'auto',
-    scrollbarColor: `${colors.borderStrong} ${colors.backgroundSurface}`,
+    'flex': '1 1 auto',
+    'minHeight': 0,
+    'overflowY': 'auto',
+    'padding': 16,
+    'scrollbarWidth': 'auto',
+    'scrollbarColor': `${colors.borderStrong} ${colors.backgroundSurface}`,
     '::-webkit-scrollbar': {
       width: '10px',
     },
@@ -172,7 +172,8 @@ export function IntradaySidebar({
           <div className={`symbol ${stylex.props(styles.symbol).className}`}>{s.symbol}</div>
           <div className={`name ${stylex.props(styles.name).className}`}>{s.name}</div>
           <div className={`price ${stylex.props(styles.price).className}`}>
-            ${fmt(displayedQuote.last)}
+            {priceSign(s.symbol)}
+            {fmt(displayedQuote.last)}
           </div>
           <div className={`price-date ${stylex.props(styles.priceDate).className}`}>
             {displayedQuote.asOf ? <MarketTime value={displayedQuote.asOf} market={market} /> : ''}{' '}

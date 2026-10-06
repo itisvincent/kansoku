@@ -10,6 +10,7 @@ import { useIntradayControls } from './controlsContext';
 import { tfDataOf, type ChartTf } from './timeframes';
 import { useLiveBuilt } from './useLiveBuilt';
 import { MAX_MA_LINES, MAX_MA_PERIOD, MIN_MA_PERIOD, useMaSeries, type MaLine } from './useMaLines';
+import { usePriceSign } from '@web/lib/priceSignContext';
 
 const styles = stylex.create({
   icon: {
@@ -147,6 +148,7 @@ interface MaRowProps {
 
 function MaRow({ line, last, takenPeriods, onChange, onRemove }: MaRowProps) {
   const { t: i18n } = useLocale();
+  const sign = usePriceSign();
   const [draft, setDraft] = useState(String(line.period));
   const [syncedPeriod, setSyncedPeriod] = useState(line.period);
 
@@ -210,7 +212,7 @@ function MaRow({ line, last, takenPeriods, onChange, onRemove }: MaRowProps) {
         }}
       />
       <span className={`ma-row-last ${stylex.props(styles.rowLast).className}`}>
-        {last != null ? `$${fmt(last)}` : '—'}
+        {last != null ? `${sign}${fmt(last)}` : '—'}
       </span>
       <button
         type="button"

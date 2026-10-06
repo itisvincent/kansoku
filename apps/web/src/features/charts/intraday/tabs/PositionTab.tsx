@@ -4,6 +4,7 @@ import type { PositionView } from '@kansoku/shared/types';
 import { fmt, signed, upDown } from '@web/lib/format';
 import { SectionTitle } from '@web/ui';
 import { colors, fontSizes } from '../../../../theme/tokens.stylex';
+import { usePriceSign } from '@web/lib/priceSignContext';
 
 const styles = stylex.create({
   grid: {
@@ -32,6 +33,7 @@ interface PositionTabProps {
 
 export function PositionTab({ position }: PositionTabProps) {
   const { t: i18n } = useLocale();
+  const sign = usePriceSign();
   if (!position) return null;
   const tone = upDown(position.unrealized);
 
@@ -42,7 +44,10 @@ export function PositionTab({ position }: PositionTabProps) {
         <div className={`k ${stylex.props(styles.key).className}`}>{i18n('chartPosition')}</div>
         <div className={`v ${stylex.props(styles.value).className}`}>{position.shares} sh</div>
         <div className={`k ${stylex.props(styles.key).className}`}>{i18n('chartCost')}</div>
-        <div className={`v ${stylex.props(styles.value).className}`}>${fmt(position.cost)}</div>
+        <div className={`v ${stylex.props(styles.value).className}`}>
+          {sign}
+          {fmt(position.cost)}
+        </div>
         <div className={`k ${stylex.props(styles.key).className}`}>
           {i18n(position.unrealized >= 0 ? 'chartUnrealizedGain' : 'chartUnrealizedLoss')}
         </div>

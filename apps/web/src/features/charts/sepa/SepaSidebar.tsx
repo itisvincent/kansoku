@@ -7,6 +7,7 @@ import { fmt, signed } from '@web/lib/format';
 import { colors, fontSizes } from '../../../theme/tokens.stylex';
 import { NewsSection } from '../NewsSection';
 import { Badge, Num, SectionTitle } from '@web/ui';
+import { usePriceSign } from '@web/lib/priceSignContext';
 
 const styles = stylex.create({
   sidebar: {
@@ -234,6 +235,7 @@ function rrTone(ep: { rr_great: boolean; rr_ok: boolean }): string {
 
 export function SepaSidebar({ built }: { built: SepaBuilt }) {
   const { t: i18n, locale } = useLocale();
+  const sign = usePriceSign();
   const s = built.sidebar;
   const ep = built.chart.entryPlan;
   const zones = built.chart.supportZones;
@@ -488,7 +490,10 @@ export function SepaSidebar({ built }: { built: SepaBuilt }) {
               <div className={`k ${stylex.props(styles.key).className}`}>
                 {i18n('sepaHoldBoundary')}
               </div>
-              <div className={`v ${stylex.props(styles.value).className}`}>${fmt(s.ma50Now)}</div>
+              <div className={`v ${stylex.props(styles.value).className}`}>
+                {sign}
+                {fmt(s.ma50Now)}
+              </div>
             </div>
           </>
         )}

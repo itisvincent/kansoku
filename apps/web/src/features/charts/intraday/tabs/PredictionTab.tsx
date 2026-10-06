@@ -12,6 +12,7 @@ import { PriceZoneCard, TargetContextCard, TechRow } from './predictionTabParts'
 import { AutoSignalsSection } from './AutoSignalsSection';
 import { MarketTime, SectionTitle, TimeAgo } from '@web/ui';
 import { colors, fontSizes, radii } from '../../../../theme/tokens.stylex';
+import { usePriceSign } from '@web/lib/priceSignContext';
 
 const SIGNAL_ICON: Record<string, string> = {
   pin_bar: '📌',
@@ -244,6 +245,7 @@ export function PredictionTab({
   epsPeAction,
 }: PredictionTabProps) {
   const { t: i18n, locale } = useLocale();
+  const sign = usePriceSign();
   const { analysisTfs } = useIntradayControls();
   const s = built.sidebar;
   const p = s.prediction;
@@ -449,7 +451,9 @@ export function PredictionTab({
                     ${fmt(Number(sc.target))}
                     {upside != null && (
                       <span
-                        className={stylex.props(upside >= 0 ? styles.toneUp : styles.toneDown).className}
+                        className={
+                          stylex.props(upside >= 0 ? styles.toneUp : styles.toneDown).className
+                        }
                       >
                         {' '}
                         {upside >= 0 ? '+' : ''}
@@ -516,10 +520,7 @@ export function PredictionTab({
             {plan.digestion && plan.digestion.length > 0 && (
               <div className={`epspe-digest ${stylex.props(styles.zoneItem).className}`}>
                 {plan.digestion.map((row) => (
-                  <div
-                    key={row.years}
-                    className={stylex.props(styles.zoneHead).className}
-                  >
+                  <div key={row.years} className={stylex.props(styles.zoneHead).className}>
                     <span className={stylex.props(styles.gridKey).className}>
                       {i18n('chartEpsPeDigestion', { years: String(row.years) })}
                     </span>
@@ -582,7 +583,10 @@ export function PredictionTab({
             <div className={`k ${stylex.props(styles.gridKey).className}`}>
               {i18n('chartEntry')}
             </div>
-            <div className={`v ${stylex.props(styles.gridValue).className}`}>${fmt(ep.entry)}</div>
+            <div className={`v ${stylex.props(styles.gridValue).className}`}>
+              {sign}
+              {fmt(ep.entry)}
+            </div>
             <div className={`k ${stylex.props(styles.gridKey).className}`}>{i18n('chartStop')}</div>
             <div className={`v ${stylex.props(styles.gridValue, styles.toneDown).className}`}>
               ${fmt(ep.stop)}
@@ -691,7 +695,7 @@ export function PredictionTab({
                 </div>
                 <div className={`check-val ${stylex.props(styles.checkValue).className}`}>
                   {tfLabel(sig.timeframe, locale)}
-                  {sig.price != null ? ` · $${fmt(sig.price)}` : ''}
+                  {sig.price != null ? ` · ${sign}${fmt(sig.price)}` : ''}
                 </div>
               </div>
             </div>
@@ -699,11 +703,7 @@ export function PredictionTab({
         </>
       )}
 
-      <AutoSignalsSection
-        key={activeTf}
-        tf={tfDataOf(built, activeTf)}
-        activeTf={activeTf}
-      />
+      <AutoSignalsSection key={activeTf} tf={tfDataOf(built, activeTf)} activeTf={activeTf} />
 
       {!p && (
         <>

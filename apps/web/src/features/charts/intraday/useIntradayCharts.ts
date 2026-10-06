@@ -192,6 +192,8 @@ export function useIntradayCharts(
   markerRange: MarkerRange,
   maSeries: MaSeries[],
   onHandle?: (h: DrawingChartHandle | null) => void,
+  /** Currency sign for price labels ("HK$" on a Hong Kong stock). */
+  sign = '$',
 ): void {
   const { t: tr, locale } = useLocale();
   const ENTRY_STATUS_SUFFIX: Record<string, string> = {
@@ -472,6 +474,7 @@ export function useIntradayCharts(
     const currentPrice = d.candles.at(-1)?.close;
     const fvgZones = toggles.fvg ? (d.fvgZones ?? []) : [];
     const fvgContext = {
+      priceSign: sign,
       currentPrice,
       lastBarTime,
       timeframeLabel: tfShortLabel(activeTf, locale),
@@ -647,7 +650,7 @@ export function useIntradayCharts(
             color: planDead ? deadColor : theme.up,
             lineWidth: 1,
             lineStyle: 2,
-            title: `T1 $${ep.target1.toFixed(2)}`,
+            title: `T1 ${sign}${ep.target1.toFixed(2)}`,
           }),
         );
         h.planLines.push(
@@ -656,7 +659,7 @@ export function useIntradayCharts(
             color: planDead ? deadColor : seriesPalette[1],
             lineWidth: 1,
             lineStyle: 2,
-            title: `T2 $${ep.target2.toFixed(2)}`,
+            title: `T2 ${sign}${ep.target2.toFixed(2)}`,
           }),
         );
       }
@@ -716,7 +719,7 @@ export function useIntradayCharts(
             color: DAY_LEVEL_COLOR,
             lineWidth: 1,
             lineStyle: 1,
-            title: `${title} $${price.toFixed(2)}`,
+            title: `${title} ${sign}${price.toFixed(2)}`,
           }),
         );
       }
@@ -732,7 +735,7 @@ export function useIntradayCharts(
             color: call ? CALL_WALL_COLOR : PUT_WALL_COLOR,
             lineWidth: 1,
             lineStyle: 4,
-            title: `${call ? tr('chartCallWall') : tr('chartPutWall')} $${w.strike} (${fmtOi(call ? w.call_oi : w.put_oi)})`,
+            title: `${call ? tr('chartCallWall') : tr('chartPutWall')} ${sign}${w.strike} (${fmtOi(call ? w.call_oi : w.put_oi)})`,
           }),
         );
       }
@@ -777,5 +780,5 @@ export function useIntradayCharts(
     lastBuiltRef.current = built;
     barCountRef.current = d.candles.length;
     firstTimeRef.current = timeline[0] ?? null;
-  }, [built, activeTf, toggles, markerRange, maSeries, locale, tr]);
+  }, [built, activeTf, toggles, markerRange, maSeries, locale, tr, sign]);
 }

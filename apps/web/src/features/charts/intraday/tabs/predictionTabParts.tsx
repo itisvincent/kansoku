@@ -13,6 +13,7 @@ import { fmt } from '@web/lib/format';
 import { theme } from '@web/lib/theme';
 import { Badge, MarketTime } from '@web/ui';
 import { colors, fontSizes } from '../../../../theme/tokens.stylex';
+import { usePriceSign } from '@web/lib/priceSignContext';
 
 const styles = stylex.create({
   icon: {
@@ -204,6 +205,7 @@ export function PriceZoneCard({
   compact?: boolean;
 }) {
   const { t: tr } = useLocale();
+  const sign = usePriceSign();
   const ZONE_KIND_LABEL: Record<string, string> = {
     entry: tr('zoneEntry'),
     stop: tr('zoneStop'),
@@ -236,7 +238,9 @@ export function PriceZoneCard({
           {zone.label}
         </span>
         <span className={`zone-range ${zoneRangeStyle.className ?? ''}`}>
-          {isBand ? `$${fmt(zone.low)} - $${fmt(zone.high)}` : `$${fmt(zone.low)}`}
+          {isBand
+            ? `${sign}${fmt(zone.low)} - ${sign}${fmt(zone.high)}`
+            : `${sign}${fmt(zone.low)}`}
         </span>
       </div>
       <div className={`zone-meta ${zoneMetaStyle.className ?? ''}`}>
@@ -254,11 +258,15 @@ export function PriceZoneCard({
 
 export function TargetContextCard({ target }: { target: IntradayTargetContext }) {
   const { t: i18n } = useLocale();
+  const sign = usePriceSign();
   return (
     <div {...stylex.props(styles.targetContext)}>
       <div {...stylex.props(styles.targetHead)}>
         <span>{target.label}</span>
-        <span>${fmt(target.price)}</span>
+        <span>
+          {sign}
+          {fmt(target.price)}
+        </span>
       </div>
       {target.zone && <PriceZoneCard zone={target.zone} compact />}
       {target.note && (
