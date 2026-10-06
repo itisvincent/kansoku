@@ -32,7 +32,11 @@ import { latestIntradayDoc } from '../cockpit/entryPlan.js';
 const LIVE_TYPES = new Set(['flow', 'intraday']);
 
 const TF_TO_CANDLE_PERIOD: Record<TimeframeKey, CandlePeriod> = { m5: '5m', m15: '15m', h1: '60m' };
-const DEBOUNCE_MS = 250;
+// Each live rebuild ships the whole chart doc (every timeframe, a few MB) and makes every
+// open chart redraw. At 250ms an open market sent up to four a second, which kept the page
+// busy most of the time and made zooming and window dragging lag; every two seconds is
+// still live, at an eighth of the cost.
+const LIVE_REBUILD_MIN_MS = 2_000;
 const PUSH_FRESH_WINDOW_MS = 3_000;
 
 const chartMarkets = new Map<string, Market>();
@@ -151,11 +155,11 @@ function frozenRangesOf(
 }
 
 // Leading-edge throttle: an idle chart rebuilds immediately on the first push,
-// then at most every DEBOUNCE_MS while pushes keep streaming in.
+// then at most every LIVE_REBUILD_MIN_MS while pushes keep streaming in.
 function scheduleDebouncedRebuild(key: string): void {
   const state = candleStates.get(key);
   if (!state || state.debounceTimer) return;
-  const wait = Math.max(0, DEBOUNCE_MS - (Date.now() - state.lastRebuildAt));
+  const wait = Math.max(0, LIVE_REBUILD_MIN_MS - (Date.now() - state.lastRebuildAt));
   state.debounceTimer = setTimeout(() => {
     state.debounceTimer = null;
     state.lastRebuildAt = Date.now();

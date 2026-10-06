@@ -154,6 +154,28 @@ describe('subscribeChart candlestick-push wiring', () => {
     unsub();
   });
 
+  it('rebuilds a busy chart at most every two seconds', async () => {
+    // Its own chart: live state lingers between subscriptions, rebuild clock included.
+    store.loadChart.mockResolvedValue(makeDoc({ id: `${TODAY}-nvda-intraday-throttle` }));
+    const unsub = await subscribeChart(`${TODAY}-nvda-intraday-throttle`, () => {});
+    const m5cb = callbacksByPeriod.get('5m')!;
+    const tick = (close: number) =>
+      m5cb({ symbol: 'NVDA.US', period: '5m', ts: 1_000, open: 1, high: 3, low: 1, close, volume: 10 });
+    // An idle chart rebuilds on the first tick (after the short enrichment wait).
+    tick(1.5);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(build.rebuild).toHaveBeenCalledTimes(1);
+    // Then a tick every 300ms, as an open market sends them: no rebuild inside two seconds.
+    for (let i = 0; i < 5; i += 1) {
+      tick(1.6 + i / 10);
+      await vi.advanceTimersByTimeAsync(300);
+    }
+    expect(build.rebuild).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(600);
+    expect(build.rebuild).toHaveBeenCalledTimes(2);
+    unsub();
+  });
+
   it('appends a new bar when a push opens a later bucket', async () => {
     store.loadChart.mockResolvedValue(makeDoc({ id: `${TODAY}-nvda-intraday-2` }));
     const unsub = await subscribeChart(`${TODAY}-nvda-intraday-2`, () => {});
