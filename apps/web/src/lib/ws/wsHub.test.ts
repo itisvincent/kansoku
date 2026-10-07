@@ -214,3 +214,111 @@ describe('wsHub socket ownership (websocket transport)', () => {
     expect(DelayedCloseWebSocket.instances).toHaveLength(1);
   });
 });
+
+describe('wsHub shared quote subscriptions', () => {
+  beforeEach(() => {
+    vi.resetModules();
+    DelayedCloseWebSocket.instances = [];
+    vi.stubGlobal('window', {
+      setTimeout: (callback: () => void, delay: number) =>
+        setTimeout(callback, delay) as unknown as number,
+      clearTimeout: (timer: number) => clearTimeout(timer),
+    });
+    vi.stubGlobal('location', { protocol: 'http:', host: 'localhost' });
+    vi.stubGlobal('WebSocket', DelayedCloseWebSocket);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  const subs = (socket: DelayedCloseWebSocket) =>
+    socket.sent.map((s) => JSON.parse(s) as { op: string; key: string; kind?: string });
+
+  it('sends one subscription for the same quote feed and hands every reader each update', async () => {
+    const { subscribeChannel } = await import('./wsHub.js');
+    const spec = { kind: 'quotes' as const, extra: ['AVGO.US'] };
+    const first = vi.fn();
+    const second = vi.fn();
+    const offFirst = subscribeChannel(spec, first, vi.fn());
+    const offSecond = subscribeChannel({ kind: 'quotes', extra: ['AVGO.US'] }, second, vi.fn());
+    const socket = DelayedCloseWebSocket.instances[0];
+    socket.open();
+
+    const sent = subs(socket).filter((m) => m.op === 'sub');
+    expect(sent).toHaveLength(1);
+    const payload = { type: 'data', data: { quotes: [] } };
+    socket.onmessage?.({ data: JSON.stringify({ key: sent[0].key, payload }) });
+    expect(first).toHaveBeenCalledWith(payload);
+    expect(second).toHaveBeenCalledWith(payload);
+
+    offFirst();
+    expect(subs(socket).some((m) => m.op === 'unsub')).toBe(false);
+    offSecond();
+    expect(subs(socket).filter((m) => m.op === 'unsub')).toHaveLength(1);
+  });
+
+  it('gives a late reader the latest prices and the connection state straight away', async () => {
+    const { subscribeChannel } = await import('./wsHub.js');
+    const spec = { kind: 'quotes' as const, extra: ['AVGO.US'] };
+    const offFirst = subscribeChannel(spec, vi.fn(), vi.fn());
+    const socket = DelayedCloseWebSocket.instances[0];
+    socket.open();
+    const key = subs(socket)[0].key;
+    const status = { type: 'status', degraded: false };
+    const payload = { type: 'data', data: { quotes: [{ symbol: 'AVGO.US' }] } };
+    socket.onmessage?.({ data: JSON.stringify({ key, payload }) });
+    socket.onmessage?.({ data: JSON.stringify({ key, payload: status }) });
+
+    const late = vi.fn();
+    const lateConnected = vi.fn();
+    const offLate = subscribeChannel(spec, late, lateConnected);
+    expect(late.mock.calls).toEqual([[payload], [status]]);
+    expect(lateConnected).toHaveBeenCalledWith(true);
+    expect(subs(socket).filter((m) => m.op === 'sub')).toHaveLength(1);
+    offLate();
+    offFirst();
+  });
+
+  it('tells the first reader it is connected when the socket is already open', async () => {
+    const { subscribeChannel } = await import('./wsHub.js');
+    const offBoard = subscribeChannel({ kind: 'board' }, vi.fn(), vi.fn());
+    DelayedCloseWebSocket.instances[0].open();
+    const connected = vi.fn();
+    const off = subscribeChannel({ kind: 'quotes', extra: ['AVGO.US'] }, vi.fn(), connected);
+    expect(connected).toHaveBeenCalledWith(true);
+    off();
+    offBoard();
+  });
+
+  it('does not hand a late reader prices from before a dropped connection', async () => {
+    const { subscribeChannel } = await import('./wsHub.js');
+    const spec = { kind: 'quotes' as const, extra: ['AVGO.US'] };
+    const offFirst = subscribeChannel(spec, vi.fn(), vi.fn());
+    const socket = DelayedCloseWebSocket.instances[0];
+    socket.open();
+    const key = subs(socket)[0].key;
+    socket.onmessage?.({ data: JSON.stringify({ key, payload: { type: 'data', data: {} } }) });
+    socket.finishClose();
+
+    const late = vi.fn();
+    const offLate = subscribeChannel(spec, late, vi.fn());
+    expect(late).not.toHaveBeenCalled();
+    offLate();
+    offFirst();
+  });
+
+  it('keeps other feeds separate', async () => {
+    const { subscribeChannel } = await import('./wsHub.js');
+    const offs = [
+      subscribeChannel({ kind: 'quotes', extra: ['AVGO.US'] }, vi.fn(), vi.fn()),
+      subscribeChannel({ kind: 'quotes', extra: ['NVDA.US'] }, vi.fn(), vi.fn()),
+      subscribeChannel({ kind: 'chat', id: 'a' }, vi.fn(), vi.fn()),
+      subscribeChannel({ kind: 'chat', id: 'a' }, vi.fn(), vi.fn()),
+    ];
+    const socket = DelayedCloseWebSocket.instances[0];
+    socket.open();
+    expect(subs(socket).filter((m) => m.op === 'sub')).toHaveLength(4);
+    offs.forEach((off) => off());
+  });
+});

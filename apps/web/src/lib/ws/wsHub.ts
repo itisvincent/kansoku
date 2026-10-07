@@ -130,7 +130,97 @@ function scheduleReconnect(): void {
   }, RECONNECT_MS);
 }
 
+/**
+ * Feeds whose every update is the whole current state, so readers can share one server
+ * subscription and a late reader can start from the latest update. A stock page reads its
+ * own quote in five places (each grid chart, the sidebar, the top bar), and each one used to
+ * receive and decode its own copy of the full quote list on every tick.
+ */
+const SHARED_KINDS = new Set<ChannelSpec['kind']>(['quotes']);
+
+type FeedReader = Pick<ChannelSub, 'onPayload' | 'onConnected'>;
+
+interface SharedFeed {
+  readers: Set<FeedReader>;
+  /** The newest data update and status report, for a reader that joins later. */
+  latest: unknown;
+  status: unknown;
+  connected: boolean;
+  off: () => void;
+}
+
+const sharedFeeds = new Map<string, SharedFeed>();
+
+const sharedKey = (spec: ChannelSpec): string =>
+  JSON.stringify(spec, (_key, value: unknown) =>
+    value && typeof value === 'object' && !Array.isArray(value)
+      ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a.localeCompare(b)))
+      : value,
+  );
+
+const payloadType = (payload: unknown): unknown => (payload as { type?: unknown } | null)?.type;
+
+function openSharedFeed(spec: ChannelSpec, first: FeedReader): SharedFeed {
+  // The first reader is in place before the server subscription starts: on an open socket
+  // it reports "connected" straight away.
+  const feed: SharedFeed = {
+    readers: new Set([first]),
+    latest: undefined,
+    status: undefined,
+    connected: false,
+    off: () => {},
+  };
+  feed.off = subscribeServer(
+    spec,
+    (payload) => {
+      if (payloadType(payload) === 'data') feed.latest = payload;
+      else if (payloadType(payload) === 'status') feed.status = payload;
+      for (const reader of feed.readers) reader.onPayload(payload);
+    },
+    (connected) => {
+      feed.connected = connected;
+      // After a drop, the last prices are no longer live: a reader joining now waits for
+      // fresh ones instead of being handed old ones as current.
+      if (!connected) {
+        feed.latest = undefined;
+        feed.status = undefined;
+      }
+      for (const reader of feed.readers) reader.onConnected(connected);
+    },
+  );
+  return feed;
+}
+
 export function subscribeChannel(
+  spec: ChannelSpec,
+  onPayload: (payload: unknown) => void,
+  onConnected: (connected: boolean) => void,
+): () => void {
+  if (!SHARED_KINDS.has(spec.kind)) return subscribeServer(spec, onPayload, onConnected);
+  const key = sharedKey(spec);
+  const reader = { onPayload, onConnected };
+  let feed = sharedFeeds.get(key);
+  if (feed) {
+    if (feed.connected) {
+      if (feed.latest !== undefined) onPayload(feed.latest);
+      if (feed.status !== undefined) onPayload(feed.status);
+      onConnected(true);
+    }
+    feed.readers.add(reader);
+  } else {
+    feed = openSharedFeed(spec, reader);
+    sharedFeeds.set(key, feed);
+  }
+  const shared = feed;
+  return () => {
+    shared.readers.delete(reader);
+    if (shared.readers.size > 0) return;
+    if (sharedFeeds.get(key) === shared) sharedFeeds.delete(key);
+    shared.off();
+  };
+}
+
+function subscribeServer(
   spec: ChannelSpec,
   onPayload: (payload: unknown) => void,
   onConnected: (connected: boolean) => void,
