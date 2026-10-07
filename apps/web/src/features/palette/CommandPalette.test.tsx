@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   getLicenseModalStateForTests,
@@ -84,5 +84,21 @@ describe('CommandPalette trainer entry', () => {
 
     expect(openTrainer).toHaveBeenCalledTimes(1);
     expect(getLicenseModalStateForTests().open).toBe(false);
+  });
+});
+
+describe('CommandPalette type-to-search', () => {
+  afterEach(() => cleanup());
+
+  it('opens with the typed letters and offers that ticker first', async () => {
+    const { openPalette: openWith } = await import('./usePalette');
+    const onOpenRoute = vi.fn();
+    render(<CommandPalette onOpenRoute={onOpenRoute} />);
+    act(() => openWith('AVGO'));
+
+    const input = screen.getByRole('combobox') as HTMLInputElement;
+    expect(input.value).toBe('AVGO');
+    fireEvent.keyDown(input, { key: 'Enter' });
+    expect(onOpenRoute).toHaveBeenCalledWith('/symbol/AVGO.US');
   });
 });

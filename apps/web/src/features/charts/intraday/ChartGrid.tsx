@@ -15,6 +15,7 @@ import {
 } from './chartGridState';
 import { GridSplitter } from './GridSplitter';
 import { linkGridCrosshairs, type GridPane } from './gridCrosshair';
+import { linkGridScroll } from './gridScroll';
 import { isViewPeriod, tfDataOf, tfLabel, withViewTimeframe, type ChartTf } from './timeframes';
 import { resolveIntradayTf } from './useIntradayDoc';
 import { useViewTimeframe } from './useViewTimeframe';
@@ -191,6 +192,12 @@ export function ChartGrid({
     return linkGridCrosshairs(panes);
   }, [paneVersion]);
 
+  useEffect(() => {
+    const panes = [...panesRef.current.values()];
+    if (panes.length < 2 || !grid.linkScroll) return;
+    return linkGridScroll(panes);
+  }, [paneVersion, grid.linkScroll]);
+
   const layout = grid.layout === '1' ? '4' : grid.layout;
   const splits: GridSplits = draft ? { ...grid.splits, [draft.axis]: draft.value } : grid.splits;
   const template =
@@ -328,7 +335,12 @@ function ChartGridCell({
       onPane(
         id,
         handle
-          ? { chart: handle.chart, series: handle.series, read: () => readRef.current }
+          ? {
+              chart: handle.chart,
+              series: handle.series,
+              read: () => readRef.current,
+              linked: handle.linked,
+            }
           : null,
       );
     },

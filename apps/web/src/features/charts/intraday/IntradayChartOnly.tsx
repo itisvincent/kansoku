@@ -8,6 +8,7 @@ import type { DrawingsHandle } from '../drawings/useDrawings';
 import { namespacedKey, useIntradayControls } from './controlsContext';
 import { isSessionlessTf, tfDataOf, type ChartTf } from './timeframes';
 import { useLiveBuilt } from './useLiveBuilt';
+import { useStableChartDoc } from './chartRedraw';
 import { bollinger, rsi } from '@kansoku/core/analysis/indicators';
 import { useMaSeries } from './useMaLines';
 import { useIntradayCharts, type DrawingChartHandle } from './useIntradayCharts';
@@ -141,7 +142,10 @@ export function IntradayChartOnly({
   className,
 }: IntradayChartOnlyProps) {
   const { t: i18n } = useLocale();
-  const built = useLiveBuilt(frozenBuilt, activeTf, symbol, live);
+  // A live push that changed nothing this chart shows (a weekly chart, when the 5-minute
+  // candles moved) leaves it alone instead of redrawing it.
+  const stableBuilt = useStableChartDoc(frozenBuilt, activeTf);
+  const built = useLiveBuilt(stableBuilt, activeTf, symbol, live);
   const sign = priceSign(symbol);
   const mainBlockRef = useRef<HTMLDivElement>(null);
   const mainRef = useRef<HTMLDivElement>(null);

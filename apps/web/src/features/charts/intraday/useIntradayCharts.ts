@@ -18,7 +18,6 @@ import type {
   IntradayBuilt,
   IntradayPriceZone,
   PriceRectangle,
-  SecondBreakout,
   SeriesMarker,
 } from '@kansoku/shared/types';
 import {
@@ -36,11 +35,21 @@ import {
   toLineData,
   toMarkers,
   toVolumeData,
+  type CrosshairPane,
   type MarkerTooltipHandle,
 } from '../lw';
 import type { IndicatorToggleKey, MarkerRange } from './useIndicatorToggles';
 import { tfDataOf, tfShortLabel, type ChartTf } from './timeframes';
 import { MAX_MA_LINES, type MaSeries } from './useMaLines';
+import {
+  BOLL_K,
+  BOLL_PERIOD,
+  moveLastBar,
+  onlyLastBarMoved,
+  RSI_PERIOD,
+  type DrawnInputs,
+} from './chartRedraw';
+import { firstTouchTime, secondBreakoutMarkers } from './chartMarkers';
 import { AnchorBgPrimitive } from './anchorPrimitive';
 import { FvgPrimitive, fvgTooltip, type FvgTooltipHandle } from './fvgPrimitive';
 import { PositionBoxPrimitive } from './positionBoxPrimitive';
@@ -94,10 +103,7 @@ interface Handle {
 const NEAR_LEFT_BARS = 10;
 const VWAP_COLOR = '#c084fc';
 const BOLL_COLOR = '#38bdf8';
-const BOLL_PERIOD = 20;
-const BOLL_K = 2;
 const RSI_COLOR = '#a78bfa';
-const RSI_PERIOD = 14;
 const RSI_OVERBOUGHT = 70;
 const RSI_OVERSOLD = 30;
 const RSI_MIDLINE = 50;
@@ -114,71 +120,12 @@ function zoneTitle(z: IntradayPriceZone, edge: 'upper' | 'lower' | undefined, tr
 
 const RECENT_SB_COUNT = 2;
 
-function firstTouchTime(
-  candles: { time: number; high: number; low: number }[],
-  entry: number,
-  anchorTs: number | null,
-): number | null {
-  for (const c of candles) {
-    if (anchorTs != null && c.time < anchorTs) continue;
-    if (c.low <= entry && entry <= c.high) return c.time;
-  }
-  return null;
-}
-
-function secondBreakoutMarkers(sbs: SecondBreakout[], tr: Translator): SeriesMarker[] {
-  const markers: SeriesMarker[] = [];
-  sbs.forEach((sb, i) => {
-    const bullish = sb.kind === 'H2';
-    const firstText = bullish ? 'H1' : 'L1';
-    const attemptVerb = bullish ? tr('chartBreakAbove') : tr('chartBreakBelow');
-    markers.push({
-      id: `sb-${i}-first`,
-      time: sb.first.time,
-      position: bullish ? 'aboveBar' : 'belowBar',
-      color: theme.textSecondary,
-      shape: 'circle',
-      text: firstText,
-      tooltip: tr('sbFirstAttempt', { value1: firstText, value2: attemptVerb }),
-      group: 'sb',
-    });
-    if (sb.status === 'forming') {
-      markers.push({
-        id: `sb-${i}-signal`,
-        time: sb.signal.time,
-        position: bullish ? 'aboveBar' : 'belowBar',
-        color: theme.textSecondary,
-        shape: 'circle',
-        text: '',
-        tooltip: tr('sbForming', { value1: attemptVerb, value2: sb.signal.price.toFixed(2) }),
-        group: 'sb',
-      });
-    } else if (sb.trigger) {
-      const extremeText = bullish ? tr('chartHigh') : tr('chartLow');
-      markers.push({
-        id: `sb-${i}-trigger`,
-        time: sb.trigger.time,
-        position: bullish ? 'belowBar' : 'aboveBar',
-        color: theme.accent,
-        shape: bullish ? 'arrowUp' : 'arrowDown',
-        text: sb.kind,
-        tooltip: tr('sbConfirmed', {
-          value1: sb.kind,
-          value2: extremeText,
-          value3: sb.trigger.price.toFixed(2),
-          value4: attemptVerb,
-        }),
-        group: 'sb',
-      });
-    }
-  });
-  return markers;
-}
-
 export interface DrawingChartHandle {
   chart: IChartApi;
   series: ISeriesApi<'Candlestick'>;
   container: HTMLElement;
+  /** The MACD and RSI panes under the chart, for crosshairs linked across charts. */
+  linked?: CrosshairPane[];
 }
 
 export function useIntradayCharts(
@@ -213,6 +160,8 @@ export function useIntradayCharts(
   onNearRef.current = onNearLeftEdge;
   const onHandleRef = useRef(onHandle);
   onHandleRef.current = onHandle;
+  // What the chart last drew in full, to tell a live price tick from anything else.
+  const drawnRef = useRef<DrawnInputs | null>(null);
 
   useEffect(() => {
     const mainEl = mainRef.current;
@@ -382,7 +331,16 @@ export function useIntradayCharts(
     };
     lastTfRef.current = null;
     firstTimeRef.current = null;
-    onHandleRef.current?.({ chart: main, series: candle, container: mainEl });
+    drawnRef.current = null;
+    onHandleRef.current?.({
+      chart: main,
+      series: candle,
+      container: mainEl,
+      linked: [
+        { chart: macd, series: dif },
+        { chart: rsiChart, series: rsiLine },
+      ],
+    });
 
     return () => {
       onHandleRef.current?.(null);
@@ -433,6 +391,30 @@ export function useIntradayCharts(
         }
       });
       h.dynamic = [];
+      drawnRef.current = null;
+      return;
+    }
+
+    const inputs: DrawnInputs = {
+      d,
+      activeTf,
+      toggles,
+      markerRange,
+      maSeries,
+      locale,
+      tr,
+      sign,
+      sidebar: built.sidebar,
+      entryPlan: built.entryPlan,
+      previewLevels: built.previewLevels,
+      drawnAt: Date.now(),
+    };
+    const drawn = drawnRef.current;
+    if (drawn && onlyLastBarMoved(drawn, inputs)) {
+      // A live price moved the newest candle: move it, and leave the rest of the chart.
+      moveLastBar(h, d, maSeries, toggles);
+      drawnRef.current = { ...inputs, drawnAt: drawn.drawnAt };
+      lastBuiltRef.current = built;
       return;
     }
 
@@ -778,6 +760,7 @@ export function useIntradayCharts(
       }
     }
     lastBuiltRef.current = built;
+    drawnRef.current = inputs;
     barCountRef.current = d.candles.length;
     firstTimeRef.current = timeline[0] ?? null;
   }, [built, activeTf, toggles, markerRange, maSeries, locale, tr, sign]);

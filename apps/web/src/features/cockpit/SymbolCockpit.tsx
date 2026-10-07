@@ -5,6 +5,7 @@ import * as stylex from '@stylexjs/stylex';
 import { IntradayDashboard, IntradayTimeframeSwitch } from '../charts/intraday/IntradayDashboard';
 import { ChartLayerMenu } from '../charts/intraday/ChartLayerMenu';
 import { ChartLayoutMenu } from '../charts/intraday/ChartLayoutMenu';
+import { ChartShortcuts } from '../charts/intraday/chartShortcuts';
 import { useChartGrid } from '../charts/intraday/chartGridState';
 import { TimeframeSettingsMenu } from '../charts/intraday/TimeframeSettingsMenu';
 import { MaLinesMenu } from '../charts/intraday/MaLinesMenu';
@@ -410,7 +411,13 @@ export function SymbolCockpit({ sym }: { sym: string }) {
               </a>
               <span className={`meta ${stylex.props(styles.topbarMeta).className}`}>{sym}</span>
               {degraded && <Dot tone="accent" pulse title={i18n('cockpitStale')} />}
-              <ChartLayoutMenu layout={grid.layout} onChange={grid.setLayout} />
+              <ChartLayoutMenu
+                layout={grid.layout}
+                onChange={grid.setLayout}
+                linkScroll={grid.linkScroll}
+                onLinkScrollChange={grid.setLinkScroll}
+              />
+              <ChartShortcuts grid={grid} />
               {grid.layout === '1' ? (
                 <IntradayTimeframeSwitch activeTf={activeIntradayTf} onChange={grid.setTf} />
               ) : (

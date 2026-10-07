@@ -1,6 +1,7 @@
 import type { IntradayTfData } from '@kansoku/shared/types';
 import { client } from '@web/lib/client';
 import type { ChartViewTimeframeResult } from '@kansoku/core/contract/charts';
+import { sameTfData } from './chartRedraw';
 import type { ViewPeriod } from './timeframes';
 
 const REFETCH_MS = 15_000;
@@ -50,8 +51,23 @@ function startFeed(params: FeedParams, feed: Feed): () => void {
       .viewTimeframe({ symbol, period, ...(asOf ? { as_of: asOf } : {}) })
       .then((result) => {
         if (stopped) return;
+        const previous = feed.state;
+        // A refresh that brings back the same candles keeps the same object, so the charts
+        // showing it have nothing to redraw (outside market hours, every refresh).
+        const tf = sameTfData(previous.tf, result.tf as IntradayTfData)
+          ? previous.tf
+          : (result.tf as IntradayTfData);
+        if (
+          tf === previous.tf &&
+          !previous.loading &&
+          previous.error === null &&
+          !previous.fallbackError &&
+          JSON.stringify(previous.historyStatus) === JSON.stringify(result.historyStatus)
+        ) {
+          return;
+        }
         set({
-          tf: result.tf as IntradayTfData,
+          tf,
           error: null,
           loading: false,
           historyStatus: result.historyStatus,

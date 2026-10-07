@@ -107,24 +107,26 @@ const styles = stylex.create({
 });
 
 export function CommandPalette({ onOpenRoute }: { onOpenRoute: (route: string) => void }) {
-  const { open, close } = usePalette();
+  const { open, close, query } = usePalette();
   if (!open) return null;
-  return <PalettePanel onClose={close} onOpenRoute={onOpenRoute} />;
+  return <PalettePanel onClose={close} onOpenRoute={onOpenRoute} initialQuery={query} />;
 }
 
 function PalettePanel({
   onClose,
   onOpenRoute,
+  initialQuery,
 }: {
   onClose: () => void;
   onOpenRoute: (route: string) => void;
+  initialQuery: string;
 }) {
   const { t: tr } = useLocale();
   const { data: board } = useQuery<OverviewBoard>('overview.board', () => client.overview.board());
   const { data: portfolio } = useQuery<PortfolioSummary>('positions.list', () =>
     client.positions.list(),
   );
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery);
   const [index, setIndex] = useState(0);
   const trainerBridge = getOpenTrainerBridge();
   const { pro, licensed } = useCapabilities();

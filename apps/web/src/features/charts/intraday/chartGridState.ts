@@ -33,6 +33,8 @@ export interface StoredGrid {
   layout: GridLayout;
   tfs: Record<MultiLayout, ChartTf[]>;
   splits: Record<MultiLayout, GridSplits>;
+  /** Scrolling one chart moves the others to the same date. */
+  linkScroll: boolean;
 }
 
 const SPLIT_MIN = 0.1;
@@ -93,6 +95,7 @@ export function sanitizeGrid(raw: unknown): StoredGrid {
     layout?: unknown;
     tfs?: Partial<Record<MultiLayout, unknown>>;
     splits?: Partial<Record<MultiLayout, unknown>>;
+    linkScroll?: unknown;
   };
   const layout = GRID_LAYOUTS.includes(value.layout as GridLayout)
     ? (value.layout as GridLayout)
@@ -111,6 +114,7 @@ export function sanitizeGrid(raw: unknown): StoredGrid {
       '2v': sanitizeSplits(splits['2v']),
       '4': sanitizeSplits(splits['4']),
     },
+    linkScroll: value.linkScroll !== false,
   };
 }
 
@@ -167,6 +171,9 @@ export interface ChartGridState {
   splits: GridSplits;
   /** Move a divider; kept between a tenth and nine tenths of the space. */
   setSplit: (axis: SplitAxis, value: number) => void;
+  /** Scrolling one chart moves the others to the same date. */
+  linkScroll: boolean;
+  setLinkScroll: (on: boolean) => void;
   maximized: number | null;
   toggleMaximize: (index: number) => void;
   /** The timeframe the page follows: the selected chart's in a grid, the page's own otherwise. */
@@ -240,6 +247,10 @@ export function useChartGrid(
     });
   }, []);
 
+  const setLinkScroll = useCallback((on: boolean) => {
+    updateGrid((prev) => (prev.linkScroll === on ? prev : { ...prev, linkScroll: on }));
+  }, []);
+
   const toggleMaximize = useCallback((index: number) => {
     setActiveCell(index);
     setMaximized((now) => (now === index ? null : index));
@@ -263,6 +274,8 @@ export function useChartGrid(
     swapCells,
     splits: layout === '1' ? DEFAULT_SPLITS['4'] : stored.splits[layout],
     setSplit,
+    linkScroll: stored.linkScroll,
+    setLinkScroll,
     maximized: layout === '1' ? null : maximized,
     toggleMaximize,
     tf: layout === '1' ? pageTf : (tfs[cell] ?? pageTf),

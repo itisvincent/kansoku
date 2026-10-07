@@ -6,7 +6,7 @@ import { linkGridCrosshairs, type GridPane } from './gridCrosshair';
 const HOUR = 3600;
 const DAY = 86_400;
 
-function fakePane(times: number[], tf: ChartTf, shown = true) {
+function fakeChart(shown = true) {
   let listener: ((param: MouseEventParams) => void) | null = null;
   const chart = {
     subscribeCrosshairMove: vi.fn((fn: (param: MouseEventParams) => void) => {
@@ -19,6 +19,24 @@ function fakePane(times: number[], tf: ChartTf, shown = true) {
     clearCrosshairPosition: vi.fn(),
     chartElement: () => ({ offsetWidth: shown ? 400 : 0, offsetHeight: shown ? 200 : 0 }),
   };
+  const move = (param: Partial<MouseEventParams>) => listener?.(param as MouseEventParams);
+  return { chart, move, subscribed: () => listener !== null };
+}
+
+/** An indicator pane under a chart: the same candle times, one value per candle. */
+function fakeIndicator(times: number[], shown = true) {
+  const { chart, move, subscribed } = fakeChart(shown);
+  const series = { dataByIndex: vi.fn((i: number) => ({ time: times[i], value: 50 + i })) };
+  return { chart, series, move, subscribed };
+}
+
+function fakePane(
+  times: number[],
+  tf: ChartTf,
+  shown = true,
+  linked: ReturnType<typeof fakeIndicator>[] = [],
+) {
+  const { chart, move, subscribed } = fakeChart(shown);
   const series = {
     dataByIndex: vi.fn((i: number) => ({ time: times[i], close: 100 + i })),
   };
@@ -26,9 +44,9 @@ function fakePane(times: number[], tf: ChartTf, shown = true) {
     chart,
     series,
     read: () => ({ times, tf }),
+    linked: linked.map((pane) => ({ chart: pane.chart, series: pane.series })),
   } as unknown as GridPane;
-  const move = (param: Partial<MouseEventParams>) => listener?.(param as MouseEventParams);
-  return { pane, chart, move, subscribed: () => listener !== null };
+  return { pane, chart, move, subscribed };
 }
 
 const userEvent = { sourceEvent: {} } as Partial<MouseEventParams>;
@@ -105,5 +123,45 @@ describe('linkGridCrosshairs', () => {
     stop();
     expect(daily.subscribed()).toBe(false);
     expect(hourly.subscribed()).toBe(false);
+  });
+
+  it('marks the indicator panes under the other charts too', () => {
+    const macd = fakeIndicator(days);
+    const hiddenRsi = fakeIndicator(days, false);
+    const daily = fakePane(days, 'day', true, [macd, hiddenRsi]);
+    const hourly = fakePane(hours, 'h1');
+    linkGridCrosshairs([daily.pane, hourly.pane]);
+
+    hourly.move({ ...userEvent, time: hours[1] as never });
+    expect(macd.chart.setCrosshairPosition).toHaveBeenCalledWith(51, DAY, macd.series);
+    expect(hiddenRsi.chart.setCrosshairPosition).not.toHaveBeenCalled();
+
+    hourly.move({});
+    expect(macd.chart.clearCrosshairPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it("follows a cursor on a chart's indicator pane", () => {
+    const rsi = fakeIndicator(hours);
+    const daily = fakePane(days, 'day');
+    const hourly = fakePane(hours, 'h1', true, [rsi]);
+    linkGridCrosshairs([daily.pane, hourly.pane]);
+
+    rsi.move({ ...userEvent, time: hours[1] as never });
+    expect(daily.chart.setCrosshairPosition).toHaveBeenCalledWith(101, DAY, daily.pane.series);
+    // The chart above it follows through the chart's own link, not this one.
+    expect(hourly.chart.setCrosshairPosition).not.toHaveBeenCalled();
+
+    rsi.move({});
+    expect(daily.chart.clearCrosshairPosition).toHaveBeenCalledTimes(1);
+  });
+
+  it('unsubscribes the indicator panes', () => {
+    const rsi = fakeIndicator(hours);
+    const stop = linkGridCrosshairs([
+      fakePane(days, 'day').pane,
+      fakePane(hours, 'h1', true, [rsi]).pane,
+    ]);
+    stop();
+    expect(rsi.subscribed()).toBe(false);
   });
 });

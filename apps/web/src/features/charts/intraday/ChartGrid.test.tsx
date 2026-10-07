@@ -56,6 +56,8 @@ function gridState(layout: GridLayout, tfs: ChartTf[], overrides: Partial<ChartG
     swapCells: vi.fn(),
     splits: { col: 0.5, row: 0.5 },
     setSplit: vi.fn(),
+    linkScroll: false,
+    setLinkScroll: vi.fn(),
     maximized: null,
     toggleMaximize: vi.fn(),
     tf: tfs[0],

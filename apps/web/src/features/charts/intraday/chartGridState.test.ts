@@ -28,8 +28,9 @@ const DAY = 86_400;
 
 describe('sanitizeGrid', () => {
   it('starts as one chart with the default timeframes', () => {
-    expect(sanitizeGrid(null)).toEqual({ layout: '1', tfs: DEFAULT_GRID_TFS, splits: DEFAULT_SPLITS });
-    expect(sanitizeGrid('junk')).toEqual({ layout: '1', tfs: DEFAULT_GRID_TFS, splits: DEFAULT_SPLITS });
+    const fresh = { layout: '1', tfs: DEFAULT_GRID_TFS, splits: DEFAULT_SPLITS, linkScroll: true };
+    expect(sanitizeGrid(null)).toEqual(fresh);
+    expect(sanitizeGrid('junk')).toEqual(fresh);
   });
 
   it('keeps valid entries and replaces bad ones slot by slot', () => {
@@ -48,6 +49,11 @@ describe('sanitizeGrid', () => {
 
   it('drops an unknown layout', () => {
     expect(sanitizeGrid({ layout: '9' }).layout).toBe('1');
+  });
+
+  it('links scrolling unless it was switched off', () => {
+    expect(sanitizeGrid({ linkScroll: false }).linkScroll).toBe(false);
+    expect(sanitizeGrid({ linkScroll: 'no' }).linkScroll).toBe(true);
   });
 });
 
@@ -189,6 +195,14 @@ describe('useChartGrid', () => {
     });
     return { ...hook, setPageTf };
   }
+
+  it('remembers whether scrolling is linked', () => {
+    const { result } = setup();
+    expect(result.current.linkScroll).toBe(true);
+    act(() => result.current.setLinkScroll(false));
+    expect(result.current.linkScroll).toBe(false);
+    expect(JSON.parse(localStorage.getItem(GRID_STORAGE_KEY) ?? '{}').linkScroll).toBe(false);
+  });
 
   it('follows the page timeframe as one chart', () => {
     const { result, setPageTf } = setup('4h');

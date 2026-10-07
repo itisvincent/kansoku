@@ -9,6 +9,7 @@ import {
 } from '@web/features/charts/intraday/IntradayDashboard';
 import { ChartLayerMenu } from '@web/features/charts/intraday/ChartLayerMenu';
 import { ChartLayoutMenu } from '@web/features/charts/intraday/ChartLayoutMenu';
+import { ChartShortcuts } from '@web/features/charts/intraday/chartShortcuts';
 import { useChartGrid } from '@web/features/charts/intraday/chartGridState';
 import { TimeframeSettingsMenu } from '@web/features/charts/intraday/TimeframeSettingsMenu';
 import { MaLinesMenu } from '@web/features/charts/intraday/MaLinesMenu';
@@ -261,7 +262,13 @@ export function PreviewCockpit({
               </a>
               <span className={`meta ${stylex.props(styles.topbarMeta).className}`}>{sym}</span>
               {degraded && <Dot tone="accent" pulse title={i18n('cockpitStale')} />}
-              <ChartLayoutMenu layout={grid.layout} onChange={grid.setLayout} />
+              <ChartLayoutMenu
+                layout={grid.layout}
+                onChange={grid.setLayout}
+                linkScroll={grid.linkScroll}
+                onLinkScrollChange={grid.setLinkScroll}
+              />
+              <ChartShortcuts grid={grid} />
               {grid.layout === '1' ? (
                 <IntradayTimeframeSwitch activeTf={activeIntradayTf} onChange={grid.setTf} />
               ) : (
