@@ -3,8 +3,15 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
+    <meta name="color-scheme" content="dark light" />
     <title>Canvas</title>
+    <script>
+      // The host page passes its theme in the address (this sandboxed frame can't read the
+      // app's storage); the canvas kit reads it from <html> when it loads.
+      if (new URLSearchParams(location.search).get('theme') === 'light') {
+        document.documentElement.dataset.theme = 'light';
+      }
+    </script>
     <style>
       html,
       body,
@@ -13,6 +20,13 @@
         background: #0a0a0a;
         color: #e8e8e8;
         color-scheme: dark;
+      }
+      html[data-theme='light'],
+      html[data-theme='light'] body,
+      html[data-theme='light'] #root {
+        background: #f4f4f5;
+        color: #18181b;
+        color-scheme: light;
       }
       /* 宿主把 iframe 高度设成内容高度，滚动由宿主的 ScrollArea 接管；
          这里留着滚动条会出现两条，且内层那条压在内容上。 */

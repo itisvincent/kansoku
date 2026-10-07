@@ -12,6 +12,7 @@ import { ErrorBox, ScrollArea } from '@web/ui';
 import { subscribeChannel } from '@web/lib/ws/wsHub';
 import { colors, fonts, fontSizes } from '../../theme/tokens.stylex';
 import { decodePreviewEnvelope } from '../charts/intraday/useIntradayPreview';
+import { readThemeMode } from '@web/lib/themeMode';
 
 const styles = stylex.create({
   root: {
@@ -57,6 +58,9 @@ type GuestMessage =
   | { type: 'sub' | 'unsub'; kind: FeedKind; symbol: string };
 
 const INITIAL_HEIGHT = 320;
+
+// The frame is sandboxed away from the app's storage, so it learns the theme from its address.
+const GUEST_URL = `/canvas-guest.html${readThemeMode() === 'light' ? '?theme=light' : ''}`;
 
 const MAX_SUBS = 6;
 
@@ -295,7 +299,7 @@ export function CanvasFrame({ source, slug, data, onLiveStatus }: CanvasFramePro
             title="canvas"
             tabIndex={-1}
             scrolling="no"
-            src="/canvas-guest.html"
+            src={GUEST_URL}
             sandbox="allow-scripts"
           />
         ) : null}

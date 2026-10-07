@@ -25,7 +25,7 @@ import { seriesPalette, theme } from './theme.js';
 const asTime = (time: number): UTCTimestamp => time as UTCTimestamp;
 
 const offSessionColor = (kind: OffSessionSegment['kind']): string =>
-  kind === 'overnight' ? 'rgba(70, 100, 180, 0.22)' : 'rgba(232, 232, 232, 0.08)';
+  kind === 'overnight' ? theme.overnightShade : theme.sessionShade;
 
 class OffSessionRenderer implements IPrimitivePaneRenderer {
   constructor(private readonly bands: { x: number; width: number; color: string }[]) {}

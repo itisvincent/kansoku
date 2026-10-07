@@ -194,6 +194,8 @@ lines · no `Section` for fewer than 2 elements.
 - **Unlabeled numbers** — no unit, no time basis.
 - **Emojis** as icons, status markers, or bullets.
 - **Rainbow coloring** — most elements are neutral; color is scarce and means something.
+- **Hard-coded colors** — `#e8e8e8`, `white`, `rgba(…)` in a `style`. A canvas shows on a dark
+  or a light page; take colors from `theme` or `tone` so it reads on both.
 - **Wall of identical cards** — mix open sections with cards.
 - **Giant text** — nothing above `H1`, never `H1` stacked on `H1`.
 

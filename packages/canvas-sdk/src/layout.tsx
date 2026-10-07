@@ -12,7 +12,7 @@ const RESPONSIVE_CSS = `
 .kc-grid { display: grid; gap: ${space.grid}px; grid-template-columns: repeat(var(--kc-cols), minmax(0, 1fr)); }
 @media (max-width: 620px) { .kc-grid { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); } }
 .kc-select-trigger:hover, .kc-select-trigger[data-popup-open] { background: ${theme.bgHover}; color: ${theme.textPrimary}; }
-.kc-select-trigger:focus-visible { border-color: #7a7a7a; box-shadow: 0 0 0 2px rgb(232 232 232 / 0.12); outline: none; }
+.kc-select-trigger:focus-visible { border-color: ${theme.focusBorder}; box-shadow: 0 0 0 2px ${theme.focusRing}; outline: none; }
 .kc-select-item[data-highlighted] { background: ${theme.bgHover}; color: ${theme.textPrimary}; }
 .kc-select-item[data-selected] { color: ${theme.textPrimary}; }
 .kc-select-item:focus-visible { outline: none; }

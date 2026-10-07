@@ -87,7 +87,7 @@ function bodyCell(align: 'left' | 'right', first = false): CSSProperties {
   return {
     textAlign: align,
     padding: first ? `${space.cellY}px 0` : `${space.cellY}px 0 ${space.cellY}px ${space.cellX}px`,
-    borderBottom: '1px solid #1a1a1a',
+    borderBottom: `1px solid ${theme.gridLine}`,
     color: theme.textPrimary,
   };
 }

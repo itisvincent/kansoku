@@ -51,7 +51,7 @@ const popupStyle: CSSProperties = {
   background: theme.bgSurface,
   border: `1px solid ${theme.border}`,
   borderRadius: theme.radius,
-  boxShadow: '0 6px 20px rgb(0 0 0 / 0.35)',
+  boxShadow: `0 6px 20px ${theme.shadow}`,
   maxHeight: 'min(320px, var(--available-height))',
   minWidth: 'var(--anchor-width)',
   overflowY: 'auto',
