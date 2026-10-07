@@ -1,5 +1,6 @@
 import { useLocale } from '@web/lib/i18n';
 import * as stylex from '@stylexjs/stylex';
+import { Square } from 'lucide-react';
 import { colors, fonts, fontSizes, radii } from '../../../theme/tokens.stylex';
 import { TurnCanvases } from '../../canvas/TurnCanvases';
 import { Markdown } from '../markdown';
@@ -114,6 +115,14 @@ const styles = stylex.create({
       animationName: 'none',
       opacity: 0.7,
     },
+  },
+  stopped: {
+    alignItems: 'center',
+    color: colors.textMuted,
+    display: 'flex',
+    fontSize: fontSizes.sm,
+    gap: '6px',
+    padding: '4px 2px',
   },
   errorRow: {
     borderRadius: radii.lg,
@@ -302,6 +311,14 @@ export function TranscriptBlockView({
             className={`chat-thinking-cursor ${stylex.props(styles.thinkingCursor).className}`}
           />
         </div>
+      </div>
+    );
+  }
+  if (block.type === 'stopped') {
+    return (
+      <div className={`chat-stopped ${stylex.props(styles.stopped).className}`} role="status">
+        <Square size={9} aria-hidden="true" />
+        {i18n('chatStopped')}
       </div>
     );
   }

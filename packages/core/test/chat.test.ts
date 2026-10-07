@@ -546,7 +546,13 @@ describe('abortChatTurn', () => {
     const rows = await listMessages(session!.id);
     expect(toDisplayMessages(rows)).toEqual([
       { id: expect.any(String), ts: expect.any(String), kind: 'user', text: '问' },
-      { id: expect.any(String), ts: expect.any(String), kind: 'assistant', text: '半截话' },
+      {
+        id: expect.any(String),
+        ts: expect.any(String),
+        kind: 'assistant',
+        text: '半截话',
+        stopped: true,
+      },
     ]);
 
     expect(chatTurnState(chartId).busy).toBe(false);
@@ -840,6 +846,45 @@ describe('toDisplayMessages', () => {
     expect(toDisplayMessages(rows)).toEqual([
       { id: 'r1', ts: 't1', kind: 'thinking', text: '先核对持仓' },
       { id: 'r1:1', ts: 't1', kind: 'assistant', text: '结论：继续拿' },
+    ]);
+  });
+
+  const stoppedReply = (content: unknown[]): ChatMessageRow[] => [
+    {
+      id: 'u1',
+      sessionId: 's1',
+      ts: 't0',
+      role: 'user',
+      payload: { role: 'user', content: '为什么', timestamp: 0 },
+    },
+    {
+      id: 'r1',
+      sessionId: 's1',
+      ts: 't1',
+      role: 'assistant',
+      payload: {
+        role: 'assistant',
+        content,
+        api: 'anthropic-messages',
+        provider: 'anthropic',
+        model: 'x',
+        usage: ZERO_USAGE,
+        stopReason: 'aborted',
+        timestamp: 0,
+      } as never,
+    },
+  ];
+
+  it('marks where a reply the user stopped ends', () => {
+    expect(toDisplayMessages(stoppedReply([{ type: 'thinking', thinking: '先看价格' }]))).toEqual([
+      { id: 'u1', ts: 't0', kind: 'user', text: '为什么' },
+      { id: 'r1', ts: 't1', kind: 'thinking', text: '先看价格', stopped: true },
+    ]);
+  });
+
+  it('marks the question when a reply was stopped before it said anything', () => {
+    expect(toDisplayMessages(stoppedReply([]))).toEqual([
+      { id: 'u1', ts: 't0', kind: 'user', text: '为什么', stopped: true },
     ]);
   });
 });

@@ -156,6 +156,8 @@ export interface ChatDisplayMessage {
   label?: string;
   input?: string;
   output?: string;
+  /** The last row of a reply the user stopped (the question, if it was stopped before any). */
+  stopped?: boolean;
   meta?: {
     provider: string;
     model: string;

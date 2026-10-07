@@ -92,6 +92,8 @@ export interface ChatDisplayMessage {
   label?: string;
   input?: string;
   output?: string;
+  /** The last row of a reply the user stopped (the question, if it was stopped before any). */
+  stopped?: boolean;
   meta?: {
     provider: string;
     model: string;
@@ -194,6 +196,11 @@ export function toDisplayMessages(rows: ChatMessageRow[]): ChatDisplayMessage[] 
           });
         }
       });
+      // A stopped reply looks like one still being written (reasoning and no answer) unless
+      // it says where it was stopped.
+      if (message.stopReason === 'aborted' && out.length > 0) {
+        out[out.length - 1] = { ...out[out.length - 1], stopped: true };
+      }
     }
   }
   return out;

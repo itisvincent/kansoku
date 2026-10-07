@@ -22,6 +22,7 @@ export type TranscriptBlock =
   | { type: 'canvases'; id: string; entries: CanvasEntry[] }
   | { type: 'reasoning'; text: string; streaming?: boolean }
   | { type: 'runtime'; startedAt: string }
+  | { type: 'stopped'; id: string }
   | { type: 'thinking' };
 
 export function blockKey(block: TranscriptBlock, index: number): string {
@@ -52,6 +53,9 @@ export function blockKey(block: TranscriptBlock, index: number): string {
     }
     case 'runtime': {
       return `runtime:${block.startedAt}`;
+    }
+    case 'stopped': {
+      return block.id;
     }
     case 'thinking': {
       return `thinking:${index}`;
@@ -226,11 +230,18 @@ function presentCompletedTurn(entries: TimelineEntry[]): TranscriptBlock[] {
   }
   const canvases = canvasesFromRows(userRow?.id ?? 'prefix', toolRowsFromEntries(body));
   const errorBlocks = errors.flatMap(entryToBlocks);
+  // Without this a stopped reply reads as one still being written: reasoning, no answer.
+  const stopped: TranscriptBlock[] = entries.some(
+    (entry) => entry.kind === 'row' && entry.row.stopped,
+  )
+    ? [{ type: 'stopped', id: `stopped:${userRow?.id ?? 'prefix'}` }]
+    : [];
 
   if (!hasTools) {
     return [
       ...(userRow ? [{ type: 'user' as const, row: userRow }] : []),
       ...sequenceFromEntries(body),
+      ...stopped,
       ...canvases,
       ...errorBlocks,
     ];
@@ -255,6 +266,7 @@ function presentCompletedTurn(entries: TimelineEntry[]): TranscriptBlock[] {
     ...(userRow ? [{ type: 'user' as const, row: userRow }] : []),
     ...worked,
     ...(lastText ? entryToBlocks(lastText) : []),
+    ...stopped,
     ...canvases,
     ...errorBlocks,
   ];

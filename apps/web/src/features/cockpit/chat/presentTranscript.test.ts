@@ -69,6 +69,9 @@ function summarize(blocks: TranscriptBlock[]): string[] {
       case 'runtime': {
         return `runtime:${block.startedAt}`;
       }
+      case 'stopped': {
+        return 'stopped';
+      }
       case 'thinking': {
         return 'thinking';
       }
@@ -404,5 +407,32 @@ describe('presentTranscript', () => {
       'text:画布写好了:stream',
       'canvases:mu-panel',
     ]);
+  });
+});
+
+describe('presentTranscript stopped replies', () => {
+  const types = (blocks: TranscriptBlock[]) => blocks.map((b) => b.type);
+
+  it('ends a stopped reply with a stopped line', () => {
+    const rows: ChatRow[] = [
+      user('u1', '10:00:00', 'why'),
+      { id: 'r1', ts: ts('10:00:01'), kind: 'thinking', text: 'checking the price', stopped: true },
+    ];
+    expect(types(presentTranscript({ rows }))).toEqual(['user', 'reasoning', 'stopped']);
+  });
+
+  it('marks a question whose reply was stopped before it began', () => {
+    const rows: ChatRow[] = [
+      { ...user('u1', '10:00:00', 'why'), stopped: true },
+      user('u2', '10:01:00', 'why again'),
+      assistant('a2', '10:01:05', 'because'),
+    ];
+    expect(types(presentTranscript({ rows }))).toEqual(['user', 'stopped', 'user', 'assistant']);
+  });
+
+  it('keys the stopped line by its turn', () => {
+    const rows: ChatRow[] = [{ ...user('u1', '10:00:00', 'why'), stopped: true }];
+    const blocks = presentTranscript({ rows });
+    expect(blockKey(blocks[1], 1)).toBe('stopped:u1');
   });
 });

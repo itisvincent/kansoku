@@ -642,6 +642,14 @@ const enUS = {
   chartLayoutFour: 'Four (2 × 2)',
   chartLayoutHelp:
     'Each chart has its own timeframe. Hover one chart and the others mark the same moment. Click a chart to select it: the drawing tools and the analysis panel follow it. Drag a chart by its title bar onto another to swap them, and drag the line between charts to resize them (double-click it for an even split). Double-click a title bar to enlarge that chart, and again to go back.',
+  chartLinkScroll: 'Link scrolling',
+  chartLinkScrollHelp:
+    'Scroll or zoom one chart and the others move to the same date, each keeping its own zoom',
+  chartShortcuts: 'Keyboard shortcuts',
+  chartShortcutLayouts: 'One chart / side by side / stacked / 2 × 2',
+  chartShortcutTf: 'Previous / next timeframe',
+  chartShortcutEnlarge: 'Enlarge the selected chart, or go back',
+  chartShortcutSearch: 'Type a ticker to jump to it',
   chartGridCell: 'Chart {n}: {tf}',
   chartGridHeaderHelp:
     'Drag onto another chart to swap them. Double-click to enlarge this chart, and again to go back',
@@ -1061,6 +1069,7 @@ const enUS = {
   chatEdit: 'Edit',
   chatRetry: 'Retry',
   chatReasoning: 'Reasoning',
+  chatStopped: 'Stopped. Send the question again for a full answer.',
   chatExpandAll: 'Expand all',
   chatRequest: 'Raw request',
   chatResponse: 'Raw response',
