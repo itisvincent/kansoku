@@ -12,7 +12,7 @@ import { useStableChartDoc } from './chartRedraw';
 import { bollinger, rsi } from '@kansoku/core/analysis/indicators';
 import { useMaSeries } from './useMaLines';
 import { useIntradayCharts, type DrawingChartHandle } from './useIntradayCharts';
-import { IndicatorPane } from './IndicatorPane';
+import { IndicatorPane, type PaneControl } from './IndicatorPane';
 import { theme } from '../../../lib/theme';
 
 const styles = stylex.create({
@@ -151,6 +151,7 @@ export function IntradayChartOnly({
   const mainRef = useRef<HTMLDivElement>(null);
   const macdRef = useRef<HTMLDivElement>(null);
   const rsiRef = useRef<HTMLDivElement>(null);
+  const macdPaneRef = useRef<PaneControl>(null);
   const { toggles, markerRange, maLines } = useIntradayControls();
   const [drawingHandle, setDrawingHandle] = useState<DrawingsHandle | null>(null);
   const candles = useMemo(() => tfDataOf(built, activeTf)?.candles ?? [], [built, activeTf]);
@@ -268,6 +269,7 @@ export function IntradayChartOnly({
         defaultHeight={190}
         minHeight={100}
         storageKey={namespacedKey('intraday-macd-height', storageNamespace)}
+        control={macdPaneRef}
         label={i18n('chartResizeMacd')}
         help={i18n('chartResizePaneHelp', { indicator: i18n('indicatorMacd') })}
         mainRef={mainBlockRef}
@@ -283,6 +285,7 @@ export function IntradayChartOnly({
         defaultHeight={100}
         minHeight={80}
         storageKey={namespacedKey('intraday-rsi-height', storageNamespace)}
+        abovePane={macdPaneRef}
         label={i18n('chartResizeRsi')}
         help={i18n('chartResizePaneHelp', { indicator: i18n('indicatorRsi') })}
         mainRef={mainBlockRef}

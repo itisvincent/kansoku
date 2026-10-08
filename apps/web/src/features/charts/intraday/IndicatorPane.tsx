@@ -1,10 +1,12 @@
 import {
   useEffect,
+  useImperativeHandle,
   useRef,
   useState,
   type KeyboardEvent,
   type PointerEvent,
   type ReactNode,
+  type Ref,
   type RefObject,
 } from 'react';
 import * as stylex from '@stylexjs/stylex';
@@ -46,6 +48,31 @@ const styles = stylex.create({
   },
 });
 
+/** What a pane below can ask of this one: room to grow into. */
+export interface PaneControl {
+  visible: () => boolean;
+  /** The height on screen, which can be less than the set height in a short chart. */
+  height: () => number;
+  minHeight: number;
+  resize: (height: number) => void;
+  save: () => void;
+}
+
+/**
+ * Where a drag of this pane's handle gets its room from: the main chart first, then the pane
+ * just above. Without the pane above, a short chart (a grid cell, where the main chart already
+ * sits at its minimum) left the lower pane no room at all, so it could not be resized.
+ */
+interface DragRoom {
+  start: number;
+  max: number;
+  mainRoom: number;
+  above: PaneControl | null;
+  aboveStart: number;
+  /** Whether the drag took any room from the pane above, so its new height is saved too. */
+  tookFromAbove: boolean;
+}
+
 export function IndicatorPane({
   children,
   className,
@@ -56,6 +83,8 @@ export function IndicatorPane({
   label,
   help,
   mainRef,
+  control,
+  abovePane,
 }: {
   children: ReactNode;
   className: string;
@@ -66,6 +95,10 @@ export function IndicatorPane({
   label: string;
   help: string;
   mainRef: RefObject<HTMLDivElement | null>;
+  /** Lets the pane below take room from this one. */
+  control?: Ref<PaneControl>;
+  /** The indicator pane just above this one, to take room from once the main chart has none. */
+  abovePane?: RefObject<PaneControl | null>;
 }) {
   const clamp = (value: number, max = MAX_HEIGHT) => Math.min(max, Math.max(minHeight, value));
   const [height, setHeight] = useState(() => {
@@ -99,14 +132,59 @@ export function IndicatorPane({
     setHeight(next);
   };
   const currentHeight = () => paneRef.current?.getBoundingClientRect().height || heightRef.current;
-  const availableMax = (current: number) => {
+
+  useImperativeHandle(
+    control,
+    () => ({
+      visible: () => visible,
+      height: currentHeight,
+      minHeight,
+      resize: update,
+      save: persist,
+    }),
+  );
+
+  const mainRoom = () => {
     const mainHeight = mainRef.current?.clientHeight ?? 0;
+    if (mainHeight <= 0) return MAX_HEIGHT;
     const columnHeight = mainRef.current?.parentElement?.clientHeight ?? 0;
     const mainMin =
       columnHeight > 0
         ? Math.min(MAIN_CHART_MIN_HEIGHT, columnHeight * 0.3)
         : MAIN_CHART_MIN_HEIGHT;
-    return mainHeight > 0 ? clamp(current + mainHeight - mainMin) : MAX_HEIGHT;
+    return Math.max(0, mainHeight - mainMin);
+  };
+  // Start from what is on screen: in a short chart the panes are squeezed below their set
+  // heights, and resizing from the set height made the first part of a drag do nothing.
+  const measureRoom = (): DragRoom => {
+    const start = currentHeight();
+    const room = mainRoom();
+    const above = abovePane?.current?.visible() ? abovePane.current : null;
+    const aboveStart = above ? above.height() : 0;
+    const aboveRoom = above ? Math.max(0, aboveStart - above.minHeight) : 0;
+    update(start);
+    return {
+      start,
+      max: clamp(start + room + aboveRoom),
+      mainRoom: room,
+      above,
+      aboveStart,
+      tookFromAbove: false,
+    };
+  };
+  /** Sets this pane's height, taking whatever the main chart cannot give from the pane above. */
+  const resizeWithin = (room: DragRoom, next: number) => {
+    const height = clamp(next, room.max);
+    update(height);
+    if (room.above) {
+      const taken = Math.max(0, height - room.start - room.mainRoom);
+      if (taken > 0) room.tookFromAbove = true;
+      if (room.tookFromAbove) room.above.resize(room.aboveStart - taken);
+    }
+  };
+  const saveAll = (room: DragRoom) => {
+    persist();
+    if (room.tookFromAbove) room.above?.save();
   };
 
   const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -115,8 +193,7 @@ export function IndicatorPane({
     stopDragRef.current?.();
     event.currentTarget.focus();
     const startY = event.clientY;
-    const startHeight = currentHeight();
-    const maxHeight = availableMax(startHeight);
+    const room = measureRoom();
     const pointerId = event.pointerId;
     const previousCursor = document.body.style.cursor;
     const previousUserSelect = document.body.style.userSelect;
@@ -126,7 +203,7 @@ export function IndicatorPane({
 
     const onMove = (move: globalThis.PointerEvent) => {
       if (move.pointerId !== pointerId) return;
-      update(clamp(startHeight + startY - move.clientY, maxHeight));
+      resizeWithin(room, room.start + startY - move.clientY);
     };
     const finish = () => {
       window.removeEventListener('pointermove', onMove, true);
@@ -137,7 +214,7 @@ export function IndicatorPane({
       document.body.style.userSelect = previousUserSelect;
       stopDragRef.current = null;
       setDragging(false);
-      persist();
+      saveAll(room);
     };
     const onEnd = (end: globalThis.PointerEvent) => {
       if (end.pointerId === pointerId) finish();
@@ -150,22 +227,21 @@ export function IndicatorPane({
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    const current = currentHeight();
-    const max = availableMax(current);
-    const next =
+    const step =
       event.key === 'ArrowUp'
-        ? current + 16
+        ? 16
         : event.key === 'ArrowDown'
-          ? current - 16
+          ? -16
           : event.key === 'Home'
-            ? minHeight
+            ? -Infinity
             : event.key === 'End'
-              ? max
+              ? Infinity
               : null;
-    if (next === null) return;
+    if (step === null) return;
     event.preventDefault();
-    update(clamp(next, max));
-    persist();
+    const room = measureRoom();
+    resizeWithin(room, Number.isFinite(step) ? room.start + step : step > 0 ? room.max : minHeight);
+    saveAll(room);
   };
 
   return (
@@ -184,8 +260,9 @@ export function IndicatorPane({
           onPointerDown={onPointerDown}
           onKeyDown={onKeyDown}
           onDoubleClick={() => {
-            update(clamp(defaultHeight, availableMax(currentHeight())));
-            persist();
+            const room = measureRoom();
+            resizeWithin(room, defaultHeight);
+            saveAll(room);
           }}
         />
       )}
