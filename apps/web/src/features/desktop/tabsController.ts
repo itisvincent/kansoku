@@ -3,6 +3,7 @@ import { createMemoryRouter } from 'react-router';
 import type { DataRouter } from 'react-router';
 import { routePathname, setActiveRouter, setNavigationInterceptor } from '../../lib/router';
 import { getAppRoutes } from '../../lib/router/appRoutes';
+import { symbolFromRoute } from '../../lib/symbol';
 import { __setActiveTitleSink } from '../../lib/useTitle';
 import {
   getDesktopTabsBridge,
@@ -360,45 +361,84 @@ export function useTabsController(): TabsController {
     [bridge, applySnapshot],
   );
 
+  // Shows an open tab, moved to `route` first when it is somewhere else.
+  const showTabAt = useCallback(
+    (tab: TabState, route: string) => {
+      const router = routersRef.current.get(tab.id);
+      if (router) {
+        const { pathname, search } = router.state.location;
+        if (pathname + search !== route) void router.navigate(route);
+      } else if (tab.route !== route) {
+        // A tab not shown since startup has no router yet. Build it at `route` now: built on
+        // render, it would start from the old route the bridge has not replaced yet.
+        getTabRouter({ ...tab, route });
+        if (bridge) {
+          void bridge.mutate({ op: 'updateRoute', id: tab.id, route }).then(applySnapshot);
+        } else {
+          setSnapshot((prev) => tabsStore.updateTabRoute(prev, tab.id, route));
+        }
+      }
+      activateTab(tab.id);
+    },
+    [bridge, applySnapshot, activateTab, getTabRouter],
+  );
+
   const focusPinnedHome = useCallback(
     (route: string): boolean => {
       const pinned = snapshotRef.current.tabs[0];
       if (!pinned || !isHomeRoute(pinned.route)) return false;
-      const router = routersRef.current.get(pinned.id);
-      if (router) {
-        const { pathname, search } = router.state.location;
-        if (pathname + search !== route) void router.navigate(route);
-      } else if (pinned.route !== route) {
-        if (bridge) {
-          void bridge.mutate({ op: 'updateRoute', id: pinned.id, route }).then(applySnapshot);
-        } else {
-          setSnapshot((prev) => tabsStore.updateTabRoute(prev, pinned.id, route));
-        }
-      }
-      activateTab(pinned.id);
+      showTabAt(pinned, route);
       return true;
     },
-    [bridge, applySnapshot, activateTab],
+    [showTabAt],
   );
 
+  // One tab per stock: opening a stock that already has a tab switches to it. A plain
+  // `/symbol/X` keeps the view that tab shows; a specific one (`?analysis=`, `?view=live`)
+  // moves the tab to it.
+  const focusSymbolTab = useCallback(
+    (route: string): boolean => {
+      const existing = tabsStore.findSymbolTab(snapshotRef.current.tabs, route);
+      if (!existing) return false;
+      if (route.includes('?')) showTabAt(existing, route);
+      else activateTab(existing.id);
+      return true;
+    },
+    [showTabAt, activateTab],
+  );
+
+  const openingSymbolsRef = useRef(new Set<string>());
   const openTab = useCallback(
     (route: string) => {
       if (isHomeRoute(route) && focusPinnedHome(route)) return;
+      if (focusSymbolTab(route)) return;
       if (!bridge) {
         setSnapshot((prev) => tabsStore.openTab(withCurrentScrollCaptured(prev), route));
         return;
       }
+      // The new tab joins the list only when the main process answers; until then a second
+      // click on the same stock would open it again.
+      const symbol = symbolFromRoute(route);
+      const opening = openingSymbolsRef.current;
+      if (symbol) {
+        if (opening.has(symbol)) return;
+        opening.add(symbol);
+      }
       const id = crypto.randomUUID();
-      void captureScroll().then(() =>
-        bridge.mutate({ op: 'open', route, id }).then((result) => {
-          applySnapshot(result);
-          setSnapshot((prev) =>
-            prev.tabs.some((tab) => tab.id === id) ? { ...prev, activeTabId: id } : prev,
-          );
-        }),
-      );
+      void captureScroll()
+        .then(() =>
+          bridge.mutate({ op: 'open', route, id }).then((result) => {
+            applySnapshot(result);
+            setSnapshot((prev) =>
+              prev.tabs.some((tab) => tab.id === id) ? { ...prev, activeTabId: id } : prev,
+            );
+          }),
+        )
+        .finally(() => {
+          if (symbol) opening.delete(symbol);
+        });
     },
-    [bridge, captureScroll, applySnapshot, focusPinnedHome],
+    [bridge, captureScroll, applySnapshot, focusPinnedHome, focusSymbolTab],
   );
 
   const [newTabLauncherOpen, setNewTabLauncherOpen] = useState(false);
@@ -411,6 +451,13 @@ export function useTabsController(): TabsController {
         return true;
       }
       const { tabs, activeTabId } = snapshotRef.current;
+      // A link to a stock another tab already shows switches to that tab, instead of turning
+      // this one into a second copy.
+      const sameStock = tabsStore.findSymbolTab(tabs, route);
+      if (sameStock && sameStock.id !== activeTabId) {
+        openTab(route);
+        return true;
+      }
       const pinned = tabs[0];
       const active = tabs.find((tab) => tab.id === activeTabId);
       // A user-pinned tab keeps its page: leaving it opens a new tab, while a change that

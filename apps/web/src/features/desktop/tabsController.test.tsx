@@ -16,6 +16,8 @@ class FakeBridge {
   listeners = new Set<(snapshot: BridgeSnapshot) => void>();
   mutateCalls: TabsMutateOp[] = [];
   injectForeignTabOnOpen = false;
+  /** Answer a tick later, as the main process does over IPC. */
+  deferReplies = false;
 
   seed(tabs: TabState[]) {
     this.tabs = tabs;
@@ -28,6 +30,7 @@ class FakeBridge {
 
   async mutate(op: TabsMutateOp): Promise<BridgeSnapshot> {
     this.mutateCalls.push(op);
+    if (this.deferReplies) await new Promise((resolve) => setTimeout(resolve, 0));
     if (op.op === 'open' && this.injectForeignTabOnOpen) {
       this.tabs = [...this.tabs, makeTab('/symbol/OTHER', 'foreign-open')];
     }
@@ -78,6 +81,9 @@ function applyOp(tabs: TabState[], op: TabsMutateOp): TabState[] {
     }
     case 'setPinned': {
       return tabs.map((tab) => (tab.id === op.id ? { ...tab, pinned: op.pinned } : tab));
+    }
+    case 'updateRoute': {
+      return tabs.map((tab) => (tab.id === op.id ? { ...tab, route: op.route } : tab));
     }
     default: {
       return tabs;
@@ -432,6 +438,115 @@ describe('useTabsController with shared bridge', () => {
     expect(getController().snapshot.tabs.find((tab) => tab.id === 'b')?.route).toBe('/research');
   });
 
+  it('switches to the open tab of a stock instead of opening it again from home', async () => {
+    bridge.seed([makeTab('/', 'a'), makeTab('/symbol/AVGO.US?view=live', 'avgo')]);
+    const getController = renderController();
+    await waitFor(() => expect(getController().snapshot.tabs).toHaveLength(2));
+    expect(getController().snapshot.activeTabId).toBe('a');
+
+    act(() => navigate('/symbol/AVGO.US'));
+    await waitFor(() => expect(getController().snapshot.activeTabId).toBe('avgo'));
+    await settlePendingMutations();
+
+    expect(bridge.mutateCalls.some((op) => op.op === 'open')).toBe(false);
+    // A plain open keeps the view the tab already shows.
+    expect(getController().snapshot.tabs.find((tab) => tab.id === 'avgo')?.route).toBe(
+      '/symbol/AVGO.US?view=live',
+    );
+  });
+
+  it('matches the stock however the palette spells it', async () => {
+    bridge.seed([makeTab('/', 'a'), makeTab('/symbol/AVGO.US', 'avgo'), makeTab('/scan', 'scan')]);
+    const getController = renderController();
+    await waitFor(() => expect(getController().snapshot.tabs).toHaveLength(3));
+    act(() => getController().activateTab('scan'));
+    await waitFor(() => expect(getController().snapshot.activeTabId).toBe('scan'));
+
+    act(() => getController().openTab('/symbol/AVGO'));
+    await waitFor(() => expect(getController().snapshot.activeTabId).toBe('avgo'));
+    await settlePendingMutations();
+
+    expect(bridge.mutateCalls.some((op) => op.op === 'open')).toBe(false);
+  });
+
+  it('moves the open tab of a stock to the view that was asked for', async () => {
+    bridge.seed([makeTab('/', 'a'), makeTab('/symbol/AVGO.US', 'avgo')]);
+    const getController = renderController();
+    await waitFor(() => expect(getController().snapshot.tabs).toHaveLength(2));
+
+    act(() => getController().openTab('/symbol/AVGO.US?analysis=x'));
+    await waitFor(() => expect(getController().snapshot.activeTabId).toBe('avgo'));
+
+    await waitFor(() =>
+      expect(getController().snapshot.tabs.find((tab) => tab.id === 'avgo')?.route).toBe(
+        '/symbol/AVGO.US?analysis=x',
+      ),
+    );
+    expect(bridge.mutateCalls.some((op) => op.op === 'open')).toBe(false);
+  });
+
+  it('shows the asked-for view in a tab not shown since startup', async () => {
+    bridge.deferReplies = true;
+    bridge.seed([makeTab('/', 'a'), makeTab('/symbol/AVGO.US?analysis=old', 'avgo')]);
+    const getController = renderController();
+    await waitFor(() => expect(getController().snapshot.tabs).toHaveLength(2));
+
+    act(() => getController().openTab('/symbol/AVGO.US?analysis=new'));
+    await waitFor(() => expect(getController().snapshot.activeTabId).toBe('avgo'));
+
+    expect(getController().activeRouter.state.location.search).toBe('?analysis=new');
+    await waitFor(() =>
+      expect(getController().snapshot.tabs.find((tab) => tab.id === 'avgo')?.route).toBe(
+        '/symbol/AVGO.US?analysis=new',
+      ),
+    );
+  });
+
+  it('switches to the open tab of a stock when a link in another tab points to it', async () => {
+    bridge.seed([makeTab('/', 'a'), makeTab('/symbol/AVGO.US', 'avgo'), makeTab('/scan', 'scan')]);
+    const getController = renderController();
+    await waitFor(() => expect(getController().snapshot.tabs).toHaveLength(3));
+    act(() => getController().activateTab('scan'));
+    await waitFor(() => expect(getController().snapshot.activeTabId).toBe('scan'));
+
+    act(() => navigate('/symbol/AVGO.US'));
+    await waitFor(() => expect(getController().snapshot.activeTabId).toBe('avgo'));
+    await settlePendingMutations();
+
+    expect(getController().snapshot.tabs.find((tab) => tab.id === 'scan')?.route).toBe('/scan');
+    expect(bridge.mutateCalls.some((op) => op.op === 'open')).toBe(false);
+  });
+
+  it('opens a stock once when it is clicked twice before its tab arrives', async () => {
+    bridge.deferReplies = true;
+    bridge.seed([makeTab('/', 'a')]);
+    const getController = renderController();
+    await waitFor(() => expect(getController().snapshot.tabs).toHaveLength(1));
+
+    act(() => {
+      getController().openTab('/symbol/NVDA.US');
+      getController().openTab('/symbol/NVDA.US');
+    });
+    await waitFor(() => expect(getController().snapshot.tabs).toHaveLength(2));
+    await settlePendingMutations();
+
+    expect(bridge.mutateCalls.filter((op) => op.op === 'open')).toHaveLength(1);
+  });
+
+  it('still opens a new tab for a stock that has none', async () => {
+    bridge.seed([makeTab('/', 'a'), makeTab('/symbol/AVGO.US', 'avgo')]);
+    const getController = renderController();
+    await waitFor(() => expect(getController().snapshot.tabs).toHaveLength(2));
+
+    act(() => navigate('/symbol/NVDA.US'));
+
+    await waitFor(() => {
+      expect(
+        bridge.mutateCalls.some((op) => op.op === 'open' && op.route === '/symbol/NVDA.US'),
+      ).toBe(true);
+    });
+  });
+
   it('restores the sessionStorage active tab on the first snapshot when it still exists', async () => {
     sessionStorage.setItem('desktop-active-tab-v1', 'b');
     bridge.seed([makeTab('/', 'a'), makeTab('/settings', 'b')]);
@@ -523,5 +638,21 @@ describe('useTabsController without a shared bridge (web / old preload)', () => 
     await act(async () => {});
 
     expect(loadTabsSnapshot().tabs.some((t) => t.route === '/symbol/NVDA')).toBe(true);
+  });
+
+  it('does not stack a second tab for the same stock without the desktop bridge', async () => {
+    const getController = renderController();
+    await act(async () => {});
+
+    act(() => getController().openTab('/symbol/NVDA'));
+    await act(async () => {});
+    act(() => getController().openTab('/'));
+    await act(async () => {});
+    act(() => getController().openTab('/symbol/NVDA.US'));
+    await act(async () => {});
+
+    const tabs = getController().snapshot.tabs;
+    expect(tabs.filter((t) => t.route.startsWith('/symbol/'))).toHaveLength(1);
+    expect(getController().snapshot.activeTabId).toBe(tabs[1].id);
   });
 });

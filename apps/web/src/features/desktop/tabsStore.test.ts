@@ -4,6 +4,7 @@ import {
   closeActiveTab,
   closeOtherTabs,
   closeTab,
+  findSymbolTab,
   focusOrOpenRoute,
   focusOrOpenRoutePrefix,
   loadTabsSnapshot,
@@ -137,6 +138,22 @@ describe('focusOrOpenRoute', () => {
     const next = focusOrOpenRoute(snapshot, '/settings');
     expect(next.tabs).toHaveLength(2);
     expect(next.tabs[1].route).toBe('/settings');
+  });
+});
+
+describe('findSymbolTab', () => {
+  const { tabs } = snapshotOf(['/', '/symbol/AVGO.US?view=live', '/scan']);
+
+  it('finds the tab showing the same stock, whatever its view or suffix', () => {
+    expect(findSymbolTab(tabs, '/symbol/AVGO.US')?.id).toBe('t1');
+    expect(findSymbolTab(tabs, '/symbol/avgo')?.id).toBe('t1');
+    expect(findSymbolTab(tabs, '/symbol/AVGO.US?analysis=x')?.id).toBe('t1');
+  });
+
+  it('ignores other stocks and pages that are not a stock', () => {
+    expect(findSymbolTab(tabs, '/symbol/NVDA.US')).toBeUndefined();
+    expect(findSymbolTab(tabs, '/symbol/sepa/AVGO.US')).toBeUndefined();
+    expect(findSymbolTab(tabs, '/scan')).toBeUndefined();
   });
 });
 

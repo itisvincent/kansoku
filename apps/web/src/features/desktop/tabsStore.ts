@@ -1,3 +1,5 @@
+import { symbolFromRoute } from '../../lib/symbol';
+
 const STORAGE_KEY = 'desktop-tabs-v1';
 const HOME_ROUTE = '/';
 const DEFAULT_TITLE = 'Kansoku';
@@ -215,6 +217,17 @@ export function prevTab(snapshot: TabsSnapshot): TabsSnapshot {
   const idx = snapshot.tabs.findIndex((tab) => tab.id === snapshot.activeTabId);
   const prev = snapshot.tabs[(idx - 1 + snapshot.tabs.length) % snapshot.tabs.length];
   return { ...snapshot, activeTabId: prev.id };
+}
+
+/**
+ * The tab already showing the stock `route` opens, if any. `/symbol/AVGO` and
+ * `/symbol/AVGO.US?view=live` are the same stock; a stock tab keeps no state of its own
+ * (charts, layout and indicators are shared), so a second one would only repeat the first.
+ */
+export function findSymbolTab(tabs: TabState[], route: string): TabState | undefined {
+  const symbol = symbolFromRoute(route);
+  if (!symbol) return undefined;
+  return tabs.find((tab) => symbolFromRoute(tab.route) === symbol);
 }
 
 export function focusOrOpenRoute(snapshot: TabsSnapshot, route: string): TabsSnapshot {
