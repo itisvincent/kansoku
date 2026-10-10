@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
 import { PROJECT_ROOT, skillSearchDirs } from '../src/platform/env.js';
+import { interfaceLanguageInstruction } from '../src/settings/interfaceLocale.js';
 import {
   DISCIPLINE_SKILL,
   DisciplineMissingError,
@@ -71,8 +72,11 @@ describe('disciplineFor', () => {
     );
   });
 
-  it('leaves a mechanical prompt untouched', () => {
-    expect(withDiscipline('mechanical', PROJECT_ROOT, 'own prompt')).toBe('own prompt');
+  it('gives a mechanical prompt no discipline, only the interface language', () => {
+    // Mechanical agents still write user-visible text, so they get the language line.
+    expect(withDiscipline('mechanical', PROJECT_ROOT, 'own prompt')).toBe(
+      ['own prompt', '', interfaceLanguageInstruction()].join('\n'),
+    );
   });
 
   it('prepends the discipline for judgment agents', () => {

@@ -28,16 +28,21 @@ owner feedback) and free slots. Use it, not raw `gh`.
 
 For each PR in `status.prs`, in this order:
 
-1. **Owner feedback** (`feedback` not empty), or **review asked for changes** (`review: changes`),
-   or **checks failed** (`ci: fail`): start a worker with `scripts/agent/WORKER.md` in *fix mode*
-   for that PR. If `changesRequested` is already 3, do not try again: mark the issue stuck
+1. **Checks failed** (`ci: fail`): first read which tests failed
+   (`gh run list --repo <repo> --branch <head branch> --limit 1`, then `gh run view <id> --repo <repo> --log-failed`).
+   If they are in files the PR does not touch, run those tests on the base branch in this
+   checkout. If they fail there too, the base branch is broken, not the PR: do not start a fixer;
+   comment on the PR (start with 🤖) naming the failing tests, and leave it for the owner.
+2. **Owner feedback** (`feedback` not empty), **review asked for changes** (`review: changes`),
+   or checks failed because of the PR itself: start a worker with `scripts/agent/WORKER.md` in
+   *fix mode* for that PR. If `changesRequested` is already 3, do not try again: mark the issue stuck
    (`queue.mjs stuck <issue> --body-file ...`) with what keeps failing.
 2. **No review yet for the current commit** (`review: none` or `stale`) and checks are not
    failing: start a reviewer with `scripts/agent/REVIEWER.md` (model **opus**, no worktree).
-3. **Approved and checks passed** (`review: approve`, `ci: pass` or `none-needed`): run
+4. **Approved and checks passed** (`review: approve`, `ci: pass` or `none-needed`): run
    `node scripts/agent/queue.mjs merge <pr>`. It merges low-risk PRs and hands the rest to the
    owner (label `needs-you`). Never merge any other way.
-4. Checks still `pending`: leave it for the next round.
+5. Checks still `pending`: leave it for the next round.
 
 ## 3. Start new work
 
@@ -50,7 +55,7 @@ later round. For each issue:
    scripts/agent/WORKER.md and do issue #<n> in build mode." When starting several, start them
    in one message so they run in parallel.
 
-Workers report back a PR URL or "stuck". For every new PR, start a reviewer (step 2.2) in the
+Workers report back a PR URL or "stuck". For every new PR, start a reviewer (step 2.3) in the
 same round.
 
 ## 4. Release (local machine only)

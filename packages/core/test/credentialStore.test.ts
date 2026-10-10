@@ -14,6 +14,7 @@ import {
   initModelsRuntime,
   setModelsRuntimeForTests,
 } from "../src/ai/runtime/modelsRuntime.js";
+import { createOllamaCloudProvider } from "../src/ai/runtime/ollamaCloud.js";
 
 function jwt(expSeconds: number): string {
   const payload = Buffer.from(JSON.stringify({ exp: expSeconds })).toString("base64url");
@@ -298,7 +299,9 @@ describe("modelsRuntime", () => {
   });
 
   it("every SINGLE_KEY_PROVIDERS entry exists in the catalog with api-key auth", () => {
+    // The app's catalog: pi-ai's built-in providers plus the ones the runtime adds (Ollama Cloud).
     const catalog = builtinModels();
+    catalog.setProvider(createOllamaCloudProvider());
     for (const providerId of SINGLE_KEY_PROVIDERS) {
       const provider = catalog.getProvider(providerId);
       expect(provider, `provider "${providerId}" missing from catalog`).toBeDefined();
