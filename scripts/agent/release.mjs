@@ -106,6 +106,27 @@ async function appBusy() {
   return null;
 }
 
+/** Whether a changed file ends up in the installed app (tests, docs and repo tooling do not). */
+export function shipsInApp(path) {
+  const p = path.replaceAll('\\', '/');
+  if (/(^|\/)(test|tests|__tests__|__snapshots__)\//.test(p)) return false;
+  if (/\.(test|spec)\.[cm]?[jt]sx?$/.test(p)) return false;
+  if (
+    /\.md$/i.test(p) &&
+    !p.startsWith('.claude/skills/') &&
+    !p.startsWith('packages/core/skills/')
+  ) {
+    return false;
+  }
+  if (/^(docs|scripts|\.github|journal|stocks)\//.test(p)) return false;
+  return (
+    p.startsWith('apps/web/') ||
+    p.startsWith('apps/desktop/') ||
+    p.startsWith('packages/') ||
+    p.startsWith('.claude/skills/')
+  );
+}
+
 function nextVersion(version) {
   const [major, minor, patch] = version.split('.').map(Number);
   return `${major}.${minor}.${patch + 1}`;
@@ -166,6 +187,15 @@ async function main() {
   if (lastRelease && git(['rev-list', '--count', `${lastRelease}..HEAD`]) === '0') {
     console.log('nothing new since the last release');
     return;
+  }
+  if (lastRelease) {
+    const changed = git(['diff', '--name-only', `${lastRelease}..HEAD`])
+      .split('\n')
+      .filter(Boolean);
+    if (!changed.some(shipsInApp)) {
+      console.log('only tests, docs or tooling changed since the last release; nothing to install');
+      return;
+    }
   }
 
   step('Checking the app is free to restart');
