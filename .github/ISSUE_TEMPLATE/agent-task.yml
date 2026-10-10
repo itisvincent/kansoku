@@ -1,0 +1,33 @@
+name: Agent task
+description: A task for the agent queue. Add the agent-ready label when it may start.
+labels: []
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What
+      description: What should change, in a sentence or two.
+      placeholder: Opening a stock that already has a tab should switch to that tab.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: Checks the agent can run itself. One per line.
+      placeholder: |
+        - the tab tests pass
+        - a new test covers opening the same stock twice
+    validations:
+      required: true
+  - type: textarea
+    id: dont
+    attributes:
+      label: Don't
+      description: Anything off limits for this task (optional).
+      placeholder: Don't change how pinned tabs behave.
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: Where to look, examples, screenshots (optional).

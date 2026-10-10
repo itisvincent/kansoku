@@ -1,0 +1,57 @@
+{
+  "repo": "itisvincent/kansoku",
+  "owner": "itisvincent",
+  "base": "windows-version",
+  "branchPrefix": "agent/",
+  "parallel": 1,
+  "ideasPerDay": 3,
+  "maxChangedLines": 600,
+  "needsYou": [
+    "packages/core/src/marketdata/**",
+    "packages/core/src/credentials/**",
+    "packages/core/src/license/**",
+    "packages/core/src/ai/**",
+    "packages/core/src/pro/**",
+    "packages/core/src/db/**",
+    "packages/core/drizzle/**",
+    "packages/pro-api/**",
+    "apps/server/src/modules/positions/**",
+    "apps/license-worker/**",
+    "apps/desktop/src/**",
+    "apps/desktop/scripts/**",
+    "apps/desktop/electron-builder.yml",
+    "apps/desktop/package.json",
+    "apps/desktop/CHANGELOG.md",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    "patches/**",
+    ".github/**",
+    ".claude/**",
+    "scripts/agent/**",
+    "CLAUDE.md",
+    "AGENTS.md",
+    "**/.env*"
+  ],
+  "install": {
+    "dir": "D:\\tools\\kansoku",
+    "prepackagedApp": "E:/Workspace/programming/javascript/kansoku/apps/desktop/release-english-04316-ready/app",
+    "debugPort": 9336,
+    "timeZone": "Asia/Taipei",
+    "noInstallWhileUsMarketOpen": true
+  },
+  "requiredChecks": [
+    "check"
+  ],
+  "ciPaths": [
+    "apps/",
+    "packages/",
+    "patches/",
+    "scripts/",
+    "package.json",
+    "pnpm-lock.yaml",
+    "pnpm-workspace.yaml",
+    ".github/"
+  ],
+  "maxTasksPerDay": 10
+}
