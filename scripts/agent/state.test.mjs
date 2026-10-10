@@ -1,6 +1,13 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ciFromChecks, claimedAt, isStaleClaim, labelAddedBy, localDay } from './state.mjs';
+import {
+  ciFromChecks,
+  claimedAt,
+  isStaleClaim,
+  isStaleLock,
+  labelAddedBy,
+  localDay,
+} from './state.mjs';
 
 const required = ['check'];
 const checks = (list, status = 0) => ({ status, stdout: JSON.stringify(list), stderr: '' });
@@ -95,4 +102,11 @@ test('only the owner adding agent-ready counts', () => {
     'itisvincent-bot[bot]',
   );
   assert.equal(labelAddedBy([], 'agent-ready'), null);
+});
+
+test('a round lock goes stale after its time limit, or when unreadable', () => {
+  const now = new Date('2026-10-10T12:00:00Z');
+  assert.equal(isStaleLock('2026-10-10T11:00:00Z', 90, now), false);
+  assert.equal(isStaleLock('2026-10-10T10:00:00Z', 90, now), true);
+  assert.equal(isStaleLock('an unreadable time', 90, now), true);
 });

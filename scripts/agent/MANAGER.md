@@ -21,9 +21,15 @@ Settings live in `scripts/agent/config.json`; the rules are enforced by `scripts
 ## 1. Start
 
 ```bash
+node scripts/agent/queue.mjs lock
 git fetch origin && git checkout <base> && git merge --ff-only origin/<base>
 node scripts/agent/queue.mjs status
 ```
+
+Only one round runs at a time. If `lock` refuses, another round is still running: stop at once
+and report only that line. Once `lock` succeeds, always end the round with
+`node scripts/agent/queue.mjs unlock` — after the report, and also when the round stops early
+for an error. A lock left behind by a dead round expires after `roundLockMinutes`.
 
 `status` lists ready issues, issues being worked on, open agent PRs (checks, review state, risk,
 owner feedback) and free slots. Use it, not raw `gh`.

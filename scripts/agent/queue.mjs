@@ -11,6 +11,7 @@
 //   node scripts/agent/queue.mjs merge <pr> [--dry-run]
 //   node scripts/agent/queue.mjs stuck <issue> --body-file <path>
 //   node scripts/agent/queue.mjs idea --title <text> --body-file <path>
+//   node scripts/agent/queue.mjs lock | unlock      (one manager round at a time)
 //
 // Everything is done as the bot (config.bot, see bot.mjs). Two identities matter:
 // - the owner: opens work issues, adds `agent-ready`, comments with feedback, merges risky PRs;
@@ -18,10 +19,18 @@
 // Comments are read through the REST API, where the bot is `<slug>[bot]` — a name no person
 // can register — so a comment is the bot's only if GitHub says so.
 import { spawnSync } from 'node:child_process';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { botToken, isBotLogin, pushArgs } from './bot.mjs';
 import { classify, isReleaseChange, RELEASE_BRANCH } from './risk.mjs';
-import { ciFromChecks, claimedAt, isStaleClaim, labelAddedBy, localDay } from './state.mjs';
+import {
+  ciFromChecks,
+  claimedAt,
+  isStaleClaim,
+  isStaleLock,
+  labelAddedBy,
+  localDay,
+} from './state.mjs';
 
 const config = JSON.parse(readFileSync(new URL('./config.json', import.meta.url), 'utf8'));
 const { repo, owner, base, branchPrefix, timeZone } = config;
@@ -530,10 +539,44 @@ function idea(args) {
   console.log(url);
 }
 
+/** The round lock lives in the shared .git folder, so every worktree of the checkout sees it. */
+function lockPath() {
+  return join(resolve(git(['rev-parse', '--git-common-dir'])), 'agent-round.lock');
+}
+
+function lock() {
+  const path = lockPath();
+  let held = null;
+  if (existsSync(path)) {
+    try {
+      held = JSON.parse(readFileSync(path, 'utf8'));
+    } catch {
+      held = { at: 'an unreadable time' }; // isStaleLock treats it as stale
+    }
+  }
+  if (held && !isStaleLock(held.at, config.roundLockMinutes)) {
+    fail(`another round has been running since ${held.at}; stop this one`);
+  }
+  writeFileSync(path, JSON.stringify({ at: new Date().toISOString(), pid: process.ppid }));
+  console.log(held ? `took over a stale lock from ${held.at}` : 'locked');
+}
+
+function unlock() {
+  rmSync(lockPath(), { force: true });
+  console.log('unlocked');
+}
+
 const [command, ...rest] = process.argv.slice(2);
 try {
-  token = await botToken(config);
+  // The lock needs no GitHub login, so it works even when GitHub is down.
+  if (command !== 'lock' && command !== 'unlock') token = await botToken(config);
   switch (command) {
+    case 'lock':
+      lock();
+      break;
+    case 'unlock':
+      unlock();
+      break;
     case 'status':
       status();
       break;
