@@ -552,7 +552,7 @@ index bee12b64d777332cb095efcc700cdec0b64cb0c0..9266ff77a9c7197ec6662cab2ee0f6ee
 diff --git a/out/util/electronGet.js b/out/util/electronGet.js
 --- a/out/util/electronGet.js
 +++ b/out/util/electronGet.js
-@@ -184,7 +184,20 @@ async function extractArchive(file, dir) {
+@@ -184,9 +184,22 @@ async function extractArchive(file, dir) {
              throw new Error(`Extraction of ${path.basename(file)} produced no files`);
          }
          await fs.rm(dir, { recursive: true, force: true });
