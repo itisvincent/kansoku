@@ -11,28 +11,48 @@
 //   node scripts/agent/queue.mjs merge <pr> [--dry-run]
 //   node scripts/agent/queue.mjs stuck <issue> --body-file <path>
 //   node scripts/agent/queue.mjs idea --title <text> --body-file <path>
+//
+// Everything is done as the bot (config.bot, see bot.mjs). Two identities matter:
+// - the owner: opens work issues, adds `agent-ready`, comments with feedback, merges risky PRs;
+// - the bot: claims, opens PRs, reviews, merges, and writes every 🤖 comment.
+// Comments are read through the REST API, where the bot is `<slug>[bot]` — a name no person
+// can register — so a comment is the bot's only if GitHub says so.
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
-import { classify } from './risk.mjs';
-import { ciFromChecks, claimedAt, isStaleClaim, localDay } from './state.mjs';
+import { botToken, isBotLogin, pushArgs } from './bot.mjs';
+import { classify, isReleaseChange, RELEASE_BRANCH } from './risk.mjs';
+import { ciFromChecks, claimedAt, isStaleClaim, labelAddedBy, localDay } from './state.mjs';
 
 const config = JSON.parse(readFileSync(new URL('./config.json', import.meta.url), 'utf8'));
 const { repo, owner, base, branchPrefix, timeZone } = config;
+const slug = config.bot.slug;
 const today = () => localDay(new Date(), timeZone);
 const REVIEW_MARK = /<!-- agent-review:(approve|changes) sha=([0-9a-f]{7,40}) -->/;
 const NEEDS_YOU_MARK = (sha) => `<!-- agent-needs-you sha=${sha} -->`;
+let token = '';
 
-function run(cmd, args) {
-  const result = spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+function run(cmd, args, { allowFail = false } = {}) {
+  const result = spawnSync(cmd, args, {
+    encoding: 'utf8',
+    maxBuffer: 64 * 1024 * 1024,
+    env: { ...process.env, GH_TOKEN: token },
+  });
   if (result.error) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(`${cmd} ${args.join(' ')} failed (${result.status}): ${result.stderr.trim()}`);
+  if (result.status !== 0 && !allowFail) {
+    // Never print the bot's login, which sits in the push arguments.
+    const shown = args.map((a) => (a.includes('extraheader') ? '<bot login>' : a)).join(' ');
+    throw new Error(`${cmd} ${shown} failed (${result.status}): ${result.stderr.trim()}`);
   }
-  return result.stdout;
+  return result;
 }
-const gh = (args, opts) => run('gh', args, opts);
+const gh = (args) => run('gh', args).stdout;
 const ghJson = (args) => JSON.parse(gh(args) || 'null');
-const git = (args, opts) => run('git', args, opts).trim();
+const ghLines = (args) =>
+  gh(args)
+    .split('\n')
+    .filter((line) => line.trim())
+    .map((line) => JSON.parse(line));
+const git = (args) => run('git', args).stdout.trim();
 
 function fail(message) {
   console.error(`refused: ${message}`);
@@ -57,11 +77,30 @@ function issueNumber(value) {
 }
 
 const labelNames = (item) => (item.labels ?? []).map((l) => l.name);
-const isAgentComment = (body) => body.startsWith('🤖') || REVIEW_MARK.test(body);
-const ownerComments = (item) =>
-  (item.comments ?? [])
-    .filter((c) => c.author?.login === owner)
-    .map((c) => ({ at: c.createdAt, body: c.body }));
+const isBot = (login) => isBotLogin(login, slug);
+
+/** Every comment on an issue or PR, oldest first, with GitHub's own account names. */
+function comments(n) {
+  return ghLines([
+    'api',
+    `repos/${repo}/issues/${n}/comments`,
+    '--paginate',
+    '--jq',
+    '.[] | {login: .user.login, body: .body, at: .created_at}',
+  ]);
+}
+const ownerComments = (list) => list.filter((c) => c.login === owner);
+const botComments = (list) => list.filter((c) => isBot(c.login));
+
+function labelEvents(n) {
+  return ghLines([
+    'api',
+    `repos/${repo}/issues/${n}/events`,
+    '--paginate',
+    '--jq',
+    '.[] | select(.event == "labeled") | {event: .event, label: {name: .label.name}, actor: {login: .actor.login}}',
+  ]);
+}
 
 function getIssue(n) {
   return ghJson([
@@ -71,7 +110,7 @@ function getIssue(n) {
     '--repo',
     repo,
     '--json',
-    'number,title,body,author,labels,state,comments,createdAt',
+    'number,title,body,author,labels,state,createdAt',
   ]);
 }
 
@@ -83,15 +122,26 @@ function getPr(n) {
     '--repo',
     repo,
     '--json',
-    'number,title,body,author,labels,state,files,headRefName,headRefOid,baseRefName,isCrossRepository,comments,mergeable',
+    'number,title,author,labels,state,files,headRefName,headRefOid,baseRefName,isCrossRepository,mergeable',
   ]);
 }
 
-/** Only issues the owner opened count: the fork is public and anyone can open one. */
-function assertOwnerIssue(issue) {
-  if (issue.author?.login !== owner) fail(`issue #${issue.number} was not opened by ${owner}`);
+/**
+ * Work issues come from the owner, or are the bot's own ideas the owner approved. The fork is
+ * public, so anyone else's issue is ignored.
+ */
+function isTrustedIssue(issue) {
+  const login = issue.author?.login;
+  return login === owner || (isBot(login) && labelNames(issue).includes('agent-idea'));
+}
+
+function assertTrustedIssue(issue) {
+  if (!isTrustedIssue(issue))
+    fail(`issue #${issue.number} was not opened by ${owner} (or is not an agent idea)`);
   if (issue.state !== 'OPEN') fail(`issue #${issue.number} is not open`);
 }
+
+const approvedByOwner = (n) => labelAddedBy(labelEvents(n), 'agent-ready') === owner;
 
 function setLabels(kind, n, { add = [], remove = [] }) {
   const args = [kind, 'edit', String(n), '--repo', repo];
@@ -108,23 +158,25 @@ function linkedIssue(pr) {
   return m ? Number(m[1]) : null;
 }
 
+const isReleasePr = (pr) => pr.headRefName.startsWith(RELEASE_BRANCH);
+
+function releaseFiles(n) {
+  return ghJson(['api', `repos/${repo}/pulls/${n}/files?per_page=100`]);
+}
+
 function ciState(pr) {
-  const needsCi = pr.files.some((f) =>
-    config.ciPaths.some((p) => f.path === p || f.path.startsWith(p)),
-  );
-  if (!needsCi) return 'none-needed';
-  const result = spawnSync(
+  const result = run(
     'gh',
     ['pr', 'checks', String(pr.number), '--repo', repo, '--json', 'name,bucket'],
-    { encoding: 'utf8' },
+    { allowFail: true },
   );
-  if (result.error) throw result.error;
   return ciFromChecks(result, config.requiredChecks);
 }
 
-/** The owner account's latest review verdict for the PR's current head commit. */
-function reviewState(pr) {
-  for (const c of [...ownerComments(pr)].reverse()) {
+/** The latest review verdict (the bot's, or the owner's own) for the PR's current head commit. */
+function reviewState(pr, list) {
+  const trusted = list.filter((c) => c.login === owner || isBot(c.login));
+  for (const c of [...trusted].reverse()) {
     const m = c.body.match(REVIEW_MARK);
     if (!m) continue;
     return pr.headRefOid.startsWith(m[2]) ? m[1] : 'stale';
@@ -132,19 +184,18 @@ function reviewState(pr) {
   return 'none';
 }
 
-/** The owner's own comments since the agent last said something on the PR. */
-function pendingFeedback(pr) {
-  const comments = ownerComments(pr);
-  let lastAgent = -1;
-  comments.forEach((c, i) => {
-    if (isAgentComment(c.body)) lastAgent = i;
+/** The owner's comments since the bot last said something on the PR. */
+function pendingFeedback(list) {
+  let lastBot = -1;
+  list.forEach((c, i) => {
+    if (isBot(c.login)) lastBot = i;
   });
-  return comments.slice(lastAgent + 1).filter((c) => !isAgentComment(c.body));
+  return ownerComments(list.slice(lastBot + 1)).map(({ at, body }) => ({ at, body }));
 }
 
 function assertAgentPr(pr) {
   if (pr.isCrossRepository) fail(`PR #${pr.number} comes from another repository`);
-  if (pr.author?.login !== owner) fail(`PR #${pr.number} was not opened by ${owner}`);
+  if (!isBot(pr.author?.login)) fail(`PR #${pr.number} was not opened by the bot`);
   if (pr.baseRefName !== base) fail(`PR #${pr.number} targets ${pr.baseRefName}, not ${base}`);
   if (!pr.headRefName.startsWith(branchPrefix)) fail(`PR #${pr.number} is not an agent branch`);
   if (pr.state !== 'OPEN') fail(`PR #${pr.number} is not open`);
@@ -164,71 +215,66 @@ function listIssues(label, state = 'open') {
     'number,title,author,labels,createdAt,state',
     '--limit',
     '100',
-  ]).filter((i) => i.author?.login === owner);
+  ]).filter(isTrustedIssue);
+}
+
+function describePr(p) {
+  const pr = getPr(p.number);
+  const list = comments(pr.number);
+  if (isReleasePr(pr)) {
+    return {
+      number: pr.number,
+      title: pr.title,
+      release: true,
+      onlyVersionBump: isReleaseChange(pr.headRefName, releaseFiles(pr.number)),
+      ci: ciState(pr),
+      mergeable: pr.mergeable,
+    };
+  }
+  return {
+    number: pr.number,
+    title: pr.title,
+    issue: linkedIssue(pr),
+    labels: labelNames(pr),
+    ci: ciState(pr),
+    review: reviewState(pr, list),
+    risk: classify(pr.files, config),
+    mergeable: pr.mergeable,
+    feedback: pendingFeedback(list),
+    changesRequested: botComments(list).filter((c) => /agent-review:changes/.test(c.body)).length,
+  };
 }
 
 function status() {
-  const ready = listIssues('agent-ready').filter((i) => !labelNames(i).includes('agent-working'));
+  const labeledReady = listIssues('agent-ready').filter(
+    (i) => !labelNames(i).includes('agent-working'),
+  );
+  const ready = labeledReady.filter((i) => approvedByOwner(i.number));
   const working = listIssues('agent-working');
-  const prs = ghJson([
+  const agentPrs = ghJson([
     'pr',
     'list',
     '--repo',
     repo,
     '--state',
-    'open',
-    '--base',
-    base,
+    'all',
     '--json',
-    'number,title,headRefName,author,labels',
+    'number,title,headRefName,author,state,createdAt',
     '--limit',
     '100',
-  ]).filter((p) => p.author?.login === owner && p.headRefName.startsWith(branchPrefix));
+  ]).filter((p) => isBot(p.author?.login) && p.headRefName.startsWith(branchPrefix));
   const day = today();
   const ideas = listIssues('agent-idea', 'all');
-  const detailed = prs.map((p) => {
-    const pr = getPr(p.number);
-    return {
-      number: pr.number,
-      title: pr.title,
-      issue: linkedIssue(pr),
-      labels: labelNames(pr),
-      ci: ciState(pr),
-      review: reviewState(pr),
-      risk: classify(pr.files, config),
-      mergeable: pr.mergeable,
-      feedback: pendingFeedback(pr),
-      changesRequested: ownerComments(pr).filter((c) => /agent-review:changes/.test(c.body)).length,
-    };
-  });
+  const detailed = agentPrs.filter((p) => p.state === 'OPEN').map(describePr);
   const busy = working.length;
   const startedToday =
-    ghJson([
-      'pr',
-      'list',
-      '--repo',
-      repo,
-      '--state',
-      'all',
-      '--json',
-      'headRefName,author,createdAt',
-      '--limit',
-      '100',
-    ]).filter(
-      (p) =>
-        p.author?.login === owner &&
-        p.headRefName.startsWith(branchPrefix) &&
-        localDay(p.createdAt, timeZone) === day,
+    agentPrs.filter(
+      (p) => !p.headRefName.startsWith(RELEASE_BRANCH) && localDay(p.createdAt, timeZone) === day,
     ).length + busy;
   const linkedIssues = new Set(detailed.map((p) => p.issue));
-  const workingDetail = working.map(({ number, title }) => {
-    const issue = getIssue(number);
-    const startedAt = claimedAt({
-      createdAt: issue.createdAt,
-      comments: (issue.comments ?? []).filter((c) => c.author?.login === owner),
-    });
-    const stale =
-      !linkedIssues.has(number) && isStaleClaim(startedAt, config.workingTimeoutHours);
+  const workingDetail = working.map(({ number, title, createdAt }) => {
+    const startedAt = claimedAt({ createdAt, comments: botComments(comments(number)) });
+    const stale = !linkedIssues.has(number) && isStaleClaim(startedAt, config.workingTimeoutHours);
     return { number, title, startedAt, stale };
   });
   console.log(
@@ -239,6 +285,10 @@ function status() {
         startedToday,
         maxTasksPerDay: config.maxTasksPerDay,
         ready: ready.map(({ number, title }) => ({ number, title })),
+        // Labeled agent-ready, but not by the owner: never work on these.
+        notApproved: labeledReady
+          .filter((i) => !ready.includes(i))
+          .map(({ number, title }) => ({ number, title })),
         working: workingDetail,
         prs: detailed,
         ideas: {
@@ -255,7 +305,7 @@ function status() {
 
 function show(n) {
   const issue = getIssue(n);
-  assertOwnerIssue(issue);
+  assertTrustedIssue(issue);
   console.log(
     JSON.stringify(
       {
@@ -263,7 +313,7 @@ function show(n) {
         title: issue.title,
         body: issue.body,
         labels: labelNames(issue),
-        ownerComments: ownerComments(issue),
+        ownerComments: ownerComments(comments(n)).map(({ at, body }) => ({ at, body })),
       },
       null,
       2,
@@ -273,13 +323,18 @@ function show(n) {
 
 function claim(n) {
   const issue = getIssue(n);
-  assertOwnerIssue(issue);
+  assertTrustedIssue(issue);
   const labels = labelNames(issue);
   if (!labels.includes('agent-ready')) fail(`issue #${n} is not labeled agent-ready`);
+  if (!approvedByOwner(n)) fail(`agent-ready on #${n} was not added by ${owner}`);
   if (labels.includes('agent-working')) fail(`issue #${n} is already being worked on`);
   setLabels('issue', n, { add: ['agent-working'], remove: ['agent-ready', 'agent-stuck'] });
   comment('issue', n, `🤖 Started. Branch: \`${branchPrefix}${n}-…\``);
   console.log(`claimed #${n}`);
+}
+
+function pushBranch(branch) {
+  git(pushArgs(token, repo, `${branch}:refs/heads/${branch}`));
 }
 
 function openPr(args) {
@@ -288,7 +343,7 @@ function openPr(args) {
   if (!title) fail('--title is required');
   const body = readBody(args);
   const issue = getIssue(n);
-  assertOwnerIssue(issue);
+  assertTrustedIssue(issue);
   const branch = git(['rev-parse', '--abbrev-ref', 'HEAD']);
   if (!branch.startsWith(`${branchPrefix}${n}-`))
     fail(`branch ${branch} must be named ${branchPrefix}${n}-<short-name>`);
@@ -296,7 +351,7 @@ function openPr(args) {
     fail('the working tree has uncommitted changes; commit them first');
   const ahead = Number(git(['rev-list', '--count', `origin/${base}..HEAD`]));
   if (ahead === 0) fail(`no commits on top of origin/${base}`);
-  git(['push', '-u', 'origin', `${branch}:${branch}`]);
+  pushBranch(branch);
   const url = gh([
     'pr',
     'create',
@@ -326,15 +381,9 @@ function updatePr(n, args) {
   if (branch !== pr.headRefName) fail(`checked out ${branch}, but PR #${n} is ${pr.headRefName}`);
   if (git(['status', '--porcelain']))
     fail('the working tree has uncommitted changes; commit them first');
-  git(['push', 'origin', `${branch}:${branch}`]);
+  pushBranch(branch);
   setLabels('pr', n, { add: ['agent-review'], remove: ['needs-you'] });
-  comment(
-    'pr',
-    n,
-    `🤖 Updated:
-
-${body}`,
-  );
+  comment('pr', n, `🤖 Updated:\n\n${body}`);
   console.log(`pushed ${branch} to #${n}`);
 }
 
@@ -343,6 +392,7 @@ function verdict(n, kind, args) {
   const body = readBody(args);
   const pr = getPr(n);
   assertAgentPr(pr);
+  if (isReleasePr(pr)) fail('release PRs are not reviewed; they merge on passing checks');
   comment(
     'pr',
     n,
@@ -351,14 +401,59 @@ function verdict(n, kind, args) {
   console.log(`${kind} recorded for #${n} at ${pr.headRefOid.slice(0, 7)}`);
 }
 
+function squashMerge(pr) {
+  gh([
+    'pr',
+    'merge',
+    String(pr.number),
+    '--repo',
+    repo,
+    '--squash',
+    '--delete-branch',
+    '--match-head-commit',
+    pr.headRefOid,
+  ]);
+}
+
+function mergeRelease(pr, dryRun) {
+  const ci = ciState(pr);
+  const blockers = [];
+  if (!isReleaseChange(pr.headRefName, releaseFiles(pr.number)))
+    blockers.push('it changes more than the version and the changelog');
+  if (ci !== 'pass') blockers.push(`checks are ${ci}`);
+  if (pr.mergeable === 'CONFLICTING') blockers.push('it conflicts with the base branch');
+  const line = { pr: pr.number, release: true, ci, mergeable: pr.mergeable };
+  if (blockers.length || dryRun) {
+    console.log(
+      JSON.stringify(
+        {
+          ...line,
+          merged: false,
+          ...(blockers.length ? { waitingFor: blockers } : { wouldMerge: true }),
+        },
+        null,
+        2,
+      ),
+    );
+    return;
+  }
+  squashMerge(pr);
+  console.log(JSON.stringify({ ...line, merged: true }, null, 2));
+}
+
 function merge(n, dryRun) {
   const pr = getPr(n);
   assertAgentPr(pr);
+  if (isReleasePr(pr)) {
+    mergeRelease(pr, dryRun);
+    return;
+  }
+  const list = comments(n);
   const ci = ciState(pr);
-  const review = reviewState(pr);
+  const review = reviewState(pr, list);
   const risk = classify(pr.files, config);
   const blockers = [];
-  if (ci !== 'pass' && ci !== 'none-needed') blockers.push(`checks are ${ci}`);
+  if (ci !== 'pass') blockers.push(`checks are ${ci}`);
   if (review !== 'approve') blockers.push(`review is ${review}`);
   if (pr.mergeable === 'CONFLICTING') blockers.push('it conflicts with the base branch');
   const verdictLine = { pr: n, ci, review, risk, mergeable: pr.mergeable };
@@ -368,7 +463,7 @@ function merge(n, dryRun) {
   }
   if (risk.level !== 'low') {
     const mark = NEEDS_YOU_MARK(pr.headRefOid);
-    const already = ownerComments(pr).some((c) => c.body.includes(mark));
+    const already = botComments(list).some((c) => c.body.includes(mark));
     if (!dryRun && !already) {
       setLabels('pr', n, { add: ['needs-you'], remove: ['agent-review'] });
       comment(
@@ -384,17 +479,7 @@ function merge(n, dryRun) {
     console.log(JSON.stringify({ ...verdictLine, merged: false, wouldMerge: true }, null, 2));
     return;
   }
-  gh([
-    'pr',
-    'merge',
-    String(n),
-    '--repo',
-    repo,
-    '--squash',
-    '--delete-branch',
-    '--match-head-commit',
-    pr.headRefOid,
-  ]);
+  squashMerge(pr);
   const issue = linkedIssue(pr);
   if (issue) {
     setLabels('issue', issue, { remove: ['agent-review', 'agent-working'] });
@@ -414,7 +499,7 @@ function merge(n, dryRun) {
 function stuck(n, args) {
   const body = readBody(args);
   const issue = getIssue(n);
-  assertOwnerIssue(issue);
+  assertTrustedIssue(issue);
   setLabels('issue', n, { add: ['agent-stuck'], remove: ['agent-working'] });
   comment('issue', n, `🤖 Stuck:\n\n${body}`);
   console.log(`marked #${n} stuck`);
@@ -426,7 +511,7 @@ function idea(args) {
   const body = readBody(args);
   const day = today();
   const openedToday = listIssues('agent-idea', 'all').filter(
-    (i) => localDay(i.createdAt, timeZone) === day,
+    (i) => isBot(i.author?.login) && localDay(i.createdAt, timeZone) === day,
   ).length;
   if (openedToday >= config.ideasPerDay)
     fail(`already opened ${openedToday} ideas today (limit ${config.ideasPerDay})`);
@@ -447,6 +532,7 @@ function idea(args) {
 
 const [command, ...rest] = process.argv.slice(2);
 try {
+  token = await botToken(config);
   switch (command) {
     case 'status':
       status();

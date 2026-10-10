@@ -1,16 +1,9 @@
 name: ci
 
 on:
+  # Every PR runs: `check` is a required check on main, and a PR it never reports on could
+  # never merge.
   pull_request:
-    paths:
-      - 'apps/**'
-      - 'packages/**'
-      - 'patches/**'
-      - 'scripts/**'
-      - 'package.json'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - '.github/**'
   push:
     branches:
       - main

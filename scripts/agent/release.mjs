@@ -4,9 +4,10 @@
 //   node scripts/agent/release.mjs --changelog-file <path> [--dry-run] [--now]
 //
 // The changelog file holds the Chinese bullet lines for apps/desktop/CHANGELOG.md (that file is
-// in Chinese). Steps: fast-forward to origin, refuse if the app is busy or the US market is
-// open, bump the patch version, build, package, install, check the running app reports the new
-// version, and only then commit and push the release. --now skips the market-hours rule only.
+// in Chinese). Steps: fast-forward to origin, wait while an earlier release PR is still open,
+// refuse if the app is busy or the US market is open, bump the patch version, build, package,
+// install, check the running app reports the new version, and only then open the release PR
+// as the bot (main is protected). --now skips the market-hours rule only.
 import { spawnSync } from 'node:child_process';
 import {
   cpSync,
@@ -21,6 +22,8 @@ import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { botToken, pushArgs } from './bot.mjs';
+import { RELEASE_BRANCH } from './risk.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const desktop = join(root, 'apps', 'desktop');
@@ -30,6 +33,7 @@ const install = config.install;
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const ignoreMarketHours = args.includes('--now');
+let token = '';
 
 function step(message) {
   console.log(`\n▶ ${message}`);
@@ -45,13 +49,15 @@ function run(cmd, cmdArgs, { cwd = root, env, quiet = false, allowFail = false }
     cwd,
     env: { ...process.env, ...env },
     encoding: 'utf8',
-    shell: process.platform === 'win32' && !cmd.endsWith('.exe') && cmd !== 'git',
+    shell: process.platform === 'win32' && !cmd.endsWith('.exe') && cmd !== 'git' && cmd !== 'gh',
     maxBuffer: 256 * 1024 * 1024,
   });
   if (result.error) throw result.error;
   if (result.status !== 0 && !allowFail) {
     const tail = `${result.stdout}\n${result.stderr}`.trim().split('\n').slice(-25).join('\n');
-    throw new Error(`${cmd} ${cmdArgs.join(' ')} failed (${result.status})\n${tail}`);
+    // Never print the bot's login, which sits in the push arguments.
+    const shown = cmdArgs.map((a) => (a.includes('extraheader') ? '<bot login>' : a)).join(' ');
+    throw new Error(`${cmd} ${shown} failed (${result.status})\n${tail}`);
   }
   if (!quiet && result.stdout.trim())
     console.log(result.stdout.trim().split('\n').slice(-3).join('\n'));
@@ -190,6 +196,12 @@ async function main() {
     fail('the checkout has uncommitted changes');
   git(['fetch', 'origin', base]);
   git(['merge', '--ff-only', `origin/${base}`]);
+  token = await botToken(config);
+  const waiting = openReleasePr();
+  if (waiting) {
+    console.log(`release PR #${waiting.number} has not merged yet; nothing to do until it does`);
+    return;
+  }
   const lastRelease = git(['log', '-1', '--format=%H', '--grep=^chore(desktop): release']);
   if (lastRelease && git(['rev-list', '--count', `${lastRelease}..HEAD`]) === '0') {
     console.log('nothing new since the last release');
@@ -243,33 +255,71 @@ async function main() {
     throw error;
   }
 
+  // main is protected: the version bump goes in as a PR from the bot, which the manager merges
+  // once the checks pass (queue.mjs merge accepts a release PR that only bumps the version).
   step('Recording the release');
-  git(['add', ...releaseFiles]);
-  git([
-    'commit',
-    '-m',
-    `chore(desktop): release ${version}`,
-    '-m',
-    'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>',
-  ]);
+  const branch = `${RELEASE_BRANCH}${version}`;
+  const title = `chore(desktop): release ${version}`;
+  git(['checkout', '-b', branch]);
   try {
-    git(['push', 'origin', `${base}:${base}`]);
-  } catch {
-    // Something merged during the build: put the release commit on top and try once more.
-    try {
-      git(['fetch', 'origin', base]);
-      git(['rebase', `origin/${base}`]);
-      git(['push', 'origin', `${base}:${base}`]);
-    } catch (error) {
-      run('git', ['rebase', '--abort'], { quiet: true, allowFail: true });
-      throw new Error(
-        `${version} is installed and committed here but not pushed; the owner must push it (${error.message})`,
-      );
-    }
+    git(['add', ...releaseFiles]);
+    git(['commit', '-m', title, '-m', 'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>']);
+    git(pushArgs(token, config.repo, `${branch}:refs/heads/${branch}`));
+    const url = run(
+      'gh',
+      [
+        'pr',
+        'create',
+        '--repo',
+        config.repo,
+        '--base',
+        base,
+        '--head',
+        branch,
+        '--title',
+        title,
+        '--body',
+        `Installed and running as ${version} on the owner's machine.\n\n${notes}`,
+      ],
+      { quiet: true, env: { GH_TOKEN: token } },
+    );
+    console.log(
+      JSON.stringify(
+        { released: version, installed: install.dir, app: reported, pr: url },
+        null,
+        2,
+      ),
+    );
+  } catch (error) {
+    throw new Error(
+      `${version} is installed but its release PR was not opened; the commit is on the local branch ${branch} (${error.message})`,
+    );
+  } finally {
+    git(['checkout', base]);
   }
-  console.log(
-    JSON.stringify({ released: version, installed: install.dir, app: reported }, null, 2),
+}
+
+/** The open release PR, if one is still waiting to merge. */
+function openReleasePr() {
+  const prs = JSON.parse(
+    run(
+      'gh',
+      [
+        'pr',
+        'list',
+        '--repo',
+        config.repo,
+        '--state',
+        'open',
+        '--json',
+        'number,headRefName',
+        '--limit',
+        '100',
+      ],
+      { quiet: true, env: { GH_TOKEN: token } },
+    ) || '[]',
   );
+  return prs.find((p) => p.headRefName.startsWith(RELEASE_BRANCH)) ?? null;
 }
 
 /** Builds, packages and installs `version`; returns the running app's user agent. Throws on any failure. */

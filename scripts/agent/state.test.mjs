@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { ciFromChecks, claimedAt, isStaleClaim, localDay } from './state.mjs';
+import { ciFromChecks, claimedAt, isStaleClaim, labelAddedBy, localDay } from './state.mjs';
 
 const required = ['check'];
 const checks = (list, status = 0) => ({ status, stdout: JSON.stringify(list), stderr: '' });
@@ -67,4 +67,32 @@ test('a claim goes stale after the time limit', () => {
     claimedAt({ createdAt: '2026-10-09T00:00:00Z', comments: [] }),
     '2026-10-09T00:00:00Z',
   );
+});
+
+test('only the owner adding agent-ready counts', () => {
+  const events = [
+    { event: 'labeled', label: { name: 'agent-ready' }, actor: { login: 'itisvincent' } },
+    {
+      event: 'unlabeled',
+      label: { name: 'agent-ready' },
+      actor: { login: 'itisvincent-bot[bot]' },
+    },
+    { event: 'labeled', label: { name: 'agent-idea' }, actor: { login: 'itisvincent-bot[bot]' } },
+  ];
+  assert.equal(labelAddedBy(events, 'agent-ready'), 'itisvincent');
+  assert.equal(
+    labelAddedBy(
+      [
+        ...events,
+        {
+          event: 'labeled',
+          label: { name: 'agent-ready' },
+          actor: { login: 'itisvincent-bot[bot]' },
+        },
+      ],
+      'agent-ready',
+    ),
+    'itisvincent-bot[bot]',
+  );
+  assert.equal(labelAddedBy([], 'agent-ready'), null);
 });
