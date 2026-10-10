@@ -5,8 +5,8 @@
 //
 // The changelog file holds the Chinese bullet lines for apps/desktop/CHANGELOG.md (that file is
 // in Chinese). Steps: fast-forward to origin, refuse if the app is busy or the US market is
-// open, bump the patch version, commit and push the release, build, package, install, then
-// check the running app reports the new version. --now skips the market-hours rule only.
+// open, bump the patch version, build, package, install, check the running app reports the new
+// version, and only then commit and push the release. --now skips the market-hours rule only.
 import { spawnSync } from 'node:child_process';
 import {
   cpSync,
@@ -40,7 +40,7 @@ function fail(message) {
   process.exit(1);
 }
 
-function run(cmd, cmdArgs, { cwd = root, env, quiet = false } = {}) {
+function run(cmd, cmdArgs, { cwd = root, env, quiet = false, allowFail = false } = {}) {
   const result = spawnSync(cmd, cmdArgs, {
     cwd,
     env: { ...process.env, ...env },
@@ -49,7 +49,7 @@ function run(cmd, cmdArgs, { cwd = root, env, quiet = false } = {}) {
     maxBuffer: 256 * 1024 * 1024,
   });
   if (result.error) throw result.error;
-  if (result.status !== 0) {
+  if (result.status !== 0 && !allowFail) {
     const tail = `${result.stdout}\n${result.stderr}`.trim().split('\n').slice(-25).join('\n');
     throw new Error(`${cmd} ${cmdArgs.join(' ')} failed (${result.status})\n${tail}`);
   }
@@ -77,22 +77,29 @@ export function usMarketOpen(now = new Date()) {
   return minutes >= 9 * 60 + 30 && minutes < 16 * 60;
 }
 
-/** Why installing now would hurt the running app, or null. Restarting kills scans and analyses. */
-async function appBusy() {
+/**
+ * Why installing now would hurt the running app, or null. Restarting kills scans and analyses.
+ * When the state cannot be read, it counts as busy: a failed read is not a free app.
+ */
+export async function appBusy() {
   const appData = process.env.APPDATA;
-  if (!appData) return null;
+  if (!appData) return 'APPDATA is not set, so the app state cannot be checked';
   const dbPath = join(appData, 'Kansoku', 'State', 'app.db');
   if (existsSync(dbPath)) {
-    const { DatabaseSync } = await import('node:sqlite');
-    const db = new DatabaseSync(dbPath, { readOnly: true });
+    let row;
     try {
-      const row = db.prepare("select value from app_meta where key = 'watchlist_scan_v1'").get();
+      const { DatabaseSync } = await import('node:sqlite');
+      const db = new DatabaseSync(dbPath, { readOnly: true });
+      try {
+        row = db.prepare("select value from app_meta where key = 'watchlist_scan_v1'").get();
+      } finally {
+        db.close();
+      }
+      // No row means no scan has ever run.
       if (row && JSON.parse(String(row.value)).running === true)
         return 'a watchlist scan is running';
-    } catch {
-      // No scan record yet.
-    } finally {
-      db.close();
+    } catch (error) {
+      return `could not read the scan state (${error instanceof Error ? error.message : error})`;
     }
   }
   const logPath = join(appData, 'Kansoku', 'logs', 'main.log');
@@ -136,7 +143,7 @@ function stage(version) {
   const require = createRequire(join(desktop, 'package.json'));
   const asar = require('@electron/asar');
   const source = install.prepackagedApp;
-  if (!existsSync(source)) fail(`missing the prepackaged app ${source}`);
+  if (!existsSync(source)) throw new Error(`missing the prepackaged app ${source}`);
   const dest = join(desktop, `release-agent-${version}`, 'app');
   rmSync(dirname(dest), { recursive: true, force: true });
   const work = mkdtempSync(join(tmpdir(), `kansoku-${version}-package-`));
@@ -161,7 +168,7 @@ function stage(version) {
     [join(desktop, 'dist-agent-kit'), 'kansoku-agent-kit'],
     [join(root, 'packages', 'core', 'drizzle'), 'drizzle'],
   ]) {
-    if (!existsSync(from)) fail(`missing build output ${from}`);
+    if (!existsSync(from)) throw new Error(`missing build output ${from}`);
     cpSync(from, join(resources, to), { recursive: true });
   }
   for (const part of ['icon.png', 'elevate.exe']) {
@@ -214,18 +221,30 @@ async function main() {
     return;
   }
 
+  // The version and changelog are written now (the build reads them) but only committed and
+  // pushed after the app runs the new version. Any failure before that puts both files back.
   step(`Releasing ${version}`);
-  writeFileSync(pkgPath, pkgText.replace(`"version": "${current}"`, `"version": "${version}"`));
   const logPath = join(desktop, 'CHANGELOG.md');
   const log = readFileSync(logPath, 'utf8');
   const firstEntry = log.indexOf('\n## ');
   if (firstEntry === -1) fail('could not find the first entry in CHANGELOG.md');
-  const today = new Intl.DateTimeFormat('en-CA', { timeZone: install.timeZone }).format(new Date());
+  const today = new Intl.DateTimeFormat('en-CA', { timeZone: config.timeZone }).format(new Date());
+  const releaseFiles = ['apps/desktop/package.json', 'apps/desktop/CHANGELOG.md'];
+  writeFileSync(pkgPath, pkgText.replace(`"version": "${current}"`, `"version": "${version}"`));
   writeFileSync(
     logPath,
     `${log.slice(0, firstEntry + 1)}## ${version} — ${today}\n\n${notes}\n\n${log.slice(firstEntry + 1)}`,
   );
-  git(['add', 'apps/desktop/package.json', 'apps/desktop/CHANGELOG.md']);
+  let reported;
+  try {
+    reported = await buildAndInstall(version);
+  } catch (error) {
+    git(['checkout', '--', ...releaseFiles]);
+    throw error;
+  }
+
+  step('Recording the release');
+  git(['add', ...releaseFiles]);
   git([
     'commit',
     '-m',
@@ -233,8 +252,28 @@ async function main() {
     '-m',
     'Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>',
   ]);
-  git(['push', 'origin', `${base}:${base}`]);
+  try {
+    git(['push', 'origin', `${base}:${base}`]);
+  } catch {
+    // Something merged during the build: put the release commit on top and try once more.
+    try {
+      git(['fetch', 'origin', base]);
+      git(['rebase', `origin/${base}`]);
+      git(['push', 'origin', `${base}:${base}`]);
+    } catch (error) {
+      run('git', ['rebase', '--abort'], { quiet: true, allowFail: true });
+      throw new Error(
+        `${version} is installed and committed here but not pushed; the owner must push it (${error.message})`,
+      );
+    }
+  }
+  console.log(
+    JSON.stringify({ released: version, installed: install.dir, app: reported }, null, 2),
+  );
+}
 
+/** Builds, packages and installs `version`; returns the running app's user agent. Throws on any failure. */
+async function buildAndInstall(version) {
   step('Building');
   run('pnpm', ['install', '--frozen-lockfile'], { quiet: true });
   run('npx', ['vite', 'build', '--configLoader', 'runner'], {
@@ -264,7 +303,7 @@ async function main() {
 
   step(`Installing into ${install.dir}`);
   const busyAgain = await appBusy();
-  if (busyAgain) fail(`${busyAgain}; the build is ready in ${staged.dest}, install later`);
+  if (busyAgain) throw new Error(`${busyAgain}; nothing was installed, the next round tries again`);
   const ps = [
     `$ErrorActionPreference = 'Stop'`,
     `$src = '${staged.dest}'; $dst = '${install.dir}'`,
@@ -290,10 +329,8 @@ async function main() {
     }
   }
   if (!reported.includes(`Kansoku/${version}`))
-    fail(`the app did not come back as ${version} (got "${reported}")`);
-  console.log(
-    JSON.stringify({ released: version, installed: install.dir, app: reported }, null, 2),
-  );
+    throw new Error(`the app did not come back as ${version} (got "${reported}")`);
+  return reported;
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {

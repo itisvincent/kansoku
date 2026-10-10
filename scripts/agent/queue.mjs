@@ -14,16 +14,18 @@
 import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { classify } from './risk.mjs';
+import { ciFromChecks, claimedAt, isStaleClaim, localDay } from './state.mjs';
 
 const config = JSON.parse(readFileSync(new URL('./config.json', import.meta.url), 'utf8'));
-const { repo, owner, base, branchPrefix } = config;
+const { repo, owner, base, branchPrefix, timeZone } = config;
+const today = () => localDay(new Date(), timeZone);
 const REVIEW_MARK = /<!-- agent-review:(approve|changes) sha=([0-9a-f]{7,40}) -->/;
 const NEEDS_YOU_MARK = (sha) => `<!-- agent-needs-you sha=${sha} -->`;
 
-function run(cmd, args, { allowFail = false } = {}) {
+function run(cmd, args) {
   const result = spawnSync(cmd, args, { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   if (result.error) throw result.error;
-  if (result.status !== 0 && !allowFail) {
+  if (result.status !== 0) {
     throw new Error(`${cmd} ${args.join(' ')} failed (${result.status}): ${result.stderr.trim()}`);
   }
   return result.stdout;
@@ -111,15 +113,13 @@ function ciState(pr) {
     config.ciPaths.some((p) => f.path === p || f.path.startsWith(p)),
   );
   if (!needsCi) return 'none-needed';
-  const out = gh(['pr', 'checks', String(pr.number), '--repo', repo, '--json', 'name,bucket'], {
-    allowFail: true,
-  });
-  const checks = out.trim() ? JSON.parse(out) : [];
-  const required = checks.filter((c) => config.requiredChecks.includes(c.name));
-  if (required.length < config.requiredChecks.length) return 'pending';
-  if (required.some((c) => c.bucket === 'fail' || c.bucket === 'cancel')) return 'fail';
-  if (required.every((c) => c.bucket === 'pass')) return 'pass';
-  return 'pending';
+  const result = spawnSync(
+    'gh',
+    ['pr', 'checks', String(pr.number), '--repo', repo, '--json', 'name,bucket'],
+    { encoding: 'utf8' },
+  );
+  if (result.error) throw result.error;
+  return ciFromChecks(result, config.requiredChecks);
 }
 
 /** The owner account's latest review verdict for the PR's current head commit. */
@@ -150,18 +150,18 @@ function assertAgentPr(pr) {
   if (pr.state !== 'OPEN') fail(`PR #${pr.number} is not open`);
 }
 
-function listIssues(label) {
+function listIssues(label, state = 'open') {
   return ghJson([
     'issue',
     'list',
     '--repo',
     repo,
     '--state',
-    'open',
+    state,
     '--label',
     label,
     '--json',
-    'number,title,author,labels,createdAt',
+    'number,title,author,labels,createdAt,state',
     '--limit',
     '100',
   ]).filter((i) => i.author?.login === owner);
@@ -184,8 +184,8 @@ function status() {
     '--limit',
     '100',
   ]).filter((p) => p.author?.login === owner && p.headRefName.startsWith(branchPrefix));
-  const today = new Date().toISOString().slice(0, 10);
-  const ideas = listIssues('agent-idea');
+  const day = today();
+  const ideas = listIssues('agent-idea', 'all');
   const detailed = prs.map((p) => {
     const pr = getPr(p.number);
     return {
@@ -210,14 +210,27 @@ function status() {
       repo,
       '--state',
       'all',
-      '--search',
-      `created:>=${today}`,
       '--json',
-      'headRefName,author',
+      'headRefName,author,createdAt',
       '--limit',
       '100',
-    ]).filter((p) => p.author?.login === owner && p.headRefName.startsWith(branchPrefix)).length +
-    busy;
+    ]).filter(
+      (p) =>
+        p.author?.login === owner &&
+        p.headRefName.startsWith(branchPrefix) &&
+        localDay(p.createdAt, timeZone) === day,
+    ).length + busy;
+  const linkedIssues = new Set(detailed.map((p) => p.issue));
+  const workingDetail = working.map(({ number, title }) => {
+    const issue = getIssue(number);
+    const startedAt = claimedAt({
+      createdAt: issue.createdAt,
+      comments: (issue.comments ?? []).filter((c) => c.author?.login === owner),
+    });
+    const stale =
+      !linkedIssues.has(number) && isStaleClaim(startedAt, config.workingTimeoutHours);
+    return { number, title, startedAt, stale };
+  });
   console.log(
     JSON.stringify(
       {
@@ -226,11 +239,11 @@ function status() {
         startedToday,
         maxTasksPerDay: config.maxTasksPerDay,
         ready: ready.map(({ number, title }) => ({ number, title })),
-        working: working.map(({ number, title }) => ({ number, title })),
+        working: workingDetail,
         prs: detailed,
         ideas: {
-          open: ideas.length,
-          openedToday: ideas.filter((i) => i.createdAt.startsWith(today)).length,
+          open: ideas.filter((i) => i.state === 'OPEN').length,
+          openedToday: ideas.filter((i) => localDay(i.createdAt, timeZone) === day).length,
           perDay: config.ideasPerDay,
         },
       },
@@ -411,8 +424,10 @@ function idea(args) {
   const title = option(args, '--title');
   if (!title) fail('--title is required');
   const body = readBody(args);
-  const today = new Date().toISOString().slice(0, 10);
-  const openedToday = listIssues('agent-idea').filter((i) => i.createdAt.startsWith(today)).length;
+  const day = today();
+  const openedToday = listIssues('agent-idea', 'all').filter(
+    (i) => localDay(i.createdAt, timeZone) === day,
+  ).length;
   if (openedToday >= config.ideasPerDay)
     fail(`already opened ${openedToday} ideas today (limit ${config.ideasPerDay})`);
   const url = gh([

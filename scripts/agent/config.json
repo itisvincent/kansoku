@@ -6,6 +6,8 @@
   "parallel": 1,
   "ideasPerDay": 3,
   "maxChangedLines": 600,
+  "timeZone": "Asia/Taipei",
+  "workingTimeoutHours": 3,
   "needsYou": [
     "packages/core/src/marketdata/**",
     "packages/core/src/credentials/**",
@@ -37,7 +39,6 @@
     "dir": "D:\\tools\\kansoku",
     "prepackagedApp": "E:/Workspace/programming/javascript/kansoku/apps/desktop/release-english-04316-ready/app",
     "debugPort": 9336,
-    "timeZone": "Asia/Taipei",
     "noInstallWhileUsMarketOpen": true
   },
   "requiredChecks": [

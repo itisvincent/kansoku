@@ -24,6 +24,14 @@ node scripts/agent/queue.mjs status
 `status` lists ready issues, issues being worked on, open agent PRs (checks, review state, risk,
 owner feedback) and free slots. Use it, not raw `gh`.
 
+If `status` refuses or errors (login expired, network down), that is **not** a quiet round:
+do nothing else, and report the error as the first line of the round report.
+
+For each entry in `status.working` with `stale: true` (claimed more than
+`workingTimeoutHours` ago and no PR), the worker has stopped. Mark it stuck
+(`queue.mjs stuck <n> --body-file ...`): say no PR came within the time limit and that the owner
+can add `agent-ready` again to retry. Do not restart it yourself.
+
 ## 2. Move open PRs forward (before starting anything new)
 
 For each PR in `status.prs`, in this order:
