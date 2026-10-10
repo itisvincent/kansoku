@@ -47,6 +47,7 @@
   "parallel": 1,
   "repo": "itisvincent/kansoku",
   "requiredChecks": ["check"],
+  "roundLockMinutes": 90,
   "timeZone": "Asia/Taipei",
   "workingTimeoutHours": 3
 }

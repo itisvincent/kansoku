@@ -44,6 +44,15 @@ export function labelAddedBy(events, label) {
   return added.length ? (added[added.length - 1].actor?.login ?? null) : null;
 }
 
+/**
+ * A round lock older than `minutes` belongs to a round that died without unlocking (closed
+ * session, crash); the next round may take it over. An unreadable time counts as stale.
+ */
+export function isStaleLock(lockedAt, minutes, now = new Date()) {
+  const at = new Date(lockedAt).getTime();
+  return !Number.isFinite(at) || now.getTime() - at > minutes * 60_000;
+}
+
 /** A claim with no PR after `hours` means the worker stopped (crash, closed session). */
 export function isStaleClaim(startedAt, hours, now = new Date()) {
   return now.getTime() - new Date(startedAt).getTime() > hours * 3_600_000;
