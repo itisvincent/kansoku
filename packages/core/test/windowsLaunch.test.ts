@@ -11,7 +11,8 @@ afterEach(() => {
 });
 
 describe('Windows command launching', () => {
-  it('finds an npm .cmd launcher on PATH', () => {
+  // Looks up real files with Windows paths, so it only means something on Windows.
+  it.skipIf(process.platform !== 'win32')('finds an npm .cmd launcher on PATH', () => {
     const dir = mkdtempSync(join(tmpdir(), 'win-launch-'));
     dirs.push(dir);
     writeFileSync(join(dir, 'codex.cmd'), '@echo off');

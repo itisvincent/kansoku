@@ -36,8 +36,11 @@ function fakeWindowsCli(subdir = ''): { root: string; path: string } {
   return { root, path };
 }
 
+// The lookups below join real files with Windows paths, so they only mean something on Windows.
+const onWindows = process.platform === 'win32';
+
 describe('longbridge CLI on Windows', () => {
-  it('finds longbridge.exe on PATH (Windows names it Path)', async () => {
+  it.skipIf(!onWindows)('finds longbridge.exe on PATH (Windows names it Path)', async () => {
     const { root, path } = fakeWindowsCli();
     const exec = vi.fn();
     await expect(
@@ -46,7 +49,7 @@ describe('longbridge CLI on Windows', () => {
     expect(exec).not.toHaveBeenCalled();
   });
 
-  it('finds the installer location under LOCALAPPDATA when PATH misses it', async () => {
+  it.skipIf(!onWindows)('finds the installer location under LOCALAPPDATA when PATH misses it', async () => {
     const { root, path } = fakeWindowsCli(join('Programs', 'longbridge'));
     await expect(
       locateLongbridgeCli({ env: { PATH: '', LOCALAPPDATA: root }, platform: 'win32' }),
