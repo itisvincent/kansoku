@@ -22,7 +22,9 @@ const explainer = vi.hoisted(() => ({ explainSymbol: vi.fn() }));
 
 vi.mock('@kansoku/core/marketdata/registry', () => ({ getProvider: () => provider }));
 vi.mock('@kansoku/core/charts/store', () => store);
-vi.mock('@kansoku/core/cockpit/outcomeCache', () => ({
+// Only the database reads and writes are faked; the verdict helpers are pure and stay real.
+vi.mock('@kansoku/core/cockpit/outcomeCache', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@kansoku/core/cockpit/outcomeCache')>()),
   getResolvedOutcomes: async () => new Map(),
   saveResolvedOutcome: async () => {},
 }));
