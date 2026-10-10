@@ -33,6 +33,12 @@ vi.mock('@kansoku/core/marketdata/longbridgeRegionStore', () => ({
   createLongbridgeRegionStore: vi.fn(() => ({})),
   setActiveLongbridgeRegionStore: vi.fn(),
 }));
+// Startup reads the saved interface language from the database; this test's database is a stub.
+vi.mock('@kansoku/core/settings/interfaceLocale', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@kansoku/core/settings/interfaceLocale')>()),
+  createInterfaceLocaleStore: () => ({ get: () => 'en-US' as const, set: () => {} }),
+}));
+
 vi.mock('@kansoku/core/credentials/authUrlOpener', () => ({ initAuthUrlOpener: vi.fn() }));
 vi.mock('@kansoku/core/credentials/registry', () => ({ initCredentialProvider: vi.fn() }));
 vi.mock('@kansoku/core/pro/bundleState', () => ({
