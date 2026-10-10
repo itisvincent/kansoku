@@ -1,7 +1,7 @@
 {
   "repo": "itisvincent/kansoku",
   "owner": "itisvincent",
-  "base": "windows-version",
+  "base": "main",
   "branchPrefix": "agent/",
   "parallel": 1,
   "ideasPerDay": 3,
