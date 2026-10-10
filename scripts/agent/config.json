@@ -1,13 +1,21 @@
 {
-  "repo": "itisvincent/kansoku",
-  "owner": "itisvincent",
   "base": "main",
+  "bot": {
+    "slug": "itisvincent-bot",
+    "appId": 5263771,
+    "installationId": 169970446,
+    "userId": 340626745
+  },
   "branchPrefix": "agent/",
-  "parallel": 1,
   "ideasPerDay": 3,
+  "install": {
+    "dir": "D:\\tools\\kansoku",
+    "prepackagedApp": "E:/Workspace/programming/javascript/kansoku/apps/desktop/release-english-04316-ready/app",
+    "debugPort": 9336,
+    "noInstallWhileUsMarketOpen": true
+  },
   "maxChangedLines": 600,
-  "timeZone": "Asia/Taipei",
-  "workingTimeoutHours": 3,
+  "maxTasksPerDay": 10,
   "needsYou": [
     "packages/core/src/marketdata/**",
     "packages/core/src/credentials/**",
@@ -35,24 +43,10 @@
     "AGENTS.md",
     "**/.env*"
   ],
-  "install": {
-    "dir": "D:\\tools\\kansoku",
-    "prepackagedApp": "E:/Workspace/programming/javascript/kansoku/apps/desktop/release-english-04316-ready/app",
-    "debugPort": 9336,
-    "noInstallWhileUsMarketOpen": true
-  },
-  "requiredChecks": [
-    "check"
-  ],
-  "ciPaths": [
-    "apps/",
-    "packages/",
-    "patches/",
-    "scripts/",
-    "package.json",
-    "pnpm-lock.yaml",
-    "pnpm-workspace.yaml",
-    ".github/"
-  ],
-  "maxTasksPerDay": 10
+  "owner": "itisvincent",
+  "parallel": 1,
+  "repo": "itisvincent/kansoku",
+  "requiredChecks": ["check"],
+  "timeZone": "Asia/Taipei",
+  "workingTimeoutHours": 3
 }

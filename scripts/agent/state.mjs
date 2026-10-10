@@ -35,6 +35,15 @@ export function claimedAt(issue) {
   return started.length ? started[started.length - 1].createdAt : issue.createdAt;
 }
 
+/**
+ * Who last added `label`, from the issue's REST events. The bot can write labels too, so a
+ * label only counts as the owner's approval when the owner added it.
+ */
+export function labelAddedBy(events, label) {
+  const added = events.filter((e) => e.event === 'labeled' && e.label?.name === label);
+  return added.length ? (added[added.length - 1].actor?.login ?? null) : null;
+}
+
 /** A claim with no PR after `hours` means the worker stopped (crash, closed session). */
 export function isStaleClaim(startedAt, hours, now = new Date()) {
   return now.getTime() - new Date(startedAt).getTime() > hours * 3_600_000;

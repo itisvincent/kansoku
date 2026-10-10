@@ -25,6 +25,25 @@ const PROTECTED_PATH =
   /(^|[\\/])(\.env(\.[\w-]+)?$|scripts[\\/]agent[\\/]|\.claude[\\/]settings[^\\/]*\.json$)/;
 const ENV_FILE = /(^|[\s"'=\\/])\.env(\.(?!example\b)[\w-]+)?(?=$|[\s"'\\/])/;
 
+// The bot's private key: only queue.mjs and release.mjs read it, inside their own process.
+const BOT_KEY = /\.pem\b|KANSOKU_BOT_KEY|private-key|GH_TOKEN|extraheader/i;
+const BOT_KEY_REASON =
+  "the bot's GitHub key and login are only used inside queue.mjs and release.mjs";
+
+/**
+ * Whether `text` names the bot key or its folder (from KANSOKU_BOT_KEY, so no private path is
+ * written here). The drive letter is dropped so `D:\a\b`, `D:/a/b` and `/d/a/b` all match.
+ */
+export function touchesBotKey(text, keyPath = process.env.KANSOKU_BOT_KEY) {
+  if (BOT_KEY.test(text)) return true;
+  if (!keyPath) return false;
+  const norm = (s) => s.replaceAll('\\', '/').replace(/\/+/g, '/').toLowerCase();
+  const folder = norm(keyPath)
+    .replace(/\/[^/]*$/, '')
+    .replace(/^([a-z]:|\/[a-z](?=\/))/, '');
+  return folder.length > 1 && norm(text).includes(folder);
+}
+
 const WRITES =
   /(^|\s)(>|>>|tee|sed\s+-i|rm|mv|cp|Set-Content|Add-Content|Out-File|Remove-Item|Move-Item|Copy-Item|New-Item)\b|>/;
 
@@ -53,6 +72,7 @@ function denyCommand(command) {
   const trimmed = command.trim();
   if (!trimmed) return null;
   if (ENV_FILE.test(trimmed)) return 'never read or write .env files';
+  if (touchesBotKey(trimmed)) return BOT_KEY_REASON;
   for (const raw of trimmed.split(SEGMENT_SPLIT)) {
     const segment = raw.trim().replace(/^(cd\s+\S+\s*)/, '');
     if (!segment) continue;
@@ -85,6 +105,7 @@ export function decide(input) {
   if (['Edit', 'Write', 'MultiEdit', 'NotebookEdit'].includes(tool)) {
     const path = String(args.file_path ?? args.notebook_path ?? '');
     if (PROTECTED_PATH.test(path)) return 'the agent may not change .env files or its own rules';
+    if (touchesBotKey(path)) return BOT_KEY_REASON;
     if (/D:[\\/]+tools[\\/]+kansoku/i.test(path))
       return 'the installed app is only touched by release.mjs';
     return null;
@@ -92,6 +113,11 @@ export function decide(input) {
   if (tool === 'Read') {
     const path = String(args.file_path ?? '');
     if (/(^|[\\/])\.env(\.(?!example\b)[\w-]+)?$/.test(path)) return 'never read .env files';
+    if (touchesBotKey(path)) return BOT_KEY_REASON;
+  }
+  if (tool === 'Grep' || tool === 'Glob') {
+    const text = [args.path, args.pattern, args.glob].filter(Boolean).join(' ');
+    if (touchesBotKey(text)) return BOT_KEY_REASON;
   }
   return null;
 }

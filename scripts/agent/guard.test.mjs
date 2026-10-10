@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { decide } from './guard.mjs';
+import { decide, touchesBotKey } from './guard.mjs';
 
 const bash = (command) => decide({ tool_name: 'Bash', tool_input: { command } });
 const ps = (command) => decide({ tool_name: 'PowerShell', tool_input: { command } });
@@ -100,4 +100,26 @@ test('as a hook it prints a deny decision and exits 0', () => {
   assert.equal(allow.stdout, '');
   const broken = spawnSync(process.execPath, [script], { input: 'not json', encoding: 'utf8' });
   assert.equal(JSON.parse(broken.stdout).hookSpecificOutput.permissionDecision, 'deny');
+});
+
+test('the bot key and its folder stay out of reach', () => {
+  const key = String.raw`D:\secret\keys\bot.private-key.pem`;
+  assert.equal(touchesBotKey('cat D:/secret/keys/*', key), true);
+  assert.equal(touchesBotKey('ls /d/secret/keys', key), true);
+  assert.equal(touchesBotKey(String.raw`Get-Content D:\Secret\Keys\x`, key), true);
+  assert.equal(touchesBotKey('echo $KANSOKU_BOT_KEY', key), true);
+  assert.equal(touchesBotKey('GH_TOKEN=x gh pr merge 3', key), true);
+  assert.equal(touchesBotKey('pnpm test', key), false);
+  assert.match(bash('cat app.pem'), /bot's GitHub key/);
+  assert.match(bash('node -e "console.log(process.env.KANSOKU_BOT_KEY)"'), /bot's GitHub key/);
+  assert.match(
+    decide({ tool_name: 'Read', tool_input: { file_path: 'C:/x/itisvincent-bot.private-key.pem' } }),
+    /bot's GitHub key/,
+  );
+  assert.match(
+    decide({ tool_name: 'Grep', tool_input: { pattern: 'BEGIN', glob: '*.pem' } }),
+    /bot's GitHub key/,
+  );
+  assert.equal(decide({ tool_name: 'Grep', tool_input: { pattern: 'TODO', path: 'apps' } }), null);
+  assert.equal(bash('node scripts/agent/queue.mjs status'), null);
 });
