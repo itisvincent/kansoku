@@ -340,7 +340,9 @@ async function buildAndInstall(version) {
     quiet: true,
   });
   run('node', ['scripts/stageSkills.mjs'], { cwd: desktop, quiet: true });
+  // Same order as `package:win`: the kit is staged first, then the CLI is built into it.
   run('node', ['scripts/stageAgentKit.mjs'], { cwd: desktop, quiet: true });
+  run('node', ['scripts/buildCli.mjs'], { cwd: desktop, quiet: true });
 
   step('Packaging');
   const staged = stage(version);
@@ -360,7 +362,7 @@ async function buildAndInstall(version) {
     `Get-Process | Where-Object { $_.Path -like "$dst\\*" } | Stop-Process -Force -Confirm:$false`,
     `Start-Sleep -Seconds 3`,
     `Copy-Item "$src\\resources\\app.asar" "$dst\\resources\\app.asar" -Force`,
-    `foreach ($d in 'web-dist','drizzle') { if (Test-Path "$dst\\resources\\$d") { Remove-Item "$dst\\resources\\$d" -Recurse -Force -Confirm:$false }; Copy-Item "$src\\resources\\$d" "$dst\\resources\\$d" -Recurse -Force }`,
+    `foreach ($d in 'web-dist','drizzle','kansoku-agent-kit') { if (Test-Path "$dst\\resources\\$d") { Remove-Item "$dst\\resources\\$d" -Recurse -Force -Confirm:$false }; Copy-Item "$src\\resources\\$d" "$dst\\resources\\$d" -Recurse -Force }`,
     // Skills are replaced one by one, never as a folder: the installed app can hold skills the
     // owner copied in by hand that are not in this repo (local-only, never published), and
     // those must survive an install.

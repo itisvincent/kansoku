@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { chmodSync, cpSync, existsSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 function sha256File(filePath) {
   return createHash('sha256').update(readFileSync(filePath)).digest('hex');
@@ -53,7 +53,9 @@ export function stageAgentKit({ srcRoot, destRoot, pkg }) {
   return manifest;
 }
 
-const isMain = process.argv[1] && import.meta.url === `file://${process.argv[1]}`;
+// pathToFileURL, not `file://${path}`: a Windows path (E:\…) only becomes the file:///E:/…
+// form of import.meta.url this way, otherwise the script silently stages nothing there.
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 if (isMain) {
   const desktopDir = dirname(dirname(fileURLToPath(import.meta.url)));
   const srcRoot = join(desktopDir, 'agent-kit-src');
