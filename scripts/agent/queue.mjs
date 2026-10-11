@@ -11,6 +11,7 @@
 //   node scripts/agent/queue.mjs merge <pr> [--dry-run]
 //   node scripts/agent/queue.mjs stuck <issue> --body-file <path>
 //   node scripts/agent/queue.mjs idea --title <text> --body-file <path>
+//   node scripts/agent/queue.mjs rerun <pr> --reason <text>   (once per commit)
 //   node scripts/agent/queue.mjs lock | unlock      (one manager round at a time)
 //
 // Everything is done as the bot (config.bot, see bot.mjs). Two identities matter:
@@ -28,6 +29,7 @@ import {
   claimedAt,
   isStaleClaim,
   isStaleLock,
+  rerunDecision,
   labelAddedBy,
   localDay,
 } from './state.mjs';
@@ -505,6 +507,43 @@ function merge(n, dryRun) {
   console.log(JSON.stringify({ ...verdictLine, merged: true }, null, 2));
 }
 
+/**
+ * Re-runs the failed jobs of a PR's CI once, for a failure the PR did not cause (a test that
+ * fails at random, a broken runner). The manager names the reason; a second failure on the same
+ * commit is refused and goes to the owner.
+ */
+async function rerun(n, args) {
+  const reason = option(args, '--reason');
+  if (!reason) fail('--reason is required (which test failed, and why it is not this PR)');
+  const pr = getPr(n);
+  assertAgentPr(pr);
+  const runs = ghJson([
+    'run',
+    'list',
+    '--repo',
+    repo,
+    '--branch',
+    pr.headRefName,
+    '--workflow',
+    'ci.yml',
+    '--limit',
+    '10',
+    '--json',
+    'databaseId,headSha,attempt,conclusion,event',
+  ]);
+  const decision = rerunDecision(runs, pr.headRefOid);
+  if (decision.refuse) fail(`will not re-run PR #${n}: ${decision.refuse}`);
+  const everyday = token;
+  token = await botToken(config, { actions: 'write' });
+  try {
+    gh(['run', 'rerun', String(decision.runId), '--repo', repo, '--failed']);
+  } finally {
+    token = everyday;
+  }
+  comment('pr', n, `🤖 Re-ran the failed checks once: ${reason}`);
+  console.log(`re-ran run ${decision.runId} for #${n}`);
+}
+
 function stuck(n, args) {
   const body = readBody(args);
   const issue = getIssue(n);
@@ -597,6 +636,9 @@ try {
       break;
     case 'merge':
       merge(issueNumber(rest[0]), rest.includes('--dry-run'));
+      break;
+    case 'rerun':
+      await rerun(issueNumber(rest[0]), rest);
       break;
     case 'stuck':
       stuck(issueNumber(rest[0]), rest);

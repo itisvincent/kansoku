@@ -52,9 +52,13 @@ For every other PR in `status.prs`, in this order:
 
 1. **Checks failed** (`ci: fail`): first read which tests failed
    (`gh run list --repo <repo> --branch <head branch> --limit 1`, then `gh run view <id> --repo <repo> --log-failed`).
-   If they are in files the PR does not touch, run those tests on the base branch in this
-   checkout. If they fail there too, the base branch is broken, not the PR: do not start a fixer;
-   name the failing tests in the round report and leave the PR for the owner.
+   If they are in files the PR does not touch, the PR did not cause them (a test that fails at
+   random, a broken runner): run
+   `node scripts/agent/queue.mjs rerun <pr> --reason "<test name>: not in this PR"` and leave the
+   PR for the next round. `rerun` works once per PR commit. If it refuses because it already
+   re-ran, run those tests on the base branch in this checkout; if they fail there too, the base
+   branch is broken: do not start a fixer, name the failing tests in the round report and leave
+   the PR for the owner.
 2. **Owner feedback** (`feedback` not empty), **review asked for changes** (`review: changes`),
    or checks failed because of the PR itself: start a worker with `scripts/agent/WORKER.md` in
    *fix mode* for that PR. If `changesRequested` is already 3, do not try again: mark the issue stuck

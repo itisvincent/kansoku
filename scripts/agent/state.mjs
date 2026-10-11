@@ -53,6 +53,23 @@ export function isStaleLock(lockedAt, minutes, now = new Date()) {
   return !Number.isFinite(at) || now.getTime() - at > minutes * 60_000;
 }
 
+/**
+ * Which CI run to re-run for a PR's head commit, or why not. `runs` is `gh run list --json
+ * databaseId,headSha,attempt,conclusion,event`, newest first. Only one re-run per commit: a test
+ * that fails twice is the owner's call, not the agent's.
+ */
+export function rerunDecision(runs, headSha) {
+  const run = runs.find((r) => r.headSha === headSha && r.event === 'pull_request');
+  if (!run) return { refuse: 'there is no CI run for the PR’s current commit' };
+  if (run.conclusion !== 'failure') {
+    return { refuse: `the latest run is ${run.conclusion || 'still running'}, not failed` };
+  }
+  if (run.attempt > 1) {
+    return { refuse: 'it was already re-run once for this commit; leave it for the owner' };
+  }
+  return { runId: run.databaseId };
+}
+
 /** A claim with no PR after `hours` means the worker stopped (crash, closed session). */
 export function isStaleClaim(startedAt, hours, now = new Date()) {
   return now.getTime() - new Date(startedAt).getTime() > hours * 3_600_000;
