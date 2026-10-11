@@ -34,8 +34,12 @@ export function appJwt(appId, privateKey, now = Math.floor(Date.now() / 1000)) {
   return `${body}.${createSign('RSA-SHA256').update(body).sign(privateKey, 'base64url')}`;
 }
 
-/** A 1-hour bot login limited to `repo` and the permissions above. */
-export async function botToken({ bot, repo }) {
+/**
+ * A 1-hour bot login limited to `repo` and the permissions above. `extra` raises single
+ * permissions for one command only (re-running CI needs `actions: 'write'`); the everyday login
+ * keeps Actions read-only.
+ */
+export async function botToken({ bot, repo }, extra = {}) {
   const keyPath = process.env.KANSOKU_BOT_KEY;
   if (!keyPath) throw new Error('KANSOKU_BOT_KEY is not set, so the agent has no GitHub login');
   const jwt = appJwt(bot.appId, readFileSync(keyPath, 'utf8'));
@@ -48,7 +52,10 @@ export async function botToken({ bot, repo }) {
         'accept': 'application/vnd.github+json',
         'user-agent': bot.slug,
       },
-      body: JSON.stringify({ repositories: [repo.split('/')[1]], permissions: PERMISSIONS }),
+      body: JSON.stringify({
+        repositories: [repo.split('/')[1]],
+        permissions: { ...PERMISSIONS, ...extra },
+      }),
     },
   );
   const json = await res.json();

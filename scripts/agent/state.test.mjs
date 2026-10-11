@@ -5,6 +5,7 @@ import {
   claimedAt,
   isStaleClaim,
   isStaleLock,
+  rerunDecision,
   labelAddedBy,
   localDay,
 } from './state.mjs';
@@ -109,4 +110,21 @@ test('a round lock goes stale after its time limit, or when unreadable', () => {
   assert.equal(isStaleLock('2026-10-10T11:00:00Z', 90, now), false);
   assert.equal(isStaleLock('2026-10-10T10:00:00Z', 90, now), true);
   assert.equal(isStaleLock('an unreadable time', 90, now), true);
+});
+
+test('a failed PR run is re-run once per commit, never twice', () => {
+  const run = (over) => ({
+    databaseId: 7,
+    headSha: 'abc',
+    attempt: 1,
+    conclusion: 'failure',
+    event: 'pull_request',
+    ...over,
+  });
+  assert.deepEqual(rerunDecision([run()], 'abc'), { runId: 7 });
+  assert.match(rerunDecision([run({ attempt: 2 })], 'abc').refuse, /already re-run once/);
+  assert.match(rerunDecision([run({ conclusion: '' })], 'abc').refuse, /still running/);
+  assert.match(rerunDecision([run({ conclusion: 'success' })], 'abc').refuse, /success/);
+  assert.match(rerunDecision([run({ headSha: 'old' })], 'abc').refuse, /no CI run/);
+  assert.match(rerunDecision([run({ event: 'push' })], 'abc').refuse, /no CI run/);
 });
