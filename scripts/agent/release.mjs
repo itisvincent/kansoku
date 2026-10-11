@@ -360,7 +360,12 @@ async function buildAndInstall(version) {
     `Get-Process | Where-Object { $_.Path -like "$dst\\*" } | Stop-Process -Force -Confirm:$false`,
     `Start-Sleep -Seconds 3`,
     `Copy-Item "$src\\resources\\app.asar" "$dst\\resources\\app.asar" -Force`,
-    `foreach ($d in 'web-dist','drizzle','skills') { if (Test-Path "$dst\\resources\\$d") { Remove-Item "$dst\\resources\\$d" -Recurse -Force -Confirm:$false }; Copy-Item "$src\\resources\\$d" "$dst\\resources\\$d" -Recurse -Force }`,
+    `foreach ($d in 'web-dist','drizzle') { if (Test-Path "$dst\\resources\\$d") { Remove-Item "$dst\\resources\\$d" -Recurse -Force -Confirm:$false }; Copy-Item "$src\\resources\\$d" "$dst\\resources\\$d" -Recurse -Force }`,
+    // Skills are replaced one by one, never as a folder: the installed app can hold skills the
+    // owner copied in by hand that are not in this repo (local-only, never published), and
+    // those must survive an install.
+    `New-Item -ItemType Directory -Force "$dst\\resources\\skills" | Out-Null`,
+    `Get-ChildItem "$src\\resources\\skills" | ForEach-Object { $t = Join-Path "$dst\\resources\\skills" $_.Name; if (Test-Path $t) { Remove-Item $t -Recurse -Force -Confirm:$false }; Copy-Item $_.FullName $t -Recurse -Force }`,
     `Copy-Item "$src\\Kansoku.exe" "$dst\\Kansoku.exe" -Force`,
     `Remove-Item Env:TZ -ErrorAction SilentlyContinue`,
     `Start-Process -FilePath "$dst\\Kansoku.exe" -ArgumentList '--remote-debugging-port=${install.debugPort}'`,
