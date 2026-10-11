@@ -220,4 +220,61 @@ describe('market calendar event adapter', () => {
       warn.mockRestore();
     }
   });
+
+  it('reports a dropped row only once even when the same row appears on every poll', async () => {
+    const notes: string[] = [];
+    const instance = createCalendarAdapter({
+      loadHomeEvents: async () => ({
+        events: { date: '2026-08-20', items: [macro({ sourceId: null })] },
+        failures: [],
+      }),
+      onDiagnostic: (note) => notes.push(note),
+    });
+
+    await instance.poll!({ cursor: null });
+    await instance.poll!({ cursor: null });
+
+    expect(notes.filter((n) => /macro/i.test(n))).toHaveLength(1);
+  });
+
+  it('still reports a drop note when a new row is dropped for the first time on a later poll', async () => {
+    const notes: string[] = [];
+    let call = 0;
+    const instance = createCalendarAdapter({
+      loadHomeEvents: async () => {
+        call += 1;
+        const items =
+          call === 1
+            ? [macro({ sourceId: null, title: 'Row A' })]
+            : [
+                macro({ sourceId: null, title: 'Row A' }),
+                macro({ sourceId: null, title: 'Row B', ts: '2026-08-21T14:00:00Z' }),
+              ];
+        return { events: { date: '2026-08-20', items }, failures: [] };
+      },
+      onDiagnostic: (note) => notes.push(note),
+    });
+
+    await instance.poll!({ cursor: null });
+    await instance.poll!({ cursor: null });
+
+    const dropNotes = notes.filter((n) => /macro/i.test(n));
+    expect(dropNotes).toHaveLength(2);
+  });
+
+  it('reports upstream failure notes on every poll, not just the first', async () => {
+    const notes: string[] = [];
+    const instance = createCalendarAdapter({
+      loadHomeEvents: async () => ({
+        events: { date: '2026-08-20', items: [] },
+        failures: ['macro US — calendar down'],
+      }),
+      onDiagnostic: (note) => notes.push(note),
+    });
+
+    await instance.poll!({ cursor: null });
+    await instance.poll!({ cursor: null });
+
+    expect(notes.filter((n) => n.includes('calendar down'))).toHaveLength(2);
+  });
 });

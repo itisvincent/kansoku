@@ -131,6 +131,12 @@ export function createCalendarAdapter(deps: CalendarAdapterDeps): EventSourceAda
       console.warn(`[${MARKET_CALENDAR_SOURCE}] ${note}`);
     });
 
+  // Tracks drop notes that have already been reported so that a row that cannot be
+  // identified is only logged once per app run, not on every 5-minute poll. Upstream
+  // failure notes are not filtered — they describe the current state of the upstream,
+  // not a single row, so they belong on every poll.
+  const reportedDrops = new Set<string>();
+
   async function poll(): Promise<EventPollResult> {
     const home = await deps.loadHomeEvents();
     // Partial failures still ingest what arrived, but they are not silent: a calendar
@@ -140,7 +146,10 @@ export function createCalendarAdapter(deps: CalendarAdapterDeps): EventSourceAda
     const byKey = new Map<string, MarketEventDraft>();
     for (const item of home.events.items) {
       const { draft, note } = toDraft(item);
-      if (note) report(note);
+      if (note && !reportedDrops.has(note)) {
+        reportedDrops.add(note);
+        report(note);
+      }
       if (draft) byKey.set(draft.dedupeKey!, draft);
     }
     // No cursor: every cycle re-reads the whole forward window, and the domain's
