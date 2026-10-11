@@ -113,7 +113,10 @@ test('the bot key and its folder stay out of reach', () => {
   assert.match(bash('cat app.pem'), /bot's GitHub key/);
   assert.match(bash('node -e "console.log(process.env.KANSOKU_BOT_KEY)"'), /bot's GitHub key/);
   assert.match(
-    decide({ tool_name: 'Read', tool_input: { file_path: 'C:/x/itisvincent-bot.private-key.pem' } }),
+    decide({
+      tool_name: 'Read',
+      tool_input: { file_path: 'C:/x/itisvincent-bot.private-key.pem' },
+    }),
     /bot's GitHub key/,
   );
   assert.match(
