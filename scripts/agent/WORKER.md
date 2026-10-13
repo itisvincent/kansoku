@@ -29,6 +29,8 @@ pnpm install --frozen-lockfile
 
 ## Do the work
 
+- Read `scripts/agent/LESSONS.md` first: what earlier rounds got wrong (and right). Its **Rules**
+  must be followed — a reviewer asks for changes when one is broken. Its **Lessons** should be.
 - Read `CLAUDE.md` and follow the repo's conventions and the style of the surrounding code.
 - Keep the change to what the issue asks. No drive-by refactors.
 - Prefer a failing test first, then the fix. Every behaviour change gets a test.
@@ -48,12 +50,35 @@ Read the output. Do not claim a check passed unless you saw it pass. You cannot 
 the desktop app (the release step does that after merge); say so in the PR if the issue asks for
 an in-app check.
 
+**Red check** — prove the new tests can fail. Before committing, put the old code back and run
+only the new or changed tests:
+
+```bash
+git stash push --include-untracked -- <the changed source files, not the test files>
+<run the new tests>        # they must FAIL, on the behaviour the issue is about
+git stash pop
+<run the new tests>        # and pass again
+```
+
+A failure only counts when it names the wrong behaviour (an assertion on a value, a missing
+call). A compile error, an import error or a skipped test does not count: change the test until
+it fails for the right reason. When there is nothing to put back — a docs-only change, a pure
+refactor, a brand-new module with no old behaviour — write "not applicable" and why.
+
 ## Hand it in
 
 1. Commit with a conventional message (`feat:` / `fix:` / `test:` / `docs:` …), ending with the
    line `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
-2. Write the PR description to a temp file: **What changed**, **How I checked it** (commands and
-   results), **Not checked**, **Risks**. Plain English.
+2. Write the PR description to a temp file, plain English, with these sections:
+   - **What changed**
+   - **How I checked it** — each command and what it printed (pass counts, not "it works").
+   - **Red check** — the test that failed with the old code, and the line of output saying why;
+     or "not applicable — <why>".
+   - **Not checked** — always present. Every check you did not run, one line each with the
+     reason (for example "Desktop app not opened — the worker cannot install it"). Write "none"
+     only if you really ran everything the issue's "Done when" lines ask for. A check you skipped
+     is listed here, never left out.
+   - **Risks**
 3. Build mode: `node scripts/agent/queue.mjs open-pr --issue <n> --title "<conventional title>" --body-file <file>`
    Fix mode: `node scripts/agent/queue.mjs update-pr <pr> --body-file <file>` (say what you changed
    in answer to each point).

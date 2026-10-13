@@ -44,9 +44,11 @@
     "**/.env*"
   ],
   "owner": "itisvincent",
+  "ownerGitNames": ["itisvincent", "Vincent"],
   "parallel": 1,
   "repo": "itisvincent/kansoku",
   "requiredChecks": ["check"],
+  "retroHour": 6,
   "roundLockMinutes": 90,
   "timeZone": "Asia/Taipei",
   "workingTimeoutHours": 3
