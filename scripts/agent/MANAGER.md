@@ -48,6 +48,12 @@ can add `agent-ready` again to retry. Do not restart it yourself.
 `ci: pass`, run `node scripts/agent/queue.mjs merge <pr>`; if `pending`, leave it; if `fail` or
 `onlyVersionBump: false`, report it for the owner. While one is open, `release.mjs` does nothing.
 
+**Lessons PRs** (`lessons: true`, opened by the daily review in step 5) are never reviewed or
+fixed either: if `ci: pass`, run `node scripts/agent/queue.mjs merge <pr>`. It merges a PR that
+only adds lessons or sightings (`change: sightings`) and hands any other (`rules`, `unreadable`,
+`base-edited`, `not-generated`) to the owner. If `ci: fail` or `onlyLessons: false`, report it
+for the owner. While one is open, the daily review does not run.
+
 For every other PR in `status.prs`, in this order:
 
 1. **Checks failed** (`ci: fail`): first read which tests failed
@@ -97,10 +103,18 @@ least one PR merged since the last release commit:
    tries again. Never pass `--now` on your own.
 4. On success it opens a release PR as the bot; step 2 merges it once its checks pass.
 
-## 5. Report
+## 5. Daily review
+
+If `status.retro.due` is true, start one agent: Agent tool, **model opus**, **no worktree**,
+prompt = "Read scripts/agent/RETRO.md and do the daily review." Wait for its report. It looks back
+over the queue's PRs since the last review and may open a lessons PR, which step 2 handles in a
+later round. If `due` is false, skip this step.
+
+## 6. Report
 
 End the round with at most 10 lines: what merged, what waits for the owner (`needs-you`),
-what is stuck and why, what was released. No other files are written.
+what is stuck and why, what was released, and the daily review's result if it ran. No other
+files are written.
 
 ## Budget
 
